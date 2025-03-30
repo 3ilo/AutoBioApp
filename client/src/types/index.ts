@@ -1,5 +1,5 @@
 export interface User {
-  id: string;
+  _id: string;
   email: string;
   name: string;
   firstName: string;
@@ -13,25 +13,15 @@ export interface User {
 }
 
 export interface Memory {
-  id: string;
+  _id: string;
   title: string;
   content: string; // Rich text content
-  date: string; // ISO date string
-  datetime: Date;
-  place: {
-    name: string;
-    coordinates?: {
-      lat: number;
-      lng: number;
-    };
-  };
-  isPublic: boolean;
-  creator: User;
-  relatedUsers: User[];
+  date: Date;
   images: string[]; // URLs of images
   tags: string[];
-  likes: number;
-  comments: number;
+  author: User;
+  likes: string[];
+  comments: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,8 +37,18 @@ export interface MemoryImage {
   createdAt: Date;
 }
 
+export interface Comment {
+  _id: string;
+  content: string;
+  author: User;
+  memory: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface AuthState {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;

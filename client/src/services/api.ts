@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { User, Memory } from '../types';
 
@@ -15,13 +15,15 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log('Making request to:', config.url);
   return config;
 });
 
 // Handle auth errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  (error: AxiosError) => {
+    console.error('API Error:', error.config?.url, error.response?.status, error.response?.data);
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
     }
@@ -36,6 +38,7 @@ export interface ApiError {
 }
 
 export interface ApiResponse<T> {
+  status: 'success' | 'fail';
   data: T;
   message?: string;
 }
@@ -62,19 +65,19 @@ export const authApi = {
   },
 
   getProfile: async () => {
-    const response = await api.get<ApiResponse<User>>('/auth/profile');
+    const response = await api.get<ApiResponse<User>>('/users/me');
     return response.data;
   },
 
   updateProfile: async (profileData: Partial<User>) => {
-    const response = await api.patch<ApiResponse<User>>('/auth/profile', profileData);
+    const response = await api.patch<ApiResponse<User>>('/users/me', profileData);
     return response.data;
   },
 };
 
 // Memories endpoints
 export const memoriesApi = {
-  create: async (memoryData: Omit<Memory, 'id' | 'creator' | 'createdAt' | 'updatedAt'>) => {
+  create: async (memoryData: Omit<Memory, '_id' | 'author' | 'createdAt' | 'updatedAt'>) => {
     const response = await api.post<ApiResponse<Memory>>('/memories', memoryData);
     return response.data;
   },
