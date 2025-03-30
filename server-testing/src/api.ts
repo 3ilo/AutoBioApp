@@ -54,10 +54,7 @@ export class ApiClient {
     // If this is a login request and it was successful, set the token
     if (endpoint === '/auth/login' && result.status === 'success') {
       logger.info('Login response:', JSON.stringify(result, null, 2));
-      if (result.token) {
-        this.setToken(result.token);
-        logger.info('Token set from root level');
-      } else if (result.data?.token) {
+      if (result.data?.token) {
         this.setToken(result.data.token);
         logger.info('Token set from data object');
       } else {

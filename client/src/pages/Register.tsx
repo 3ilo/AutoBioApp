@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../services/api';
 
-export default function Register() {
+export function Register() {
   const navigate = useNavigate();
   const { register, error, setError } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
