@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { User, IUser } from '../models/User';
+import { User } from '../models/User';
 import { AppError } from '../utils/errorHandler';
 import { createSendToken } from '../utils/auth';
+import { IUser } from '../../../shared/types/User';
+import logger from '../utils/logger';
 
 interface RegisterRequest {
   firstName: string;
@@ -82,6 +84,7 @@ export const login = async (
 
 export const getMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    logger.info("getMe", req.user);
     const user = await User.findById(req.user?._id);
     if (!user) {
       return next(new AppError('User not found', 404));

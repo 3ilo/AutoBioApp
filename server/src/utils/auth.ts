@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request } from 'express';
 import { AppError } from './errorHandler';
-import { IUser } from '../models/User';
+import { IUser } from '../../../shared/types/User';
 import { User } from '../models/User';
 
 // Extend Express Request type to include user
@@ -39,14 +39,14 @@ export const createSendToken = (user: IUser & { _id: string }, statusCode: numbe
   const token = signToken(user._id);
 
   // Remove password from output
-  const userWithoutPassword = { ...user.toJSON() };
+  const userWithoutPassword = { ...user };
   delete userWithoutPassword.password;
 
   res.status(statusCode).json({
     status: 'success',
-    token,
     data: {
       user: userWithoutPassword,
+      token,
     },
   });
 };
@@ -73,7 +73,7 @@ export const protect = async (req: Request, res: any, next: any) => {
     }
 
     // Grant access to protected route
-    req.user = user;
+    req.user = user.toObject() as IUser;
     next();
   } catch (error) {
     next(error);

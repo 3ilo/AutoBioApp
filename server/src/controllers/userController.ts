@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { User, IUser } from '../models/User';
+import { User } from '../models/User';
 import { handleError } from '../utils/errorHandler';
 import logger from '../utils/logger';
 
