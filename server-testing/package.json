@@ -1,0 +1,21 @@
+{
+  "name": "tests",
+  "version": "1.0.0",
+  "description": "API tests for AutoBio",
+  "main": "index.js",
+  "scripts": {
+    "test": "ts-node src/tests.ts",
+    "test:watch": "ts-node-dev --respawn src/tests.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node-fetch": "^2.6.11",
+    "dotenv": "^16.4.5",
+    "node-fetch": "^2.7.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "winston": "^3.17.0"
+  }
+}
