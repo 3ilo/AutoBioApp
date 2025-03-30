@@ -1,23 +1,9 @@
 import mongoose from 'mongoose';
+import { IMemory, CreateMemoryInput } from '../../../shared/types/Memory';
 
-export interface IMemory {
-  title: string;
-  content: string;
-  date: Date;
-  images: string[];
-  tags: string[];
-  author: mongoose.Types.ObjectId;
-  likes: mongoose.Types.ObjectId[];
-  comments: {
-    user: mongoose.Types.ObjectId;
-    content: string;
-    createdAt: Date;
-  }[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+export interface IMemoryDocument extends Omit<IMemory, '_id'>, mongoose.Document {}
 
-const memorySchema = new mongoose.Schema<IMemory>(
+const memorySchema = new mongoose.Schema<IMemoryDocument>(
   {
     title: {
       type: String,
@@ -43,17 +29,17 @@ const memorySchema = new mongoose.Schema<IMemory>(
       trim: true,
     }],
     author: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User',
       required: true,
     },
     likes: [{
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User',
     }],
     comments: [{
       user: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         ref: 'User',
         required: true,
       },
@@ -78,4 +64,4 @@ memorySchema.index({ author: 1, date: -1 });
 memorySchema.index({ tags: 1 });
 memorySchema.index({ title: 'text', content: 'text' });
 
-export const Memory = mongoose.model<IMemory>('Memory', memorySchema); 
+export const Memory = mongoose.model<IMemoryDocument>('Memory', memorySchema); 

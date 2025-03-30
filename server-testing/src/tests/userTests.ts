@@ -27,7 +27,7 @@ async function runUnauthenticatedTests() {
   // Test 2: Update user without auth (should fail)
   logger.info('Test 2: Update user without auth');
   try {
-    await api.put('/users/me', { name: 'New Name' });
+    await api.put('/users/me', { firstName: 'New', lastName: 'Name' });
     throw new Error('Should have failed without auth');
   } catch (error: any) {
     if (error.response?.status === 401) {
@@ -64,11 +64,13 @@ async function runAuthenticatedTests() {
   logger.info('Test 2: Update user with auth');
   try {
     const updateResponse = await api.put('/users/me', {
-      name: 'Updated Name',
+      firstName: 'Updated',
+      lastName: 'Name',
       bio: 'Updated bio',
     });
     if (updateResponse.status === 'success' && 
-        updateResponse.data.user.name === 'Updated Name' &&
+        updateResponse.data.user.firstName === 'Updated' &&
+        updateResponse.data.user.lastName === 'Name' &&
         updateResponse.data.user.bio === 'Updated bio') {
       logger.info('✓ Successfully updated user profile');
     } else {

@@ -4,7 +4,6 @@ import { AppError } from '../utils/errorHandler';
 import { createSendToken } from '../utils/auth';
 
 interface RegisterRequest {
-  name: string;
   firstName: string;
   lastName: string;
   age: number;
@@ -18,7 +17,6 @@ interface LoginRequest {
 }
 
 interface UpdateMeRequest {
-  name?: string;
   firstName?: string;
   lastName?: string;
   age?: number;
@@ -32,7 +30,7 @@ export const register = async (
   next: NextFunction
 ) => {
   try {
-    const { name, firstName, lastName, age, email, password } = req.body;
+    const { firstName, lastName, age, email, password } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -42,7 +40,6 @@ export const register = async (
 
     // Create new user
     const user = await User.create({
-      name,
       firstName,
       lastName,
       age,
@@ -107,13 +104,12 @@ export const updateMe = async (
   next: NextFunction
 ) => {
   try {
-    const { name, firstName, lastName, age, bio, location } = req.body;
+    const { firstName, lastName, age, bio, location } = req.body;
 
     // Find and update user
     const user = await User.findByIdAndUpdate(
       req.user?._id,
       {
-        name,
         firstName,
         lastName,
         age,
