@@ -1,29 +1,13 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { IUser, CreateUserInput } from '../../../shared/types/User';
 
-export interface IUser extends mongoose.Document {
-  name: string;
-  firstName: string;
-  lastName: string;
-  age: number;
-  email: string;
-  password: string;
-  avatar?: string;
-  bio?: string;
-  location?: string;
-  role: 'user' | 'admin';
-  createdAt: Date;
-  updatedAt: Date;
+export interface IUserDocument extends Omit<IUser, '_id'>, mongoose.Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-const userSchema = new mongoose.Schema<IUser>(
+const userSchema = new mongoose.Schema<IUserDocument>(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     firstName: {
       type: String,
       required: true,
@@ -81,7 +65,9 @@ userSchema.pre('save', async function (next) {
   
   try {
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    if (this.password) {
+      this.password = await bcrypt.hash(this.password, salt);
+    }
     next();
   } catch (error) {
     next(error as Error);
@@ -91,10 +77,11 @@ userSchema.pre('save', async function (next) {
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   try {
+    if (!this.password) return false;
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
     throw error;
   }
 };
 
-export const User = mongoose.model<IUser>('User', userSchema); 
+export const User = mongoose.model<IUserDocument>('User', userSchema); 
