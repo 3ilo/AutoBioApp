@@ -33,24 +33,10 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         try {
           set({ isLoading: true, error: null });
-          // const response = await authApi.login(email, password);
+          const response = await authApi.login(email, password);
           set({
-            // user: response.data.user,
-            // token: response.data.token,
-            user: {
-              id: "1",
-              email: "test@test.com",
-              name: "Test User",
-              firstName: "Test",
-              lastName: "User",
-              age: 30,
-              avatar: "https://via.placeholder.com/150",
-              bio: "Test bio",
-              location: "Test location",
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-            token: "token",
+            user: response.data.user,
+            token: response.data.token,
             isAuthenticated: true,
             isLoading: false,
           });
