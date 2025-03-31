@@ -6,6 +6,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { memoriesApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { Memory } from '../types';
 
 export function Memories() {
   const user = useAuthStore((state) => state.user);
@@ -89,17 +90,16 @@ export function Memories() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Your Memories</h1>
         <div className="text-sm text-gray-500">
-          Welcome back, {user?.name}
+          Welcome back, {user?.firstName} {user?.lastName}
         </div>
       </div>
-
       {memories && memories.length > 0 ? (
         <>
           <div className="relative mb-8">
             <button
               onClick={handlePrevious}
               disabled={currentIndex === 0 || isTransitioning}
-              className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 sm:-translate-x-8 p-2 rounded-full bg-white shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ${
+              className={`absolute z-10 left-0 top-1/2 -translate-y-1/2 -translate-x-4 sm:-translate-x-8 p-2 rounded-full bg-white shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ${
                 currentIndex === 0 ? 'hidden' : ''
               }`}
             >
@@ -110,6 +110,7 @@ export function Memories() {
               <MemoryCard
                 memory={memories[currentIndex]}
                 isActive={true}
+                key={memories[currentIndex]._id}
               />
             </div>
 

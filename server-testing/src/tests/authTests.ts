@@ -51,7 +51,7 @@ export async function runAuthTests() {
         password: TEST_USER.password,
       });
       if (loginResponse.status === 'success' && 
-          loginResponse.data.user._doc.email === TEST_USER.email &&
+          loginResponse.data.user.email === TEST_USER.email &&
           loginResponse.data.token) {
         logger.info('✓ Successfully logged in');
         api.setToken(loginResponse.data.token);

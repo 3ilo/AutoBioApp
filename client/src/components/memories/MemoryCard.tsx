@@ -22,7 +22,7 @@ export function MemoryCard({ memory, isActive }: MemoryCardProps) {
         </div>
         
         <div className="prose max-w-none mb-4 overflow-hidden">
-          <div className="line-clamp-4">{memory.content}</div>
+          <div className="line-clamp-4 text-gray-700">{memory.content}</div>
         </div>
 
         {memory.images.length > 0 && (

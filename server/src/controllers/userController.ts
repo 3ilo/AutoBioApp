@@ -23,7 +23,7 @@ export const getCurrentUser = async (req: Request, res: Response, next: NextFunc
     logger.info(`Retrieved user profile for ${user.email}`);
     res.status(200).json({
       status: 'success',
-      data: { user },
+      data: { user: user.toObject() },
     });
   } catch (error) {
     handleError(error as Error, req, res, next);
@@ -66,7 +66,7 @@ export const updateCurrentUser = async (req: Request, res: Response, next: NextF
     logger.info(`Updated user profile for ${user.email}`);
     res.status(200).json({
       status: 'success',
-      data: { user },
+      data: { user: user.toObject() },
     });
   } catch (error) {
     handleError(error as Error, req, res, next);

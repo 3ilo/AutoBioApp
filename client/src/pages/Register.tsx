@@ -24,7 +24,7 @@ export function Register() {
 
     try {
       await register(userData);
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
     } finally {

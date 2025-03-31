@@ -16,7 +16,7 @@ export async function setupAuthenticatedTests(api: ApiClient) {
       password: TEST_USER.password,
     });
     if (loginResponse.status === 'success' && 
-      loginResponse.data.user._doc.email === TEST_USER.email) {
+      loginResponse.data.user.email === TEST_USER.email) {
       logger.info('✓ Successfully logged in for tests');
       logger.info("loginResponse.data.user", loginResponse.data.user);
       // Verify token is working by making a test request
