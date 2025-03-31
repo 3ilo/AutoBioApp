@@ -71,12 +71,12 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
         
         return (
           <div
-            key={memory.id}
+            key={memory._id}
             className="absolute top-1/2 -translate-y-1/2 group"
             style={{ left: `${percentage}%` }}
           >
             <div
-              onClick={() => onSelect(memories.findIndex(m => m.id === memory.id))}
+              onClick={() => onSelect(memories.findIndex(m => m._id === memory._id))}
               onMouseEnter={() => setHoveredMemory(memory)}
               onMouseLeave={() => setHoveredMemory(null)}
               className="relative w-2 h-2 cursor-pointer"
@@ -87,7 +87,7 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
             </div>
             
             {/* Hover preview */}
-            {hoveredMemory?.id === memory.id && (
+            {hoveredMemory?._id === memory._id && (
               <div className="fixed bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-white rounded-lg shadow-lg p-3 z-50">
                 <h3 className="text-sm font-medium text-gray-900 mb-1 truncate">{memory.title}</h3>
                 <time className="text-xs text-gray-500">

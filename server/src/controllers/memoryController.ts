@@ -36,9 +36,7 @@ export const getAllMemories = async (req: Request, res: Response, next: NextFunc
     res.status(200).json({
       status: 'success',
       results: memories.length,
-      data: {
-        memories,
-      },
+      data: memories,
     });
   } catch (error) {
     next(error);

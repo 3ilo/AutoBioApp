@@ -82,6 +82,7 @@ export const memoriesApi = {
     return response.data;
   },
 
+  ///
   getAll: async () => {
     const response = await api.get<ApiResponse<Memory[]>>('/memories');
     return response.data;

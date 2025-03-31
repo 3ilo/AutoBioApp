@@ -76,7 +76,7 @@ export const login = async (
     }
 
     // Generate token and send response
-    createSendToken(user as IUser & { _id: string }, 200, res);
+    createSendToken(user.toObject() as IUser & { _id: string }, 200, res);
   } catch (error) {
     next(error);
   }
@@ -93,7 +93,7 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
     res.status(200).json({
       status: 'success',
       data: {
-        user,
+        user: user.toObject(),
       },
     });
   } catch (error) {
@@ -132,7 +132,7 @@ export const updateMe = async (
     res.status(200).json({
       status: 'success',
       data: {
-        user,
+        user: user.toObject(),
       },
     });
   } catch (error) {
