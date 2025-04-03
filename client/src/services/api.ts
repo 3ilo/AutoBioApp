@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '../stores/authStore';
-import { User, Memory } from '../types';
+import { IMemory } from '@shared/types/Memory';
+import { IUser } from '@shared/types/User';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
@@ -46,7 +47,7 @@ export interface ApiResponse<T> {
 // Auth endpoints
 export const authApi = {
   login: async (email: string, password: string) => {
-    const response = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/login', {
+    const response = await api.post<ApiResponse<{ user: IUser; token: string }>>('/auth/login', {
       email,
       password,
     });
@@ -60,41 +61,41 @@ export const authApi = {
     lastName: string;
     age: number;
   }) => {
-    const response = await api.post<ApiResponse<{ user: User; token: string }>>('/auth/register', userData);
+    const response = await api.post<ApiResponse<{ user: IUser; token: string }>>('/auth/register', userData);
     return response.data;
   },
 
   getProfile: async () => {
-    const response = await api.get<ApiResponse<User>>('/users/me');
+    const response = await api.get<ApiResponse<IUser>>('/users/me');
     return response.data;
   },
 
-  updateProfile: async (profileData: Partial<User>) => {
-    const response = await api.patch<ApiResponse<User>>('/users/me', profileData);
+  updateProfile: async (profileData: Partial<IUser>) => {
+    const response = await api.patch<ApiResponse<IUser>>('/users/me', profileData);
     return response.data;
   },
 };
 
 // Memories endpoints
 export const memoriesApi = {
-  create: async (memoryData: Omit<Memory, '_id' | 'author' | 'createdAt' | 'updatedAt'>) => {
-    const response = await api.post<ApiResponse<Memory>>('/memories', memoryData);
+  create: async (memoryData: Omit<IMemory, '_id' | 'author' | 'createdAt' | 'updatedAt'>) => {
+    const response = await api.post<ApiResponse<IMemory>>('/memories', memoryData);
     return response.data;
   },
 
   ///
   getAll: async () => {
-    const response = await api.get<ApiResponse<Memory[]>>('/memories');
+    const response = await api.get<ApiResponse<IMemory[]>>('/memories');
     return response.data;
   },
 
   getById: async (id: string) => {
-    const response = await api.get<ApiResponse<Memory>>(`/memories/${id}`);
+    const response = await api.get<ApiResponse<IMemory>>(`/memories/${id}`);
     return response.data;
   },
 
-  update: async (id: string, memoryData: Partial<Memory>) => {
-    const response = await api.patch<ApiResponse<Memory>>(`/memories/${id}`, memoryData);
+  update: async (id: string, memoryData: Partial<IMemory>) => {
+    const response = await api.patch<ApiResponse<IMemory>>(`/memories/${id}`, memoryData);
     return response.data;
   },
 
@@ -107,14 +108,27 @@ export const memoriesApi = {
 // Explore endpoints
 export const exploreApi = {
   search: async (query: string, filters?: { tags?: string[] }) => {
-    const response = await api.get<ApiResponse<Memory[]>>('/explore', {
+    const response = await api.get<ApiResponse<IMemory[]>>('/explore', {
       params: { query, ...filters },
     });
     return response.data;
   },
 
   getFeatured: async () => {
-    const response = await api.get<ApiResponse<Memory[]>>('/explore/featured');
+    const response = await api.get<ApiResponse<IMemory[]>>('/explore/featured');
+    return response.data;
+  },
+};
+
+// Image Generation endpoints
+export const imageGenerationApi = {
+  generate: async (data: { title: string; content: string; date: Date }) => {
+    const response = await api.post<ApiResponse<{ url: string }>>('/images/generate', data);
+    return response.data;
+  },
+
+  regenerate: async (data: { title: string; content: string; date: Date; previousUrl: string }) => {
+    const response = await api.post<ApiResponse<{ url: string }>>('/images/regenerate', data);
     return response.data;
   },
 };

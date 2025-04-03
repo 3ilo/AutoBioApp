@@ -1,7 +1,19 @@
+import { IUser } from "./User";
+
 export interface IComment {
   user: string; // User ID
   content: string;
   createdAt: Date;
+}
+
+export interface IMemoryImage {
+  url: string;
+  position: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
 
 export interface IMemory {
@@ -9,11 +21,12 @@ export interface IMemory {
   title: string;
   content: string;
   date: Date;
-  images: string[];
+  images: IMemoryImage[];
   tags: string[];
-  author: string; // User ID
-  likes: string[]; // Array of User IDs
+  author: IUser; // User ID
+  likes: IUser[]; // Array of User IDs
   comments: IComment[];
+  isPublic: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -1,8 +1,8 @@
 import { format } from 'date-fns';
-import { Memory } from '../../types';
+import { IMemory } from '@shared/types/Memory';
 
 interface MemoryCardProps {
-  memory: Memory;
+  memory: IMemory;
   isActive: boolean;
 }
 
@@ -21,19 +21,27 @@ export function MemoryCard({ memory, isActive }: MemoryCardProps) {
           </time>
         </div>
         
-        <div className="prose max-w-none mb-4 overflow-hidden">
+        <div className="prose max-w-none mb-4 overflow-hidden relative">
           <div className="line-clamp-4 text-gray-700">{memory.content}</div>
+          {memory.images.map((image, index) => (
+            <div
+              key={index}
+              className="absolute"
+              style={{
+                left: `${image.position?.x}px`,
+                top: `${image.position?.y}px`,
+                width: `${image.position?.width}px`,
+                height: `${image.position?.height}px`,
+              }}
+            >
+              <img
+                src={image.url}
+                alt={`Memory illustration ${index + 1}`}
+                className="w-full h-full object-cover rounded-lg shadow-md"
+              />
+            </div>
+          ))}
         </div>
-
-        {memory.images.length > 0 && (
-          <div className="mb-4">
-            <img
-              src={memory.images[0]}
-              alt={memory.title}
-              className="w-full h-48 object-cover rounded-lg"
-            />
-          </div>
-        )}
 
         {memory.tags.length > 0 && (
           <div className="flex flex-wrap gap-2">

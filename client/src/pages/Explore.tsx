@@ -30,7 +30,7 @@ export function Explore() {
     if (sortBy === 'date') {
       return new Date(b.date).getTime() - new Date(a.date).getTime();
     }
-    return b.likes - a.likes;
+    return b.likes.length - a.likes.length;
   });
 
   const allTags = Array.from(new Set(memories?.flatMap(m => m.tags) || []));
@@ -111,7 +111,7 @@ export function Explore() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedMemories.map(memory => (
             <MemoryCard
-              key={memory.id}
+              key={memory._id}
               memory={memory}
               isActive={false}
             />

@@ -6,7 +6,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { memoriesApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { Memory } from '../types';
+import { IMemory } from '@shared/types/Memory';
 
 export function Memories() {
   const user = useAuthStore((state) => state.user);

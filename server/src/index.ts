@@ -20,6 +20,7 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import memoryRoutes from './routes/memoryRoutes';
 import userRoutes from './routes/userRoutes';
+import imageRoutes from './routes/imageRoutes';
 import { handleError } from './utils/errorHandler';
 
 // Create Express app
@@ -34,6 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/memories', memoryRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/images', imageRoutes);
 
 // Error handling middleware
 app.use(handleError);

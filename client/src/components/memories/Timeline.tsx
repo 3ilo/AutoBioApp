@@ -1,16 +1,16 @@
 import { format, differenceInDays, addDays } from 'date-fns';
 import { useState, useEffect } from 'react';
-import { Memory } from '../../types';
+import { IMemory } from '@shared/types/Memory';
 
 interface TimelineProps {
-  memories: Memory[];
+  memories: IMemory[];
   currentIndex: number;
   onSelect: (index: number) => void;
 }
 
 export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
   const [timelinePoints, setTimelinePoints] = useState<Date[]>([]);
-  const [hoveredMemory, setHoveredMemory] = useState<Memory | null>(null);
+  const [hoveredMemory, setHoveredMemory] = useState<IMemory | null>(null);
 
   useEffect(() => {
     if (!memories.length) return;
@@ -95,7 +95,7 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
                 </time>
                 {memory.images.length > 0 && (
                   <img
-                    src={memory.images[0]}
+                    src={memory.images[0].url}
                     alt={memory.title}
                     className="w-full h-16 object-cover rounded mt-2"
                   />

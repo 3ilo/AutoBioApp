@@ -20,3 +20,11 @@ export type CreateUserInput = Omit<IUser, '_id' | 'createdAt' | 'updatedAt'>;
 export type UpdateUserInput = Partial<Omit<IUser, '_id' | 'createdAt' | 'updatedAt'>> & {
   _id: string;
 }; 
+
+export interface AuthState {
+  user: IUser | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+} 
