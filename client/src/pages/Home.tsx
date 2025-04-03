@@ -69,13 +69,13 @@ export function Home() {
           <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {featuredMemories.slice(0, 3).map((memory) => (
               <div
-                key={memory.id}
+                key={memory._id}
                 className="bg-white rounded-lg shadow-lg overflow-hidden"
               >
                 {memory.images.length > 0 && (
                   <div className="aspect-w-16 aspect-h-9">
                     <img
-                      src={memory.images[0]}
+                      src={memory.images[0].url}
                       alt={memory.title}
                       className="w-full h-48 object-cover"
                     />
@@ -84,13 +84,13 @@ export function Home() {
                 <div className="p-6">
                   <div className="flex items-center mb-4">
                     <img
-                      src={memory.creator.avatar || `https://ui-avatars.com/api/?name=${memory.creator.name}`}
-                      alt={memory.creator.name}
+                      src={memory.author.avatar || `https://ui-avatars.com/api/?name=${memory.author.firstName}`}
+                      alt={memory.author.firstName}
                       className="h-10 w-10 rounded-full"
                     />
                     <div className="ml-3">
                       <p className="text-sm font-medium text-gray-900">
-                        {memory.creator.name}
+                        {memory.author.firstName}
                       </p>
                       <p className="text-sm text-gray-500">
                         {format(new Date(memory.date), 'MMM d, yyyy')}

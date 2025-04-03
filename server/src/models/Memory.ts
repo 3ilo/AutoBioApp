@@ -1,58 +1,29 @@
 import mongoose from 'mongoose';
-import { IMemory, CreateMemoryInput } from '../../../shared/types/Memory';
+import { IMemory } from '../../../shared/types/Memory';
 
-export interface IMemoryDocument extends Omit<IMemory, '_id'>, mongoose.Document {}
-
-const memorySchema = new mongoose.Schema<IMemoryDocument>(
+const memorySchema = new mongoose.Schema<IMemory>(
   {
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
-    content: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    date: {
-      type: Date,
-      required: true,
-    },
+    title: { type: String, required: true },
+    content: { type: String, required: true },
+    date: { type: Date, required: true },
     images: [{
-      type: String,
-      trim: true,
+      url: { type: String, required: true },
+      position: {
+        x: { type: Number, required: true },
+        y: { type: Number, required: true },
+        width: { type: Number, required: true },
+        height: { type: Number, required: true }
+      }
     }],
-    tags: [{
-      type: String,
-      trim: true,
-    }],
-    author: {
-      type: String,
-      ref: 'User',
-      required: true,
-    },
-    likes: [{
-      type: String,
-      ref: 'User',
-    }],
+    tags: [{ type: String }],
+    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     comments: [{
-      user: {
-        type: String,
-        ref: 'User',
-        required: true,
-      },
-      content: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      createdAt: {
-        type: Date,
-        default: Date.now,
-      },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+      content: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now }
     }],
+    isPublic: { type: Boolean, default: true }
   },
   {
     timestamps: true,
@@ -64,4 +35,4 @@ memorySchema.index({ author: 1, date: -1 });
 memorySchema.index({ tags: 1 });
 memorySchema.index({ title: 'text', content: 'text' });
 
-export const Memory = mongoose.model<IMemoryDocument>('Memory', memorySchema); 
+export const Memory = mongoose.model<IMemory>('Memory', memorySchema); 
