@@ -8,6 +8,6 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/me', getCurrentUser);
-router.put('/me', updateCurrentUser);
+router.patch('/me', updateCurrentUser);
 
 export default router; 
