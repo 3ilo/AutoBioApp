@@ -50,7 +50,7 @@ export const register = async (
     });
 
     // Generate token and send response
-    createSendToken(user as IUser & { _id: string }, 201, res);
+    createSendToken(user.toObject() as IUser, 201, res);
   } catch (error) {
     next(error);
   }
@@ -76,7 +76,7 @@ export const login = async (
     }
 
     // Generate token and send response
-    createSendToken(user.toObject() as IUser & { _id: string }, 200, res);
+    createSendToken(user.toObject() as IUser, 200, res);
   } catch (error) {
     next(error);
   }

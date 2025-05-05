@@ -35,8 +35,8 @@ export const signToken = (id: string): string => {
   );
 };
 
-export const createSendToken = (user: IUser & { _id: string }, statusCode: number, res: any) => {
-  const token = signToken(user._id);
+export const createSendToken = (user: IUser, statusCode: number, res: any) => {
+  const token = signToken(user._id as string);
 
   // Remove password from output
   const userWithoutPassword = { ...user };
