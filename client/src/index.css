@@ -2,70 +2,132 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@layer base {
+  html {
+    @apply antialiased;
+  }
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  body {
+    @apply bg-warm-50 text-warm-800 font-sans;
+  }
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif text-warm-900;
+  }
+
+  /* Form elements */
+  input, textarea, select {
+    @apply bg-white border-warm-200 text-warm-800 placeholder-warm-400 focus:border-primary-300 focus:ring-primary-500;
+  }
+
+  /* Links */
+  a {
+    @apply text-primary-600 hover:text-primary-700 transition-colors duration-200;
+  }
+
+  /* Buttons */
+  button {
+    @apply transition-all duration-200;
+  }
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center px-4 py-2 border border-warm-200 text-sm font-medium rounded-md text-warm-700 bg-white hover:bg-warm-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-card overflow-hidden;
+  }
+
+  .input-field {
+    @apply block w-full rounded-md border-warm-200 shadow-sm focus:border-primary-300 focus:ring-primary-500 sm:text-sm;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-warm-700 mb-1;
+  }
+
+  .error-text {
+    @apply text-accent-error text-sm mt-1;
+  }
+
+  .success-text {
+    @apply text-accent-success text-sm mt-1;
+  }
 }
-a:hover {
-  color: #535bf2;
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-warm-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-warm-300 rounded-full hover:bg-warm-400 transition-colors duration-200;
+}
+
+/* Selection */
+::selection {
+  @apply bg-primary-100 text-primary-900;
+}
+
+/* Focus outline */
+:focus-visible {
+  @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+}
+
+/* Typography plugin customization */
+.prose {
+  @apply text-warm-700;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  @apply text-warm-900;
+}
+
+.prose a {
+  @apply text-primary-600 hover:text-primary-700;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-warm-200 bg-warm-50;
+}
+
+.prose code {
+  @apply bg-warm-100 text-warm-800 px-1 py-0.5 rounded;
+}
+
+.prose pre {
+  @apply bg-warm-100 text-warm-800;
+}
+
+.prose hr {
+  @apply border-warm-200;
+}
+
+.prose strong {
+  @apply text-warm-900;
+}
+
+.prose ul > li::before {
+  @apply bg-warm-400;
+}
+
+.prose ol > li::before {
+  @apply text-warm-600;
 }
 
 body {
   margin: 0;
   place-items: center;
-  min-width: 320px;
+  min-width: 100vw;
   min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
 }

@@ -185,7 +185,7 @@ export function Contribute() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
       <div className="space-y-8">
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">
@@ -273,6 +273,7 @@ export function Contribute() {
             Images
           </label>
           <div className="space-y-4">
+            {images.length === 0 && 
             <button
               onClick={handleGenerateImage}
               disabled={isGeneratingImage || !title}
@@ -283,6 +284,7 @@ export function Contribute() {
               ) : null}
               Generate Image
             </button>
+            }
 
             {selectedImage && (
               <div className="space-y-4">
@@ -294,7 +296,7 @@ export function Contribute() {
                   />
                   <div className="absolute bottom-4 left-4 right-4 flex justify-center space-x-2">
                     <button
-                      onClick={handleRegenerateImage}
+                      onClick={handleGenerateImage}
                       disabled={isGeneratingImage}
                       className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 disabled:opacity-50"
                     >

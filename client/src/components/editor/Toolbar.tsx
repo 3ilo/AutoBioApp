@@ -23,7 +23,7 @@ export function Toolbar({ editor }: ToolbarProps) {
       <button
         onClick={() => editor.chain().focus().toggleBold().run()}
         disabled={!editor.can().chain().focus().toggleBold().run()}
-        className={`p-2 rounded hover:bg-gray-200 ${
+        className={`p-2 rounded hover:bg-gray-100 ${
           editor.isActive('bold') ? 'bg-gray-200' : ''
         }`}
       >
@@ -50,7 +50,7 @@ export function Toolbar({ editor }: ToolbarProps) {
       <button
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         disabled={!editor.can().chain().focus().toggleOrderedList().run()}
-        className={`p-2 rounded hover:bg-gray-200 ${
+        className={`p-2 rounded hover:bg-gray-10 ${
           editor.isActive('orderedList') ? 'bg-gray-200' : ''
         }`}
       >

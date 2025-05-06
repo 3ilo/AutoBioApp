@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { IMemory } from '@shared/types/Memory';
+import DOMPurify from 'dompurify';
 
 interface MemoryCardProps {
   memory: IMemory;
@@ -7,6 +8,9 @@ interface MemoryCardProps {
 }
 
 export function MemoryCard({ memory, isActive }: MemoryCardProps) {
+  // Sanitize the HTML content
+  const sanitizedContent = DOMPurify.sanitize(memory.content);
+
   return (
     <div
       className={`bg-white shadow-lg rounded-lg overflow-hidden transition-all duration-300 w-full ${
@@ -21,30 +25,37 @@ export function MemoryCard({ memory, isActive }: MemoryCardProps) {
           </time>
         </div>
         
-        <div className="prose max-w-none mb-4 overflow-hidden relative">
-          <div className="line-clamp-4 text-gray-700">{memory.content}</div>
-          {memory.images.map((image, index) => (
-            <div
-              key={index}
-              className="absolute"
-              style={{
-                left: `${image.position?.x}px`,
-                top: `${image.position?.y}px`,
-                width: `${image.position?.width}px`,
-                height: `${image.position?.height}px`,
-              }}
-            >
-              <img
-                src={image.url}
-                alt={`Memory illustration ${index + 1}`}
-                className="w-full h-full object-cover rounded-lg shadow-md"
-              />
+        <div className="relative flex gap-6">
+          {/* Content container with fixed width and proper overflow handling */}
+          <div className="prose prose-sm flex-1">
+            <div 
+              className="text-gray-700 whitespace-pre-wrap break-words"
+              dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+            />
+          </div>
+
+          {/* Images container */}
+          {memory.images.length > 0 && (
+            <div className="w-1/3 flex-shrink-0 flex flex-col gap-4">
+              {memory.images.map((image, index) => (
+                <div
+                  key={index}
+                  className="relative w-full"
+                  style={{ minHeight: '300px' }}
+                >
+                  <img
+                    src={image.url}
+                    alt={`Memory illustration ${index + 1}`}
+                    className="w-full h-full object-cover rounded-lg shadow-md"
+                  />
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         {memory.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mt-4">
             {memory.tags.map((tag) => (
               <span
                 key={tag}

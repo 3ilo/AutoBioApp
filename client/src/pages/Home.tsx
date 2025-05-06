@@ -12,7 +12,7 @@ export function Home() {
   } = useApi(memoriesApi.getAll, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero Section */}
       <div className="bg-indigo-600 text-white">
         <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
