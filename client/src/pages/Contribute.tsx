@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Toolbar } from '../components/editor/Toolbar';
 import { memoriesApi, imageGenerationApi } from '../services/api';
 import { useApi } from '../hooks/useApi';

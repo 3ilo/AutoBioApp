@@ -18,6 +18,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.799.0",
     "@aws-sdk/client-s3": "^3.779.0",
     "@types/winston": "^2.4.4",
     "bcryptjs": "^2.4.3",
