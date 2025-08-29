@@ -1,5 +1,5 @@
 rules:
-  - name: Documentation Strategy Rule
+  name: Documentation Strategy Rule
     description: >
       Maintain lightweight project documentation for continuity and context.
       Keep logs short and grouped by meaningful tasks, not micro changes.
@@ -8,6 +8,7 @@ rules:
       - Before starting any request:
           * Read `VISION.md` (project purpose, direction).
           * Read the latest entry in `DEVLOG.md` (current state + next steps).
+          * Traverse `docs/` directory to read ONLY the relevant docs for the component being worked on.
       - When making changes:
           * If project scope/goal changes → update `VISION.md`.
           * If new code is added or existing code is modified → update/add a short README in `docs/` for that module.
@@ -20,3 +21,8 @@ rules:
       - Do not log micro-changes (typos, small refactors) unless part of a bigger feature.
       - When DEVLOG.md grows beyond ~5 entries, move oldest entries into DEVLOG_ARCHIVE.md.
       - IMPORTANT: Do not include any secrets in the documentation!!!
+
+  name: Common types
+    description: >
+        Always use the @shared/types files to model shared concepts across client and server. If there is a concept to be 
+        modeled and used by both components, then you must model it in this shared directory and import for client/server usages.
