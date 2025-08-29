@@ -27,6 +27,6 @@ This directory contains comprehensive documentation for the AutoBio project serv
 
 ## Quick Links
 
-- [Server README](../server/README.md) - Main server documentation
-- [Project Vision](../VISION.md) - Project purpose and direction
-- [Development Log](../DEVLOG.md) - Development progress tracking
+- [Server README](../../server/README.md) - Main server documentation
+- [Project Vision](../../VISION.md) - Project purpose and direction
+- [Development Log](../../DEVLOG.md) - Development progress tracking

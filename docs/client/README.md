@@ -18,6 +18,6 @@ Comprehensive documentation for the AutoBio frontend React application.
 
 ## Quick Links
 
-- [Client README](../client/README.md) - Main client documentation
-- [Project Vision](../VISION.md) - Project purpose and direction
-- [Development Log](../DEVLOG.md) - Development progress tracking
+- [Client README](../../client/README.md) - Main client documentation
+- [Project Vision](../../VISION.md) - Project purpose and direction
+- [Development Log](../../DEVLOG.md) - Development progress tracking
