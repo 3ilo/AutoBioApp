@@ -5,6 +5,7 @@ const memorySchema = new mongoose.Schema<IMemory>(
   {
     title: { type: String, required: true },
     content: { type: String, required: true },
+    summary: { type: String, trim: true }, // AI-generated summary for context aggregation
     date: { type: Date, required: true },
     images: [{
       url: { type: String, required: true },

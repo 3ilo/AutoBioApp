@@ -48,9 +48,11 @@ Register a new user account.
 **Request Body:**
 ```json
 {
-  "username": "string",
+  "firstName": "string",
+  "lastName": "string",
   "email": "string",
-  "password": "string"
+  "password": "string",
+  "age": "number"
 }
 ```
 
@@ -284,8 +286,8 @@ Authorization: Bearer <jwt_token>
 
 ### Users
 
-#### GET /users/:id
-Get user profile by ID.
+#### GET /users/profile
+Get current user profile with enhanced fields.
 
 **Headers:**
 ```
@@ -295,22 +297,32 @@ Authorization: Bearer <jwt_token>
 **Response:**
 ```json
 {
-  "success": true,
+  "status": "success",
   "data": {
     "user": {
-      "id": "string",
-      "username": "string",
-      "profile": {
-        "bio": "string",
-        "avatar": "string"
-      }
+      "_id": "string",
+      "firstName": "string",
+      "lastName": "string",
+      "email": "string",
+      "age": "number",
+      "avatar": "string",
+      "bio": "string",
+      "location": "string",
+      "occupation": "string",
+      "gender": "string",
+      "interests": ["string"],
+      "culturalBackground": "string",
+      "preferredStyle": "string",
+      "role": "string",
+      "createdAt": "string",
+      "updatedAt": "string"
     }
   }
 }
 ```
 
-#### PUT /users/:id
-Update user profile.
+#### PATCH /users/profile
+Update user profile with enhanced fields.
 
 **Headers:**
 ```
@@ -320,35 +332,59 @@ Authorization: Bearer <jwt_token>
 **Request Body:**
 ```json
 {
-  "username": "string",
-  "profile": {
-    "bio": "string",
-    "avatar": "string"
-  }
+  "firstName": "string",
+  "lastName": "string",
+  "age": "number",
+  "bio": "string",
+  "location": "string",
+  "avatar": "string",
+  "occupation": "string",
+  "gender": "string",
+  "interests": ["string"],
+  "culturalBackground": "string",
+  "preferredStyle": "string"
 }
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
+  "status": "success",
   "data": {
     "user": {
-      "id": "string",
-      "username": "string",
-      "profile": {
-        "bio": "string",
-        "avatar": "string"
-      }
+      "_id": "string",
+      "firstName": "string",
+      "lastName": "string",
+      "email": "string",
+      "age": "number",
+      "avatar": "string",
+      "bio": "string",
+      "location": "string",
+      "occupation": "string",
+      "gender": "string",
+      "interests": ["string"],
+      "culturalBackground": "string",
+      "preferredStyle": "string",
+      "role": "string",
+      "createdAt": "string",
+      "updatedAt": "string"
     }
   }
 }
 ```
+
+**Enhanced Fields:**
+- **location**: City, country for geographical context
+- **occupation**: Job title/field for professional context
+- **gender**: For personalized prompts
+- **interests**: Array of hobbies and preferences
+- **culturalBackground**: Cultural context
+- **preferredStyle**: Artistic style preference
 
 ### Images
 
 #### POST /images/generate
-Generate AI image using AWS Bedrock.
+Generate AI image using AWS Bedrock with enhanced user context and memory summaries.
 
 **Headers:**
 ```
@@ -358,21 +394,64 @@ Authorization: Bearer <jwt_token>
 **Request Body:**
 ```json
 {
-  "prompt": "string",
-  "style": "string"
+  "title": "string",
+  "content": "string", 
+  "date": "string (ISO date)",
+  "userId": "string (optional - for enhanced prompts)"
 }
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
+  "status": "success",
   "data": {
-    "imageUrl": "string",
-    "prompt": "string"
-  }
+    "url": "string"
+  },
+  "message": "Image generated successfully"
 }
 ```
+
+**Enhanced Features:**
+- **User Context**: Incorporates user profile data (location, occupation, interests, etc.)
+- **Memory Summaries**: Uses pre-generated memory summaries for context
+- **Fallback**: Gracefully degrades to basic prompts if enhancement fails
+- **Backward Compatibility**: Works with or without `userId` parameter
+
+#### POST /images/regenerate
+Regenerate AI image with enhanced context and variation request.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "title": "string",
+  "content": "string",
+  "date": "string (ISO date)",
+  "previousUrl": "string",
+  "userId": "string (optional - for enhanced prompts)"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "url": "string"
+  },
+  "message": "Image regenerated successfully"
+}
+```
+
+**Enhanced Features:**
+- **Variation Generation**: Creates different variations while maintaining style
+- **User Context**: Incorporates user profile data and memory summaries
+- **Fallback**: Gracefully degrades to basic prompts if enhancement fails
 
 #### POST /images/upload
 Upload image to S3.

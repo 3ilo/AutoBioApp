@@ -66,12 +66,12 @@ export const authApi = {
   },
 
   getProfile: async () => {
-    const response = await api.get<ApiResponse<IUser>>('/users/me');
+    const response = await api.get<ApiResponse<{ user: IUser }>>('/users/me');
     return response.data;
   },
 
   updateProfile: async (profileData: Partial<IUser>) => {
-    const response = await api.patch<ApiResponse<IUser>>('/users/me', profileData);
+    const response = await api.patch<ApiResponse<{ user: IUser }>>('/users/me', profileData);
     return response.data;
   },
 };
@@ -122,12 +122,12 @@ export const exploreApi = {
 
 // Image Generation endpoints
 export const imageGenerationApi = {
-  generate: async (data: { title: string; content: string; date: Date }) => {
+  generate: async (data: { title: string; content: string; date: Date; userId?: string }) => {
     const response = await api.post<ApiResponse<{ url: string }>>('/images/generate', data);
     return response.data;
   },
 
-  regenerate: async (data: { title: string; content: string; date: Date; previousUrl: string }) => {
+  regenerate: async (data: { title: string; content: string; date: Date; previousUrl: string; userId?: string }) => {
     const response = await api.post<ApiResponse<{ url: string }>>('/images/regenerate', data);
     return response.data;
   },

@@ -1,364 +1,200 @@
 # AutoBio Client
 
-Frontend React application for the AutoBio platform, providing an intuitive interface for users to capture, organize, and share their life memories with AI-powered features.
+A React-based frontend for the AutoBio autobiography platform, built with modern web technologies and designed for creating, sharing, and exploring personal memories with AI-enhanced image generation.
 
 ## Features
 
-- **User Authentication**: Secure login and registration with JWT tokens
-- **Memory Creation**: Rich text editor with TipTap for creating detailed memories
-- **AI Image Generation**: Integration with AWS Bedrock for AI-generated images
-- **Memory Timeline**: Chronological view of user memories with filtering
-- **Memory Exploration**: Discover and explore memories from the community
-- **User Profiles**: Personalized user profiles with customizable settings
-- **Responsive Design**: Mobile-first design with Tailwind CSS
-- **Real-time Updates**: React Query for efficient data fetching and caching
-- **Form Validation**: Zod schema validation with React Hook Form
-- **Drag & Drop**: Beautiful drag and drop interface for memory organization
+### Core Functionality
+- **Memory Creation**: Rich text editor with AI image generation
+- **Memory Sharing**: Public and private memory sharing
+- **Memory Exploration**: Discover and explore memories from other users
+- **User Profiles**: Enhanced profiles with contextual information for AI
 
-## Tech Stack
+### Enhanced AI Image Generation
+- **Contextual Prompts**: Uses user profile data and memory history for personalized images
+- **Memory Summaries**: Pre-generated summaries stored with each memory for efficient context
+- **User Context**: Incorporates location, occupation, interests, and cultural background
+- **Style Preferences**: Personalized artistic style preferences
+- **Fallback Support**: Graceful degradation to basic prompts when enhancement unavailable
+
+### User Profile Enhancement
+- **Extended Profile Fields**:
+  - Location (city, country)
+  - Occupation (job title/field)
+  - Gender (for personalized prompts)
+  - Interests (hobbies and preferences)
+  - Cultural Background
+  - Preferred Art Style
+- **Profile Management**: Easy editing and updating of profile information
+- **Privacy Controls**: Optional fields with user control over data sharing
+
+## Technology Stack
 
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite for fast development and optimized builds
-- **Styling**: Tailwind CSS with custom design system
-- **State Management**: Zustand for global state
-- **Data Fetching**: TanStack React Query (formerly React Query)
-- **Routing**: React Router DOM v7
-- **Forms**: React Hook Form with Zod validation
-- **Rich Text Editor**: TipTap with extensions
+- **Styling**: Tailwind CSS for utility-first styling
+- **State Management**: Zustand for global state management
+- **Rich Text Editor**: TipTap for memory content creation
+- **Date Handling**: date-fns for date formatting and manipulation
 - **UI Components**: Headless UI for accessible components
-- **Icons**: Heroicons
-- **Maps**: Leaflet with React Leaflet
-- **Date Handling**: date-fns
-- **HTTP Client**: Axios
-- **Development**: ESLint, TypeScript, PostCSS
+- **Icons**: Heroicons for consistent iconography
+- **Maps**: Leaflet for location-based features
+- **Forms**: React Hook Form with Zod validation
+- **HTTP Client**: Axios for API communication
+- **Server State**: TanStack React Query for efficient data fetching
 
 ## Project Structure
 
 ```
 client/
 ├── src/
-│   ├── components/     # Reusable UI components
-│   │   ├── auth/      # Authentication components
-│   │   ├── editor/    # Rich text editor components
-│   │   ├── memories/  # Memory-related components
-│   │   └── ui/        # Base UI components
-│   ├── pages/         # Page components
-│   ├── hooks/         # Custom React hooks
-│   ├── services/      # API services and utilities
-│   ├── stores/        # Zustand state stores
-│   ├── types/         # TypeScript type definitions
-│   ├── utils/         # Utility functions
-│   ├── assets/        # Static assets
-│   ├── App.tsx        # Main application component
-│   └── main.tsx       # Application entry point
-├── public/            # Public static assets
-├── index.html         # HTML template
-└── package.json       # Dependencies and scripts
+│   ├── components/          # Reusable UI components
+│   │   ├── auth/           # Authentication components
+│   │   ├── editor/         # Rich text editor components
+│   │   ├── memories/       # Memory-related components
+│   │   └── ui/             # Generic UI components
+│   ├── hooks/              # Custom React hooks
+│   ├── pages/              # Page components
+│   ├── services/           # API service layer
+│   ├── stores/             # Zustand state stores
+│   ├── types/              # TypeScript type definitions
+│   └── utils/              # Utility functions
+├── public/                 # Static assets
+└── package.json           # Dependencies and scripts
 ```
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- AutoBio server running locally
+- Node.js 18+ and npm
+- AutoBio server running (see server documentation)
 
 ### Installation
-
-1. Install dependencies:
 ```bash
 cd client
 npm install
 ```
 
-2. Set up environment variables:
-```bash
-cp .env.example .env
-```
-
-3. Configure your `.env` file:
-```env
-# API Configuration
-VITE_API_URL=http://localhost:3000/api
-
-# Feature Flags
-VITE_AUTH_ENABLED=true
-VITE_ENABLE_IMAGE_GENERATION=true
-VITE_ENABLE_SOCIAL_FEATURES=true
-
-# App Configuration
-VITE_APP_NAME=AutoBio
-VITE_APP_DESCRIPTION=Capture and preserve your life's precious moments
-
-# Optional: Analytics
-VITE_ANALYTICS_ID=your-analytics-id
-```
-
-4. Start development server:
+### Development
 ```bash
 npm run dev
 ```
 
 The application will be available at `http://localhost:5173`
 
-## Available Scripts
-
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
-- `npm run lint` - Run ESLint
-- `npm run type-check` - Run TypeScript type checking
-
-## Application Architecture
-
-### Component Structure
-
-#### Pages
-- **Home**: Landing page with app overview
-- **Login/Register**: Authentication pages
-- **Contribute**: Memory creation with rich text editor
-- **Memories**: Timeline view of user memories
-- **Explore**: Community memory discovery
-- **Profile**: User profile management
-
-#### Components
-- **Layout**: Main application layout with navigation
-- **ProtectedRoute**: Authentication guard for protected pages
-- **MemoryCard**: Individual memory display component
-- **Timeline**: Chronological memory view
-- **Toolbar**: Rich text editor toolbar
-- **LoadingSpinner**: Loading state component
-
-### State Management
-
-#### Zustand Stores
-- **authStore**: User authentication state and methods
-  - User information
-  - Authentication status
-  - Login/logout methods
-  - Token management
-
-#### React Query
-- **API Data**: Server state management
-- **Caching**: Automatic data caching and invalidation
-- **Background Updates**: Real-time data synchronization
-- **Optimistic Updates**: Immediate UI feedback
-
-### Data Flow
-
+### Building for Production
+```bash
+npm run build
 ```
-User Action → Component → Hook → Service → API → Server
-     ↑                                                      ↓
-     ← State Update ← Store ← Query ← Response ← Server ←
+
+## Environment Variables
+
+Create a `.env` file in the client directory:
+
+```env
+VITE_API_URL=http://localhost:3000/api
 ```
 
 ## Key Features Implementation
 
-### Authentication
-- JWT token-based authentication
-- Protected routes with automatic redirection
-- Persistent login state
-- Secure token storage
+### Enhanced Image Generation
+The client integrates with the server's enhanced image generation system:
 
-### Rich Text Editor (TipTap)
-- Extensible editor with plugins
-- Image upload and embedding
-- Markdown support
-- Collaborative editing ready
+1. **User Context Integration**: Automatically includes user profile data in image generation requests
+2. **Memory History**: Uses pre-generated memory summaries for context
+3. **Personalized Prompts**: Incorporates user preferences and style choices
+4. **Fallback Handling**: Gracefully handles cases where enhancement is unavailable
+
+### Profile Management
+Enhanced profile management with comprehensive user data:
+
+1. **Extended Fields**: Support for location, occupation, interests, and cultural background
+2. **Real-time Updates**: Immediate profile updates with optimistic UI
+3. **Privacy Controls**: Optional fields with user consent
+4. **Data Validation**: Client-side validation for all profile fields
+
+### Memory Creation
+Rich memory creation with AI enhancement:
+
+1. **Rich Text Editor**: TipTap-based editor with image support
+2. **AI Image Generation**: Contextual image generation with user data
+3. **Image Management**: Drag-and-drop positioning and confirmation
+4. **Enhanced Prompts**: Automatic inclusion of user context and memory history
+
+## API Integration
+
+The client communicates with the server through a comprehensive API layer:
+
+### Authentication
+- JWT-based authentication
+- Automatic token management
+- Secure profile updates
 
 ### Memory Management
 - CRUD operations for memories
-- Real-time updates
-- Optimistic UI updates
-- Error handling and retry logic
+- Image generation and regeneration
+- Public/private memory controls
 
-### AI Integration
-- AWS Bedrock integration for image generation
-- Prompt-based image creation
-- Image storage and retrieval
-- User-friendly AI interface
-
-## Styling and Design
-
-### Tailwind CSS
-- Utility-first CSS framework
-- Custom design system
-- Responsive design patterns
-- Dark mode support ready
-
-### Component Design
-- Consistent design language
-- Accessible components (Headless UI)
-- Mobile-first responsive design
-- Smooth animations and transitions
+### User Profiles
+- Enhanced profile data management
+- Real-time profile updates
+- Privacy-aware data handling
 
 ## Development Guidelines
 
 ### Code Style
-- TypeScript strict mode
-- ESLint configuration
-- Consistent naming conventions
-- Component composition patterns
+- TypeScript for type safety
+- ESLint for code quality
+- Prettier for code formatting
 
-### Component Patterns
-```typescript
-// Functional components with TypeScript
-interface ComponentProps {
-  title: string;
-  onAction: () => void;
-}
+### Component Architecture
+- Functional components with hooks
+- Composition over inheritance
+- Reusable component patterns
 
-export const Component: React.FC<ComponentProps> = ({ title, onAction }) => {
-  return (
-    <div className="component">
-      <h1>{title}</h1>
-      <button onClick={onAction}>Action</button>
-    </div>
-  );
-};
-```
+### State Management
+- Zustand for global state
+- React Query for server state
+- Local state for component-specific data
 
-### Custom Hooks
-```typescript
-// Custom hook pattern
-export const useCustomHook = () => {
-  const [state, setState] = useState();
-  
-  const action = useCallback(() => {
-    // Implementation
-  }, []);
-  
-  return { state, action };
-};
-```
-
-## Testing Strategy
-
-### Unit Testing
+### Testing
+- Unit tests for utilities and hooks
+- Integration tests for API calls
 - Component testing with React Testing Library
-- Hook testing with custom test utilities
-- Utility function testing
-
-### Integration Testing
-- API integration testing
-- User flow testing
-- Authentication flow testing
-
-### E2E Testing
-- Critical user journeys
-- Cross-browser testing
-- Performance testing
-
-## Performance Optimization
-
-### Code Splitting
-- Route-based code splitting
-- Component lazy loading
-- Dynamic imports for heavy components
-
-### Bundle Optimization
-- Vite build optimization
-- Tree shaking
-- Asset optimization
-
-### Caching Strategy
-- React Query caching
-- Browser caching
-- Service worker ready
-
-## Environment Configuration
-
-### Development
-- Hot module replacement
-- Source maps
-- Development-specific features
-
-### Production
-- Optimized builds
-- Environment-specific configurations
-- Performance monitoring
-
-### Feature Flags
-- Environment-based feature toggles
-- A/B testing ready
-- Gradual feature rollout
 
 ## Deployment
 
-### Build Process
+### Vercel
 ```bash
-# Production build
 npm run build
-
-# Preview build
-npm run preview
+vercel --prod
 ```
 
-### Static Hosting
-- Vercel deployment ready
-- Netlify configuration
-- CDN optimization
+### Netlify
+```bash
+npm run build
+netlify deploy --prod --dir=dist
+```
 
-### Environment Variables
-- Build-time environment configuration
-- Runtime configuration support
-- Secure secret management
+### Docker
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 5173
+CMD ["npm", "run", "preview"]
+```
 
 ## Contributing
 
-### Development Workflow
-1. Create feature branch
-2. Implement changes with tests
-3. Run linting and type checking
-4. Submit pull request
-
-### Code Quality
-- ESLint for code quality
-- TypeScript for type safety
-- Prettier for code formatting
-- Husky for pre-commit hooks
-
-### Documentation
-- Component documentation
-- API integration docs
-- User flow documentation
-- Performance guidelines
-
-## Troubleshooting
-
-### Common Issues
-
-#### Build Errors
-```bash
-# Clear cache and rebuild
-rm -rf node_modules package-lock.json
-npm install
-npm run build
-```
-
-#### Development Server Issues
-```bash
-# Clear Vite cache
-rm -rf node_modules/.vite
-npm run dev
-```
-
-#### TypeScript Errors
-```bash
-# Run type checking
-npm run type-check
-
-# Fix auto-fixable issues
-npm run lint -- --fix
-```
-
-### Performance Issues
-- Check bundle size with `npm run build`
-- Analyze dependencies with `npm ls`
-- Monitor React Query cache usage
-- Profile component re-renders
+1. Follow the existing code style and patterns
+2. Add TypeScript types for all new features
+3. Update documentation for API changes
+4. Test thoroughly before submitting
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License - see LICENSE file for details

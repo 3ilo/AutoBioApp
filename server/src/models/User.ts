@@ -48,6 +48,26 @@ const userSchema = new mongoose.Schema<IUserDocument>(
       type: String,
       trim: true,
     },
+    occupation: {
+      type: String,
+      trim: true,
+    },
+    gender: {
+      type: String,
+      trim: true,
+    },
+    interests: [{
+      type: String,
+      trim: true,
+    }],
+    culturalBackground: {
+      type: String,
+      trim: true,
+    },
+    preferredStyle: {
+      type: String,
+      trim: true,
+    },
     role: {
       type: String,
       enum: ['user', 'admin'],
