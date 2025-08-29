@@ -7,64 +7,63 @@ import { memoriesApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
+import { Link } from 'react-router-dom';
 
 export function Memories() {
   const user = useAuthStore((state) => state.user);
+  const [memories, setMemories] = useState<IMemory[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const {
-    data: memories,
-    isLoading,
-    error,
-    execute: fetchMemories,
-  } = useApi(memoriesApi.getAll, []);
+  const fetchMemories = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await memoriesApi.getAll();
+      setMemories(response.data);
+    } catch (err) {
+      setError('Failed to load memories. Please try again later.');
+      console.error('Error fetching memories:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchMemories();
-  }, [fetchMemories]);
+  }, []);
 
   // Sort memories by date in ascending order (oldest to newest)
-  const sortedMemories = memories?.sort((a, b) => 
+  const sortedMemories = [...memories].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
+  const handleNext = () => {
+    if (currentIndex < sortedMemories.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    }
+  };
+
   const handlePrevious = () => {
     if (currentIndex > 0) {
-      setIsTransitioning(true);
       setCurrentIndex(prev => prev - 1);
-      setTimeout(() => setIsTransitioning(false), 300);
     }
   };
 
-  const handleNext = () => {
-    if (currentIndex < (sortedMemories?.length ?? 0) - 1) {
-      setIsTransitioning(true);
-      setCurrentIndex(prev => prev + 1);
-      setTimeout(() => setIsTransitioning(false), 300);
-    }
+  const handleMemorySelect = (index: number) => {
+    setCurrentIndex(index);
   };
 
-  const handleTimelineSelect = (index: number) => {
-    if (index !== currentIndex) {
-      setIsTransitioning(true);
-      setCurrentIndex(index);
-      setTimeout(() => setIsTransitioning(false), 300);
+  const handleMemoryDelete = async (memoryId: string) => {
+    // Optimistically remove the memory from the UI
+    setMemories(prev => prev.filter(m => m._id !== memoryId));
+    
+    // If we deleted the last memory, show the new last memory
+    if (currentIndex >= sortedMemories.length - 1) {
+      setCurrentIndex(Math.max(0, sortedMemories.length - 2));
     }
   };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        handlePrevious();
-      } else if (e.key === 'ArrowRight') {
-        handleNext();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex]);
 
   if (isLoading) {
     return (
@@ -78,7 +77,7 @@ export function Memories() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading memories: {error.message}</p>
+          <p className="text-red-600 mb-4">Error loading memories: {error}</p>
           <button
             onClick={() => fetchMemories()}
             className="text-indigo-600 hover:text-indigo-800"
@@ -86,6 +85,18 @@ export function Memories() {
             Try again
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (memories.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h1 className="text-3xl font-bold text-warm-900 mb-4">No Memories Yet</h1>
+        <p className="text-warm-600 mb-8">Start creating your first memory!</p>
+        <Link to="/create" className="btn-primary">
+          Create Memory
+        </Link>
       </div>
     );
   }
@@ -103,7 +114,7 @@ export function Memories() {
           <div className="relative mb-8 max-w-4xl mx-auto">
             <button
               onClick={handlePrevious}
-              disabled={currentIndex === 0 || isTransitioning}
+              disabled={currentIndex === 0 || isLoading}
               className={`absolute z-10 left-0 top-1/2 -translate-y-1/2 -translate-x-4 sm:-translate-x-8 p-2 rounded-full bg-white shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ${
                 currentIndex === 0 ? 'hidden' : ''
               }`}
@@ -111,17 +122,18 @@ export function Memories() {
               <ChevronLeftIcon className="w-6 h-6 text-gray-600" />
             </button>
             
-            <div className={`transition-all duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+            <div className={`transition-all duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
               <MemoryCard
                 memory={sortedMemories[currentIndex]}
                 isActive={true}
+                onDelete={handleMemoryDelete}
                 key={sortedMemories[currentIndex]._id}
               />
             </div>
 
             <button
               onClick={handleNext}
-              disabled={currentIndex === sortedMemories.length - 1 || isTransitioning}
+              disabled={currentIndex === sortedMemories.length - 1 || isLoading}
               className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 sm:translate-x-8 p-2 rounded-full bg-white shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ${
                 currentIndex === sortedMemories.length - 1 ? 'hidden' : ''
               }`}
@@ -133,7 +145,7 @@ export function Memories() {
           <Timeline
             memories={sortedMemories}
             currentIndex={currentIndex}
-            onSelect={handleTimelineSelect}
+            onSelect={handleMemorySelect}
           />
         </>
       ) : (
