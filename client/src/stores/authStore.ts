@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from '../types';
+import { IUser } from '@shared/types/User';
 import { authApi } from '../services/api';
 
 interface AuthState {
-  user: User | null;
+  user: IUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -17,6 +17,7 @@ interface AuthState {
     lastName: string;
     age: number;
   }) => Promise<void>;
+  updateProfile: (profileData: Partial<IUser>) => Promise<void>;
   logout: () => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -61,6 +62,22 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : 'Registration failed',
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+      updateProfile: async (profileData) => {
+        try {
+          set({ isLoading: true, error: null });
+          const response = await authApi.updateProfile(profileData);
+          set({
+            user: response.data.user,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Profile update failed',
             isLoading: false,
           });
           throw error;

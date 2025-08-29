@@ -20,6 +20,7 @@ export interface IMemory {
   _id?: string;
   title: string;
   content: string;
+  summary?: string; // AI-generated summary for context aggregation
   date: Date;
   images: IMemoryImage[];
   tags: string[];

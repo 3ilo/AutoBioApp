@@ -94,5 +94,127 @@ describe('User Routes', () => {
 
       expect(response.body.status).toBe('fail');
     });
+  describe('User Profile Enhancement', () => {
+    let testUser: any;
+    let token: string;
+  
+    beforeEach(async () => {
+      await User.deleteMany({});
+      
+      // Create basic user
+      const basicUser = {
+        email: 'test@example.com',
+        password: 'password123',
+        firstName: 'Test',
+        lastName: 'User',
+        age: 25
+      };
+  
+      await User.create(basicUser);
+      token = await getAuthToken();
+      testUser = await User.findOne({ email: 'test@example.com' });
+    });
+  
+    describe('PATCH /api/users/profile', () => {
+      it('should update user profile with new fields', async () => {
+        const profileUpdate = {
+          location: 'San Francisco, CA',
+          occupation: 'Software Engineer',
+          gender: 'female',
+          interests: ['hiking', 'photography', 'cooking'],
+          culturalBackground: 'American',
+          preferredStyle: 'watercolor'
+        };
+  
+        const response = await request(app)
+          .patch('/api/users/profile')
+          .set('Authorization', `Bearer ${token}`)
+          .send(profileUpdate)
+          .expect(200);
+  
+        expect(response.body.status).toBe('success');
+        expect(response.body.data.user.location).toBe('San Francisco, CA');
+        expect(response.body.data.user.occupation).toBe('Software Engineer');
+        expect(response.body.data.user.gender).toBe('female');
+        expect(response.body.data.user.interests).toEqual(['hiking', 'photography', 'cooking']);
+        expect(response.body.data.user.culturalBackground).toBe('American');
+        expect(response.body.data.user.preferredStyle).toBe('watercolor');
+      });
+  
+      it('should validate field types', async () => {
+        const invalidUpdate = {
+          age: 'not a number',
+          interests: 'not an array'
+        };
+  
+        const response = await request(app)
+          .patch('/api/users/profile')
+          .set('Authorization', `Bearer ${token}`)
+          .send(invalidUpdate)
+          .expect(400);
+  
+        expect(response.body.status).toBe('fail');
+      });
+  
+      it('should handle partial updates', async () => {
+        const partialUpdate = {
+          location: 'New York, NY'
+        };
+  
+        const response = await request(app)
+          .patch('/api/users/profile')
+          .set('Authorization', `Bearer ${token}`)
+          .send(partialUpdate)
+          .expect(200);
+  
+        expect(response.body.status).toBe('success');
+        expect(response.body.data.user.location).toBe('New York, NY');
+        // Other fields should remain unchanged
+        expect(response.body.data.user.firstName).toBe('Test');
+      });
+  
+      it('should require authentication', async () => {
+        const profileUpdate = {
+          location: 'San Francisco, CA'
+        };
+  
+        const response = await request(app)
+          .patch('/api/users/profile')
+          .send(profileUpdate)
+          .expect(401);
+  
+        expect(response.body.status).toBe('fail');
+      });
+    });
+  
+    describe('GET /api/users/profile', () => {
+      it('should return enhanced user profile', async () => {
+        // First update the profile
+        const profileUpdate = {
+          location: 'San Francisco, CA',
+          occupation: 'Software Engineer',
+          gender: 'female',
+          interests: ['hiking', 'photography']
+        };
+  
+        await request(app)
+          .patch('/api/users/profile')
+          .set('Authorization', `Bearer ${token}`)
+          .send(profileUpdate);
+  
+        // Then get the profile
+        const response = await request(app)
+          .get('/api/users/profile')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200);
+  
+        expect(response.body.status).toBe('success');
+        expect(response.body.data.user.location).toBe('San Francisco, CA');
+        expect(response.body.data.user.occupation).toBe('Software Engineer');
+        expect(response.body.data.user.gender).toBe('female');
+        expect(response.body.data.user.interests).toEqual(['hiking', 'photography']);
+      });
+    });
   });
+});
 }); 

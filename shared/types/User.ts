@@ -8,6 +8,11 @@ export interface IUser {
   avatar?: string;
   bio?: string;
   location?: string;
+  occupation?: string; // Job title/field for professional context
+  gender?: string; // For personalized prompts
+  interests?: string[]; // Hobbies and preferences
+  culturalBackground?: string; // Cultural context
+  preferredStyle?: string; // Artistic style preference
   role: 'user' | 'admin';
   createdAt?: Date;
   updatedAt?: Date;

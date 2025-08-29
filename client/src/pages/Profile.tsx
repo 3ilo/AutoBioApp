@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
+import { IUser } from '@shared/types/User';
 
 // Temporary mock data
 const mockStats = {
@@ -26,17 +27,28 @@ const mockMemories = [
 
 export function Profile() {
   const user = useAuthStore((state) => state.user);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    bio: 'I love capturing and sharing my life\'s moments.',
-    location: 'San Francisco, CA',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    bio: user?.bio || 'I love capturing and sharing my life\'s moments.',
+    location: user?.location || '',
+    occupation: user?.occupation || '',
+    gender: user?.gender || '',
+    interests: user?.interests || [],
+    culturalBackground: user?.culturalBackground || '',
+    preferredStyle: user?.preferredStyle || '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Update profile in backend
-    setIsEditing(false);
+    try {
+      await updateProfile(profileData);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
   };
 
   return (
@@ -49,11 +61,11 @@ export function Profile() {
               <div className="flex items-center">
                 <img
                   src={user?.avatar || 'https://picsum.photos/100/100'}
-                  alt={user?.name}
+                  alt={user?.firstName}
                   className="h-16 w-16 rounded-full"
                 />
                 <div className="ml-4">
-                  <h2 className="text-2xl font-bold text-gray-900">{user?.name}</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{user?.firstName} {user?.lastName}</h2>
                   <p className="text-sm text-gray-500">Member since {format(new Date(mockStats.joinedDate), 'MMMM yyyy')}</p>
                 </div>
               </div>
@@ -68,28 +80,28 @@ export function Profile() {
 
           {isEditing ? (
             <form onSubmit={handleSubmit} className="px-4 py-5 sm:p-6 border-t border-gray-200">
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    Name
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                    First Name
                   </label>
                   <input
                     type="text"
-                    id="name"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                    id="firstName"
+                    value={profileData.firstName}
+                    onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-                    Bio
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                    Last Name
                   </label>
-                  <textarea
-                    id="bio"
-                    rows={3}
-                    value={profileData.bio}
-                    onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                  <input
+                    type="text"
+                    id="lastName"
+                    value={profileData.lastName}
+                    onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
@@ -102,10 +114,96 @@ export function Profile() {
                     id="location"
                     value={profileData.location}
                     onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
+                    placeholder="City, Country"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
-                <div className="flex justify-end">
+                <div>
+                  <label htmlFor="occupation" className="block text-sm font-medium text-gray-700">
+                    Occupation
+                  </label>
+                  <input
+                    type="text"
+                    id="occupation"
+                    value={profileData.occupation}
+                    onChange={(e) => setProfileData({ ...profileData, occupation: e.target.value })}
+                    placeholder="Job title or field"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+                    Gender
+                  </label>
+                  <select
+                    id="gender"
+                    value={profileData.gender}
+                    onChange={(e) => setProfileData({ ...profileData, gender: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="non-binary">Non-binary</option>
+                    <option value="other">Other</option>
+                    <option value="prefer-not-to-say">Prefer not to say</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="culturalBackground" className="block text-sm font-medium text-gray-700">
+                    Cultural Background
+                  </label>
+                  <input
+                    type="text"
+                    id="culturalBackground"
+                    value={profileData.culturalBackground}
+                    onChange={(e) => setProfileData({ ...profileData, culturalBackground: e.target.value })}
+                    placeholder="e.g., American, Chinese, Mexican"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="preferredStyle" className="block text-sm font-medium text-gray-700">
+                    Preferred Art Style
+                  </label>
+                  <input
+                    type="text"
+                    id="preferredStyle"
+                    value={profileData.preferredStyle}
+                    onChange={(e) => setProfileData({ ...profileData, preferredStyle: e.target.value })}
+                    placeholder="e.g., watercolor, minimalist, vibrant"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="interests" className="block text-sm font-medium text-gray-700">
+                    Interests
+                  </label>
+                  <input
+                    type="text"
+                    id="interests"
+                    value={profileData.interests.join(', ')}
+                    onChange={(e) => setProfileData({ 
+                      ...profileData, 
+                      interests: e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0)
+                    })}
+                    placeholder="hiking, photography, cooking (comma-separated)"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
+                    Bio
+                  </label>
+                  <textarea
+                    id="bio"
+                    rows={3}
+                    value={profileData.bio}
+                    onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div className="sm:col-span-2 flex justify-end">
                   <button
                     type="submit"
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -117,14 +215,36 @@ export function Profile() {
             </form>
           ) : (
             <div className="px-4 py-5 sm:p-6 border-t border-gray-200">
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <h3 className="text-lg font-medium text-gray-900">About</h3>
                   <p className="mt-1 text-sm text-gray-500">{profileData.bio}</p>
                 </div>
                 <div>
                   <h3 className="text-lg font-medium text-gray-900">Location</h3>
-                  <p className="mt-1 text-sm text-gray-500">{profileData.location}</p>
+                  <p className="mt-1 text-sm text-gray-500">{profileData.location || 'Not specified'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Occupation</h3>
+                  <p className="mt-1 text-sm text-gray-500">{profileData.occupation || 'Not specified'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Gender</h3>
+                  <p className="mt-1 text-sm text-gray-500">{profileData.gender || 'Not specified'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Cultural Background</h3>
+                  <p className="mt-1 text-sm text-gray-500">{profileData.culturalBackground || 'Not specified'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Preferred Art Style</h3>
+                  <p className="mt-1 text-sm text-gray-500">{profileData.preferredStyle || 'Not specified'}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <h3 className="text-lg font-medium text-gray-900">Interests</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {profileData.interests.length > 0 ? profileData.interests.join(', ') : 'Not specified'}
+                  </p>
                 </div>
               </div>
             </div>

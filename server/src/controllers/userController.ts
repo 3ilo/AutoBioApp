@@ -39,7 +39,10 @@ export const updateCurrentUser = async (req: Request, res: Response, next: NextF
       });
     }
 
-    const allowedUpdates = ['name', 'firstName', 'lastName', 'age', 'bio', 'location', 'avatar'];
+    const allowedUpdates = [
+      'firstName', 'lastName', 'age', 'bio', 'location', 'avatar',
+      'occupation', 'gender', 'interests', 'culturalBackground', 'preferredStyle'
+    ];
     const updates = Object.keys(req.body).filter(key => allowedUpdates.includes(key));
     
     if (updates.length === 0) {

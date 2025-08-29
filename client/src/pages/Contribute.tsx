@@ -8,6 +8,7 @@ import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { IMemoryImage } from '../../../shared/types/Memory';
+import { useAuthStore } from '../stores/authStore';
 
 interface MemoryImage extends IMemoryImage {
   id: string;
@@ -16,6 +17,7 @@ interface MemoryImage extends IMemoryImage {
 
 export function Contribute() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const editorRef = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -85,6 +87,7 @@ export function Contribute() {
         title,
         content: editor.getText(),
         date: new Date(date),
+        userId: user?._id, // Include user ID for enhanced prompts
       });
 
       const position = getRandomPosition();
@@ -113,6 +116,7 @@ export function Contribute() {
         content: editor.getText(),
         date: new Date(date),
         previousUrl: selectedImage.url,
+        userId: user?._id, // Include user ID for enhanced prompts
       });
 
       const newImage: MemoryImage = {

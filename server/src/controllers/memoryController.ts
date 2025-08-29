@@ -1,11 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { Memory } from '../models/Memory';
+import { User } from '../models/User';
 import { AppError } from '../utils/errorHandler';
+import { BedrockMemorySummaryService } from '../services/memorySummaryService';
+import logger from '../utils/logger';
+
+// Initialize memory summary service
+const memorySummaryService = new BedrockMemorySummaryService();
 
 export const createMemory = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { title, content, date, images, tags } = req.body;
 
+    // Create memory first
     const memory = await Memory.create({
       title,
       content,
@@ -14,6 +21,27 @@ export const createMemory = async (req: Request, res: Response, next: NextFuncti
       tags,
       author: req.user?._id,
     });
+
+    // Generate summary asynchronously (for future async implementation)
+    try {
+      const user = await User.findById(req.user?._id);
+      if (user) {
+        const summary = await memorySummaryService.generateMemorySummary(
+          memory.toObject(),
+          user.toObject() as any,
+          { summaryLength: 'brief', includeUserContext: true }
+        );
+
+        // Update memory with summary
+        await Memory.findByIdAndUpdate(memory._id, { summary });
+        
+        // Update the memory object for response
+        memory.summary = summary;
+      }
+    } catch (summaryError) {
+      logger.error('Error generating memory summary:', summaryError);
+      // Continue without summary - memory creation was successful
+    }
 
     res.status(201).json({
       status: 'success',
@@ -86,6 +114,30 @@ export const updateMemory = async (req: Request, res: Response, next: NextFuncti
 
     if (!memory) {
       return next(new AppError('Memory not found or unauthorized', 404));
+    }
+
+    // Regenerate summary if content was updated
+    if (title || content) {
+      try {
+        const user = await User.findById(req.user?._id);
+        if (user) {
+          const summary = await memorySummaryService.generateMemorySummary(
+            memory.toObject(),
+            user.toObject() as any,
+            { summaryLength: 'brief', includeUserContext: true }
+          );
+
+          // Update memory with new summary
+          await Memory.findByIdAndUpdate(memory._id, { summary });
+          
+          // Update the memory object for response
+          memory.summary = summary;
+        }
+      } catch (summaryError) {
+        logger.error('Error regenerating memory summary:', summaryError);
+        throw summaryError;
+        // Continue without summary update - memory update was successful
+      }
     }
 
     res.status(200).json({

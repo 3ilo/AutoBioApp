@@ -4,6 +4,12 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
+import { BedrockSummarizationService } from '../services/summarizationService';
+import { PromptEnhancementService } from '../services/promptEnhancementService';
+import { BedrockMemorySummaryService } from '../services/memorySummaryService';
+import { User } from '../models/User';
+import { Memory } from '../models/Memory';
+import { log } from 'console';
 
 // Environment variables
 const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
@@ -17,6 +23,7 @@ interface GenerateImageRequest {
   title: string;
   content: string;
   date: Date;
+  userId?: string; // Optional for backward compatibility
 }
 
 interface RegenerateImageRequest extends GenerateImageRequest {
@@ -41,8 +48,13 @@ const bedrockClient = new BedrockRuntimeClient({
   },
 });
 
-// Helper function to craft the prompt
-function craftPrompt(data: GenerateImageRequest): string {
+// Initialize services
+const summarizationService = new BedrockSummarizationService();
+const promptEnhancementService = new PromptEnhancementService();
+const memorySummaryService = new BedrockMemorySummaryService();
+
+// Helper function to craft the basic prompt (fallback)
+function craftBasicPrompt(data: GenerateImageRequest): string {
   const date = new Date(data.date);
   const formattedDate = date.toLocaleDateString('en-US', {
     year: 'numeric',
@@ -62,6 +74,73 @@ Style requirements:
 - Keep the composition balanced and harmonious
 
 The image should feel like a cherished page from a personal autobiography, capturing the essence of the memory while maintaining simple but stylish quality.`;
+}
+
+// Helper function to craft enhanced prompt with user context
+async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): Promise<string> {
+  logger.info(`Crafting enhanced prompt for user ID: ${userId}`);
+  try {
+    // Get user data
+    const user = await User.findById(userId);
+    if (!user) {
+      logger.warn(`User not found for ID: ${userId}, using basic prompt`);
+      return craftBasicPrompt(data);
+    }
+
+    // Get recent memories
+    const recentMemories = await Memory.find({ author: userId })
+      .sort({ date: -1 })
+      .limit(5)
+      .lean();
+
+    // Generate missing summaries on-demand
+    const memoriesWithSummaries = await Promise.all(
+      recentMemories.map(async (memory) => {
+        if (!memory.summary) {
+          try {
+            const summary = await memorySummaryService.generateMemorySummary(
+              memory,
+              user.toObject() as any,
+              { summaryLength: 'brief', includeUserContext: true }
+            );
+            
+            // Update memory with generated summary
+            await Memory.findByIdAndUpdate(memory._id, { summary });
+            
+            return { ...memory, summary };
+          } catch (error) {
+            logger.error(`Error generating summary for memory ${memory._id}:`, error);
+            // Use fallback summary
+            return { 
+              ...memory, 
+              summary: `Memory about ${memory.title} from ${new Date(memory.date).toLocaleDateString()}` 
+            };
+          }
+        }
+        return memory;
+      })
+    );
+
+    // Generate memory summary using pre-generated summaries
+    const memorySummary = await summarizationService.summarizeMemories(
+      memoriesWithSummaries,
+      user.toObject() as any,
+      { maxMemories: 5, summaryLength: 'paragraph' }
+    );
+
+    // Create enhanced prompt
+    const enhancedPrompt = await promptEnhancementService.createEnhancedPrompt(
+      { title: data.title, content: data.content, date: data.date },
+      user.toObject() as any,
+      memorySummary
+    );
+
+    return enhancedPrompt;
+  } catch (error) {
+    logger.error('Error creating enhanced prompt:', error);
+    // Fallback to basic prompt
+    return craftBasicPrompt(data);
+  }
 }
 
 // Helper function to generate a fake image URL (for development)
@@ -144,7 +223,7 @@ async function uploadToS3(imageBuffer: Buffer, key: string): Promise<string> {
 
 export async function generateImage(req: Request, res: Response) {
   try {
-    const { title, content, date } = req.body as GenerateImageRequest;
+    const { title, content, date, userId } = req.body as GenerateImageRequest;
     
     if (!title || !content || !date) {
       return res.status(400).json({
@@ -153,8 +232,15 @@ export async function generateImage(req: Request, res: Response) {
       });
     }
     
-    // Craft the prompt
-    const prompt = craftPrompt({ title, content, date });
+    // Use enhanced prompt if userId is provided, otherwise use basic prompt
+    let prompt: string;
+    if (userId) {
+      logger.info(`Crafting enhanced prompt for user ID: ${userId}`);
+      prompt = await craftEnhancedPrompt({ title, content, date }, userId);
+    } else {
+      logger.info(`Crafting basic prompt`);
+      prompt = craftBasicPrompt({ title, content, date });
+    }
     
     // Generate image using Bedrock
     const imageBuffer = await generateImageBedrock(prompt);
@@ -181,10 +267,16 @@ export async function generateImage(req: Request, res: Response) {
 
 export async function regenerateImage(req: Request, res: Response) {
   try {
-    const { title, content, date, previousUrl } = req.body as RegenerateImageRequest;
+    const { title, content, date, previousUrl, userId } = req.body as RegenerateImageRequest;
     
-    // Craft the prompt with a variation request
-    const basePrompt = craftPrompt({ title, content, date });
+    // Use enhanced prompt if userId is provided, otherwise use basic prompt
+    let basePrompt: string;
+    if (userId) {
+      basePrompt = await craftEnhancedPrompt({ title, content, date }, userId);
+    } else {
+      basePrompt = craftBasicPrompt({ title, content, date });
+    }
+    
     const prompt = `${basePrompt}\n\nPlease create a different variation of this illustration while maintaining the same style and quality.`;
     
     // TODO: Replace with actual Bedrock API call
