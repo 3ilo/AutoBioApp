@@ -1,6 +1,6 @@
 # AutoBio Documentation
 
-This directory contains comprehensive documentation for the AutoBio project, organized by module and functionality.
+This directory contains comprehensive documentation for the AutoBio project server, organized by module and functionality.
 
 ## Documentation Structure
 
