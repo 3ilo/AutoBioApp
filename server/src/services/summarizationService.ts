@@ -23,7 +23,7 @@ export class BedrockSummarizationService implements SummarizationService {
   private bedrockClient: BedrockRuntimeClient;
   private cache: Map<string, { summary: string; timestamp: number }>;
   private readonly CACHE_TTL = 3600000; // 1 hour in milliseconds
-  private readonly SUMMARY_MODEL_ID = process.env.BEDROCK_SUMMARY_MODEL_ID || 'amazon.nova-micro-v1:0';
+  private readonly SUMMARY_MODEL_ID = process.env.BEDROCK_SUMMARY_MODEL_ID || 'us.amazon.nova-micro-v1:0';
   private readonly BEDROCK_REGION = process.env.BEDROCK_CLIENT_REGION || 'us-west-2';
 
   constructor() {

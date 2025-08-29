@@ -1,5 +1,33 @@
 # Development Log
 
+## 2025-01-27: Enhanced Public Memories & Visibility Controls
+- **Issue**: Explore page not showing public memories, and no clear visibility control
+- **Fix**: Updated getPublicMemories to handle backward compatibility with existing memories
+- **Enhancement**: Added prominent public toggle checkbox in Contribute page (defaults to OFF)
+- **Route Fix**: Reordered memory routes to prevent conflicts between /public and /:id
+- **API Fix**: Replaced useApi hook with direct API calls (same pattern as Memories page)
+- **Auth Fix**: Made /memories/public route accessible without authentication
+- **UI**: Enhanced visibility section with clear explanations and dynamic help text
+- **Status**: Fixed - Explore page now shows public memories, Contribute page has clear visibility control
+- **Next Step**: Test with multiple users to verify public/private memory visibility
+
+## 2025-01-27: Fixed Memories Filtering - User-Specific Memory Loading
+- **Issue**: Memories page was loading ALL memories from ALL users instead of just current user's memories
+- **Fix**: Updated getAllMemories endpoint to filter by current user's ID
+- **Enhancement**: Added separate getPublicMemories endpoint for Explore page
+- **Frontend**: Updated API service to use correct endpoints for different use cases
+- **Status**: Fixed - Memories page now shows only current user's memories
+- **Next Step**: Test with multiple user accounts to verify proper isolation
+
+## 2025-01-27: Enhanced User Features - Edit Memories & Follow System Complete
+- **Feature 1**: Edit existing memories from Memories page
+- **Feature 2**: Follow/unfollow users with feed functionality
+- **Backend**: Added follow/unfollow API endpoints, user model updates, feed endpoint
+- **Frontend**: Enhanced MemoryCard with author info and follow buttons, Explore page with feed view
+- **API**: New user social endpoints and memory feed endpoint
+- **Status**: Both features complete and ready for testing
+- **Next Step**: Test complete user flow for editing memories and following users
+
 ## 2025-01-27: Enhanced Image Generation Feature - Frontend Integration Complete
 - **Feature**: Frontend integration of enhanced AI image generation with user context
 - **Implementation**: Updated client to support enhanced profile fields and image generation
@@ -36,6 +64,17 @@
 - **Approach**: Test-Driven Development (TDD) with 3-step process
 - **Status**: Unit tests completed, ready for implementation
 - **Next Step**: Implement services and controllers for enhanced image generation
+
+## 2025-01-27: Fixed Follow Button State Management
+- **Issue**: Follow button showed incorrect state after page reload - always showed "follow" even when already following
+- **Root Cause**: User state from API calls didn't include following/followers arrays (always empty)
+- **Fix**: Updated all user-related API endpoints to populate following/followers fields
+- **Endpoints Updated**: login, register, getMe, getCurrentUser, updateCurrentUser, protect middleware
+- **Enhancement**: Added setUser method to auth store for updating user state
+- **Logic**: Follow button now correctly shows UserMinusIcon when following, UserPlusIcon when not following
+- **State Sync**: Follow/unfollow actions now update both local state and auth store user.following array
+- **Status**: Fixed - Follow buttons now show correct state and prevent duplicate follow attempts
+- **Next Step**: Test follow/unfollow functionality across page reloads
 
 ## 2025-01-27: Initial Server Documentation Setup
 - Created comprehensive server documentation structure

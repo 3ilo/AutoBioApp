@@ -24,12 +24,22 @@ export interface IMemory {
   date: Date;
   images: IMemoryImage[];
   tags: string[];
-  author: IUser; // User ID
-  likes: IUser[]; // Array of User IDs
+  author: string; // User ID
+  likes: string[]; // Array of User IDs
   comments: IComment[];
   isPublic: boolean;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+// Extended memory interface for API responses with populated author
+export interface IMemoryWithAuthor extends Omit<IMemory, 'author'> {
+  author: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  };
 }
 
 // Type for creating a new memory (without _id and timestamps)

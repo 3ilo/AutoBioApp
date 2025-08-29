@@ -7,10 +7,11 @@ import { memoriesApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export function Memories() {
   const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
   const [memories, setMemories] = useState<IMemory[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,6 +64,16 @@ export function Memories() {
     if (currentIndex >= sortedMemories.length - 1) {
       setCurrentIndex(Math.max(0, sortedMemories.length - 2));
     }
+  };
+
+  const handleMemoryEdit = (memory: IMemory) => {
+    // Navigate to contribute page with memory data for editing
+    navigate('/contribute', { 
+      state: { 
+        editingMemory: memory,
+        isEditing: true 
+      } 
+    });
   };
 
   if (isLoading) {
@@ -127,6 +138,7 @@ export function Memories() {
                 memory={sortedMemories[currentIndex]}
                 isActive={true}
                 onDelete={handleMemoryDelete}
+                onEdit={handleMemoryEdit}
                 key={sortedMemories[currentIndex]._id}
               />
             </div>

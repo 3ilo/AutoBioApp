@@ -6,8 +6,8 @@ import { Toolbar } from '../components/editor/Toolbar';
 import { memoriesApi, imageGenerationApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { useNavigate } from 'react-router-dom';
-import { IMemoryImage } from '../../../shared/types/Memory';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { IMemoryImage, IMemory } from '../../../shared/types/Memory';
 import { useAuthStore } from '../stores/authStore';
 
 interface MemoryImage extends IMemoryImage {
@@ -17,20 +17,33 @@ interface MemoryImage extends IMemoryImage {
 
 export function Contribute() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const editorRef = useRef<HTMLDivElement>(null);
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isPublic, setIsPublic] = useState(true);
+  
+  // Check if we're in editing mode
+  const isEditing = location.state?.isEditing || false;
+  const editingMemory = location.state?.editingMemory as IMemory | undefined;
+  
+  const [title, setTitle] = useState(editingMemory?.title || '');
+  const [date, setDate] = useState(editingMemory?.date ? new Date(editingMemory.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+  const [isPublic, setIsPublic] = useState(editingMemory?.isPublic ?? false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [images, setImages] = useState<MemoryImage[]>([]);
+  const [images, setImages] = useState<MemoryImage[]>(
+    editingMemory?.images?.map((img, index) => ({
+      id: index.toString(),
+      url: img.url,
+      position: img.position,
+      isConfirmed: true,
+    })) || []
+  );
   const [selectedImage, setSelectedImage] = useState<MemoryImage | null>(null);
 
   const {
     isLoading: isSaving,
     error: saveError,
     execute: saveMemory,
-  } = useApi(memoriesApi.create, null);
+  } = useApi(isEditing ? memoriesApi.update : memoriesApi.create, null);
 
   const editor = useEditor({
     extensions: [
@@ -51,7 +64,7 @@ export function Contribute() {
         },
       }),
     ],
-    content: '',
+    content: editingMemory?.content || '',
     editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',
@@ -166,19 +179,27 @@ export function Contribute() {
     if (!editor || !title) return;
 
     try {
-      await saveMemory({
+      const memoryData = {
         title,
         content: editor.getHTML(),
         date: new Date(date),
         isPublic,
         images: images.filter(img => img.isConfirmed).map(({ url, position }) => ({ url, position })),
         tags: [], // TODO: Add tag input
-      });
+      };
+
+      if (isEditing && editingMemory?._id) {
+        // Update existing memory
+        await saveMemory(editingMemory._id, memoryData);
+      } else {
+        // Create new memory
+        await saveMemory(memoryData);
+      }
 
       // Reset form and navigate to memories
       setTitle('');
       setDate(new Date().toISOString().split('T')[0]);
-      setIsPublic(true);
+      setIsPublic(false);
       editor.commands.setContent('');
       setImages([]);
       setSelectedImage(null);
@@ -191,6 +212,11 @@ export function Contribute() {
   return (
     <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
       <div className="space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isEditing ? 'Edit Memory' : 'Create New Memory'}
+          </h1>
+        </div>
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">
             Title
@@ -231,8 +257,14 @@ export function Contribute() {
                   onChange={(e) => setIsPublic(e.target.checked)}
                   className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 />
-                <span className="ml-2 text-sm text-gray-700">Public</span>
+                <span className="ml-2 text-sm text-gray-700">Make this memory public</span>
               </label>
+              <p className="mt-1 text-xs text-gray-500">
+                {isPublic 
+                  ? "This memory will be visible to everyone in the Explore page" 
+                  : "This memory will only be visible to you in your Memories page"
+                }
+              </p>
             </div>
           </div>
         </div>
@@ -338,7 +370,7 @@ export function Contribute() {
             {isSaving ? (
               <LoadingSpinner size="sm" className="text-white mr-2" />
             ) : null}
-            Save Memory
+            {isEditing ? 'Update Memory' : 'Save Memory'}
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
 import { IUser } from '@shared/types/User';
@@ -29,27 +29,66 @@ export function Profile() {
   const user = useAuthStore((state) => state.user);
   const updateProfile = useAuthStore((state) => state.updateProfile);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [interestsInput, setInterestsInput] = useState('');
   const [profileData, setProfileData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    bio: user?.bio || 'I love capturing and sharing my life\'s moments.',
-    location: user?.location || '',
-    occupation: user?.occupation || '',
-    gender: user?.gender || '',
-    interests: user?.interests || [],
-    culturalBackground: user?.culturalBackground || '',
-    preferredStyle: user?.preferredStyle || '',
+    firstName: '',
+    lastName: '',
+    bio: '.',
+    location: '',
+    occupation: '',
+    gender: '',
+    interests: [] as string[],
+    culturalBackground: '',
+    preferredStyle: '',
   });
+
+  // Update profile data when user data changes
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        bio: user.bio || '',
+        location: user.location || '',
+        occupation: user.occupation || '',
+        gender: user.gender || '',
+        interests: user.interests || [],
+        culturalBackground: user.culturalBackground || '',
+        preferredStyle: user.preferredStyle || '',
+      });
+      // Also update the interests input field
+      setInterestsInput(user.interests ? user.interests.join(', ') : '');
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+    
     try {
       await updateProfile(profileData);
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  // Show loading state if user is not available
+  if (!user) {
+    return (
+      <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-gray-500">Loading profile...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
@@ -182,14 +221,29 @@ export function Profile() {
                   <input
                     type="text"
                     id="interests"
-                    value={profileData.interests.join(', ')}
-                    onChange={(e) => setProfileData({ 
-                      ...profileData, 
-                      interests: e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0)
-                    })}
+                    value={interestsInput}
+                    onChange={(e) => {
+                      setInterestsInput(e.target.value);
+                    }}
+                    onBlur={(e) => {
+                      // Process the interests when user finishes editing
+                      const value = e.target.value;
+                      const interests = value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                      
+                      setProfileData({ 
+                        ...profileData, 
+                        interests
+                      });
+                    }}
                     placeholder="hiking, photography, cooking (comma-separated)"
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
+                  <p className="mt-1 text-sm text-gray-500">
+                    Separate multiple interests with commas (e.g., "hiking, photography, cooking")
+                  </p>
                 </div>
                 <div className="sm:col-span-2">
                   <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
@@ -203,12 +257,18 @@ export function Profile() {
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
                 </div>
-                <div className="sm:col-span-2 flex justify-end">
+                <div className="sm:col-span-2 flex justify-end space-x-3">
+                  {error && (
+                    <div className="text-sm text-red-600 self-center">
+                      {error}
+                    </div>
+                  )}
                   <button
                     type="submit"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    disabled={isLoading}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Save Changes
+                    {isLoading ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>

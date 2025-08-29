@@ -13,6 +13,8 @@ export interface IUser {
   interests?: string[]; // Hobbies and preferences
   culturalBackground?: string; // Cultural context
   preferredStyle?: string; // Artistic style preference
+  following?: string[]; // Array of user IDs being followed
+  followers?: string[]; // Array of user IDs following this user
   role: 'user' | 'admin';
   createdAt?: Date;
   updatedAt?: Date;

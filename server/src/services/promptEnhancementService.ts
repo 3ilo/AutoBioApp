@@ -19,8 +19,9 @@ export class PromptEnhancementService {
 
     return `Create an illustration for a memory titled "${currentMemory.title}" from ${this.formatDate(currentMemory.date)}.
     Focus mainly on the details and subjects in CURRENT_MEMORY.
-    Utilize carefully the USER_CONTEXT and RECENT_MEMORIES **when applicable** to fill out context on the CURRENT_MEMORY and provide the right physical characteristics of the subject, 
-    but **do not over-use this metadata**. Your goal is to generate an image about the **current memory** without incorporating elements of past memories when they do not match the current memory.
+    Utilize the USER_CONTEXT data to provide the right physical characteristics of the subject.
+    Utilize carefully the RECENT_MEMORIES **when applicable** to fill out context on the CURRENT_MEMOR  but **do not over-use this metadata**.
+    Your goal is to generate an image about the **current memory** with the correct physical characterstics without incorporating elements of past memories when they do not match the current memory.
 
 USER_CONTEXT: ${userContext}
 

@@ -1,20 +1,62 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MemoryCard } from '../components/memories/MemoryCard';
 import { memoriesApi } from '../services/api';
-import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { IMemory } from '@shared/types/Memory';
 
 export function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'date' | 'likes'>('date');
+  const [viewMode, setViewMode] = useState<'all' | 'following'>('all');
+  
+  const [allMemories, setAllMemories] = useState<IMemory[]>([]);
+  const [feedMemories, setFeedMemories] = useState<IMemory[]>([]);
+  const [isLoadingAll, setIsLoadingAll] = useState(true);
+  const [isLoadingFeed, setIsLoadingFeed] = useState(true);
+  const [errorAll, setErrorAll] = useState<string | null>(null);
+  const [errorFeed, setErrorFeed] = useState<string | null>(null);
 
-  const {
-    data: memories,
-    isLoading,
-    error,
-    execute: fetchMemories,
-  } = useApi(memoriesApi.getAll, []);
+  // Fetch all public memories
+  const fetchAllMemories = async () => {
+    try {
+      setIsLoadingAll(true);
+      setErrorAll(null);
+      const response = await memoriesApi.getPublic();
+      setAllMemories(response.data);
+    } catch (err) {
+      console.error('Error fetching all memories:', err);
+      setErrorAll('Failed to load public memories');
+    } finally {
+      setIsLoadingAll(false);
+    }
+  };
+
+  // Fetch feed memories
+  const fetchFeedMemories = async () => {
+    try {
+      setIsLoadingFeed(true);
+      setErrorFeed(null);
+      const response = await memoriesApi.getFeed();
+      setFeedMemories(response.data);
+    } catch (err) {
+      console.error('Error fetching feed memories:', err);
+      setErrorFeed('Failed to load feed memories');
+    } finally {
+      setIsLoadingFeed(false);
+    }
+  };
+
+  // Use appropriate data based on view mode
+  const memories = viewMode === 'following' ? feedMemories : allMemories;
+  const isLoading = viewMode === 'following' ? isLoadingFeed : isLoadingAll;
+  const error = viewMode === 'following' ? errorFeed : errorAll;
+
+  // Execute API calls when component mounts
+  useEffect(() => {
+    fetchAllMemories();
+    fetchFeedMemories();
+  }, []);
 
   const filteredMemories = memories?.filter(memory => {
     const matchesSearch = memory.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -49,6 +91,29 @@ export function Explore() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('all')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'all'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              All Memories
+            </button>
+            <button
+              onClick={() => setViewMode('following')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'following'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Following
+            </button>
           </div>
           
           <select
@@ -95,9 +160,9 @@ export function Explore() {
         </div>
       ) : error ? (
         <div className="text-center text-red-600">
-          <p>Error loading memories: {error.message}</p>
+          <p>Error loading memories: {error}</p>
           <button
-            onClick={() => fetchMemories()}
+            onClick={() => viewMode === 'following' ? fetchFeedMemories() : fetchAllMemories()}
             className="mt-2 text-indigo-600 hover:text-indigo-800"
           >
             Try again
@@ -114,6 +179,8 @@ export function Explore() {
               key={memory._id}
               memory={memory}
               isActive={false}
+              showAuthor={true}
+              showFollowButton={true}
             />
           ))}
         </div>

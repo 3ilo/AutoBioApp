@@ -1,19 +1,36 @@
 import { format } from 'date-fns';
 import { IMemory } from '@shared/types/Memory';
 import DOMPurify from 'dompurify';
-import { TrashIcon } from '@heroicons/react/24/outline';
-import { useState } from 'react';
-import { memoriesApi } from '../../services/api';
+import { TrashIcon, PencilIcon, UserPlusIcon, UserMinusIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { memoriesApi, userApi } from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 
 interface MemoryCardProps {
   memory: IMemory;
   isActive: boolean;
   onDelete?: (memoryId: string) => void;
+  onEdit?: (memory: IMemory) => void;
+  showAuthor?: boolean;
+  showFollowButton?: boolean;
 }
 
-export function MemoryCard({ memory, isActive, onDelete }: MemoryCardProps) {
+export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = false, showFollowButton = false }: MemoryCardProps) {
+  const user = useAuthStore((state) => state.user);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // Check if current user is following the memory's author
+  useEffect(() => {
+    if (user && memory.author && showFollowButton) {
+      const authorId = (memory.author as any)._id;
+      const isCurrentlyFollowing = user.following?.includes(authorId) || false;
+      setIsFollowing(isCurrentlyFollowing);
+      console.log(user, user.following, authorId);
+    }
+  }, [user, memory.author, showFollowButton]);
 
   const handleDelete = async () => {
     try {
@@ -25,6 +42,32 @@ export function MemoryCard({ memory, isActive, onDelete }: MemoryCardProps) {
     } finally {
       setIsDeleting(false);
       setShowConfirmDialog(false);
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (!memory.author || typeof memory.author === 'string' || !user) return;
+    
+    try {
+      setIsFollowLoading(true);
+      const authorId = (memory.author as any)._id;
+      if (isFollowing) {
+        await userApi.unfollowUser(authorId);
+        setIsFollowing(false);
+        // Update user's following list in auth store
+        const updatedUser = { ...user, following: user.following?.filter(id => id !== authorId) || [] };
+        useAuthStore.getState().setUser(updatedUser);
+      } else {
+        await userApi.followUser(authorId);
+        setIsFollowing(true);
+        // Update user's following list in auth store
+        const updatedUser = { ...user, following: [...(user.following || []), authorId] };
+        useAuthStore.getState().setUser(updatedUser);
+      }
+    } catch (error) {
+      console.error('Failed to toggle follow:', error);
+    } finally {
+      setIsFollowLoading(false);
     }
   };
 
@@ -40,11 +83,45 @@ export function MemoryCard({ memory, isActive, onDelete }: MemoryCardProps) {
       >
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-2xl font-bold text-warm-900 truncate flex-1 mr-4">{memory.title}</h2>
+            <div className="flex-1 mr-4">
+              <h2 className="text-2xl font-bold text-warm-900 truncate">{memory.title}</h2>
+              {showAuthor && memory.author && typeof memory.author !== 'string' && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm text-warm-600">
+                    by {(memory.author as any).firstName} {(memory.author as any).lastName}
+                  </span>
+                  {showFollowButton && user?._id !== (memory.author as any)._id && (
+                    <button
+                      onClick={handleFollowToggle}
+                      disabled={isFollowLoading}
+                      className="p-1 text-warm-400 hover:text-indigo-600 transition-colors duration-200 disabled:opacity-50"
+                      title={isFollowing ? 'Unfollow' : 'Follow'}
+                    >
+                      {isFollowLoading ? (
+                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      ) : isFollowing ? (
+                        <UserMinusIcon className="w-4 h-4" />
+                      ) : (
+                        <UserPlusIcon className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-4">
               <time className="text-sm text-warm-500 flex-shrink-0">
                 {format(new Date(memory.date), 'MMM d, yyyy')}
               </time>
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(memory)}
+                  className="p-2 text-warm-400 hover:text-indigo-600 transition-colors duration-200"
+                  title="Edit memory"
+                >
+                  <PencilIcon className="w-5 h-5" />
+                </button>
+              )}
               <button
                 onClick={() => setShowConfirmDialog(true)}
                 className="p-2 text-warm-400 hover:text-accent-error transition-colors duration-200"

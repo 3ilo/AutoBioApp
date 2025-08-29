@@ -76,6 +76,29 @@ export const authApi = {
   },
 };
 
+// User social endpoints
+export const userApi = {
+  followUser: async (userId: string) => {
+    const response = await api.post<ApiResponse<{ message: string }>>(`/users/${userId}/follow`);
+    return response.data;
+  },
+
+  unfollowUser: async (userId: string) => {
+    const response = await api.delete<ApiResponse<{ message: string }>>(`/users/${userId}/follow`);
+    return response.data;
+  },
+
+  getFollowers: async (userId: string) => {
+    const response = await api.get<ApiResponse<{ followers: IUser[] }>>(`/users/${userId}/followers`);
+    return response.data;
+  },
+
+  getFollowing: async (userId: string) => {
+    const response = await api.get<ApiResponse<{ following: IUser[] }>>(`/users/${userId}/following`);
+    return response.data;
+  },
+};
+
 // Memories endpoints
 export const memoriesApi = {
   create: async (memoryData: Omit<IMemory, '_id' | 'author' | 'createdAt' | 'updatedAt'>) => {
@@ -83,9 +106,21 @@ export const memoriesApi = {
     return response.data;
   },
 
-  ///
+  // Get current user's memories
   getAll: async () => {
     const response = await api.get<ApiResponse<IMemory[]>>('/memories');
+    return response.data;
+  },
+
+  // Get all public memories (for explore page)
+  getPublic: async () => {
+    const response = await api.get<ApiResponse<IMemory[]>>('/memories/public');
+    return response.data;
+  },
+
+  // Get feed of followed users' memories
+  getFeed: async () => {
+    const response = await api.get<ApiResponse<IMemory[]>>('/memories/feed');
     return response.data;
   },
 
