@@ -1,5 +1,5 @@
 # Use NVIDIA CUDA base image for GPU support
-FROM nvidia/cuda:13.0.0-tensorrt-runtime-ubuntu24.04
+FROM nvidia/cuda:12.2.0-base-ubuntu22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     
     # Model configuration
     model_file: str = ""
+    model_s3_path: str = "s3://auto-bio-illustrations/models/checkpoint-1.safetensors" 
     model_path: str = "stabilityai/stable-diffusion-xl-base-1.0"
     
     # IP Adapter configuration
@@ -15,13 +16,21 @@ class Settings(BaseSettings):
     ip_adapter: str = ""
     ip_adapter_subfolder: str = ""
     ip_adapter_weights: str = ""
-    ip_adapter_scale: float = 0.33
+    ip_adapter_scale_subject: float = 1.0
+    ip_adapter_scale_memory: float = 0.33
     ip_adapter_image: str = ""
     
     # LoRA configuration
     enable_lora: bool = False
     lora_weights: str = ""
     lora_weights_name: str = ""
+    
+    # Inference parameter defaults
+    default_num_inference_steps: int = 50
+    default_ip_adapter_scale: float = 0.33
+    default_negative_prompt: str = "error, glitch, mistake"
+    default_memory_style_prompt: str = "highest quality, monochrome, professional sketch, personal, nostalgic, clean"
+    default_subject_style_prompt: str = "highest quality, professional sketch, monochrome"
     
     # Service configuration
     service_url: str = "http://localhost:8000"

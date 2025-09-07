@@ -26,7 +26,10 @@ async def generate_memory_illustration(
         return await service.generate_memory_illustration(
             memory_input.user_id,
             memory_input.prompt,
-            memory_input.num_inference_steps
+            memory_input.num_inference_steps,
+            memory_input.ip_adapter_scale,
+            memory_input.negative_prompt,
+            memory_input.style_prompt
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -41,7 +44,10 @@ async def generate_subject_illustration(
     try:
         return await service.generate_subject_illustration(
             subject_input.user_id,
-            subject_input.num_inference_steps
+            subject_input.num_inference_steps,
+            subject_input.ip_adapter_scale,
+            subject_input.negative_prompt,
+            subject_input.style_prompt
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

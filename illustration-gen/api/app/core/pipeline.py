@@ -1,8 +1,9 @@
 import torch
 import logging
 import os
-from diffusers import StableDiffusionXLPipeline
+from diffusers import AutoPipelineForText2Image, StableDiffusionXLPipeline
 from app.core.config import settings
+from app.utils.s3_utils import s3_client
 
 logger = logging.getLogger(__name__)
 
@@ -27,19 +28,30 @@ class TextToImagePipeline:
             logger.info("Loading CUDA")
             self.device = "cuda"
 
-            # Load pipeline
-            if settings.model_file:
-                logger.info("Loading model from single file")
+            # Check for S3 model first, then local file, then default
+            if settings.model_s3_path:
+                logger.info("Downloading model from S3")
+                model_path = s3_client.download_model_from_s3(settings.model_s3_path)
+                if not model_path:
+                    raise Exception("Failed to download model from S3")
+                self.pipeline = StableDiffusionXLPipeline.from_single_file(
+                    model_path,
+                    torch_dtype=torch.float16,
+                ).to(device=self.device)
+            elif settings.model_file:
+                logger.info("Loading model from local file")
                 self.pipeline = StableDiffusionXLPipeline.from_single_file(
                     settings.model_file,
-                    torch_dtype=torch.bfloat16,
+                    torch_dtype=torch.float16,
                 ).to(device=self.device)
             else:
-                logger.info("Loading model from model path")
-                self.pipeline = StableDiffusionXLPipeline.from_pretrained(
+                logger.info("Loading default model from Hugging Face")
+                self.pipeline = AutoPipelineForText2Image.from_pretrained(
                     settings.model_path,
-                    torch_dtype=torch.bfloat16,
+                    torch_dtype=torch.float16,
                 ).to(device=self.device)
+
+            # self.pipeline.enable_model_cpu_offload()
 
             # Load IP Adapter if enabled
             if settings.enable_ip_adapter:
@@ -63,7 +75,7 @@ class TextToImagePipeline:
             subfolder=settings.ip_adapter_subfolder,
             weight_name=settings.ip_adapter_weights
         )
-        self.pipeline.set_ip_adapter_scale(settings.ip_adapter_scale)
+        # self.pipeline.set_ip_adapter_scale(settings.ip_adapter_scale)
 
     def _load_lora(self):
         """Load LoRA weights"""

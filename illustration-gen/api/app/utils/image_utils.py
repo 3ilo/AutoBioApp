@@ -33,45 +33,75 @@ def prompt_builder(content_prompt: str, style_prompt: str, age: int = -1) -> str
         return f"{content_prompt}, age {age}, {style_prompt}"
     return f"{content_prompt}, {style_prompt}"
 
-def subject_generation_inference(pipeline, num_inference_steps: int = 50, reference_image_url: str = None):
-    prompt = subject_generation_prompt_experiments[0]
-    inference(pipeline, prompt, num_inference_steps, reference_image_url)
+def subject_generation_inference(pipeline, num_inference_steps: int = None, reference_image_url: str = None, 
+                                ip_adapter_scale: float = None, negative_prompt: str = None, 
+                                style_prompt: str = None):
+    # Use config defaults if not provided
+    if num_inference_steps is None:
+        num_inference_steps = settings.default_num_inference_steps
+    if ip_adapter_scale is None:
+        ip_adapter_scale = settings.default_ip_adapter_scale
+    if negative_prompt is None:
+        negative_prompt = settings.default_negative_prompt
+    if style_prompt is None:
+        style_prompt = settings.default_subject_style_prompt
+    
+    return inference(pipeline, style_prompt, num_inference_steps, reference_image_url, 
+                    ip_adapter_scale, negative_prompt)
 
-def memory_generation_inference(pipeline, prompt: str, num_inference_steps: int = 50, reference_image_url: str = None):
-    augmented_prompt = prompt_builder(prompt, prompt_style_experiments[5])
-    inference(pipeline, augmented_prompt, num_inference_steps, reference_image_url)
+def memory_generation_inference(pipeline, prompt: str, num_inference_steps: int = None, 
+                               reference_image_url: str = None, ip_adapter_scale: float = None, 
+                               negative_prompt: str = None, style_prompt: str = None):
+    # Use config defaults if not provided
+    if num_inference_steps is None:
+        num_inference_steps = settings.default_num_inference_steps
+    if ip_adapter_scale is None:
+        ip_adapter_scale = settings.default_ip_adapter_scale
+    if negative_prompt is None:
+        negative_prompt = settings.default_negative_prompt
+    if style_prompt is None:
+        style_prompt = settings.default_memory_style_prompt
+    
+    augmented_prompt = prompt_builder(prompt, style_prompt)
+    return inference(pipeline, augmented_prompt, num_inference_steps, reference_image_url, 
+                    ip_adapter_scale, negative_prompt)
 
-def inference(pipeline, prompt: str, num_inference_steps: int = 50, reference_image_url: str = None):
+def inference(pipeline, prompt: str, num_inference_steps: int = None, reference_image_url: str = None, 
+              ip_adapter_scale: float = None, negative_prompt: str = None):
     """Run inference on the pipeline"""
+    
+    # Use config defaults if not provided
+    if num_inference_steps is None:
+        num_inference_steps = settings.default_num_inference_steps
+    if ip_adapter_scale is None:
+        ip_adapter_scale = settings.default_ip_adapter_scale
+    if negative_prompt is None:
+        negative_prompt = settings.default_negative_prompt
 
     if settings.enable_ip_adapter and reference_image_url:
         # Use the provided reference image
         ip_adapter_image = load_image(reference_image_url)
+        
+        # Set IP adapter scale if different from default
+        if ip_adapter_scale != settings.default_ip_adapter_scale:
+            pipeline.set_ip_adapter_scale(ip_adapter_scale)
+        
         return pipeline(
             prompt=prompt,
-            negative_prompt=negative_prompt_experiments[1],
-            ip_adapter_image=ip_adapter_image,
-            num_inference_steps=num_inference_steps
-        ).images[0]
-    elif settings.enable_ip_adapter and settings.ip_adapter_image:
-        # Use the default IP adapter image from settings
-        ip_adapter_image = load_image(settings.ip_adapter_image)
-        return pipeline(
-            prompt=prompt,
-            negative_prompt=negative_prompt_experiments[1],
+            negative_prompt=negative_prompt,
             ip_adapter_image=ip_adapter_image,
             num_inference_steps=num_inference_steps
         ).images[0]
     else:
         return pipeline(
             prompt=prompt,
-            negative_prompt=negative_prompt_experiments[1],
+            negative_prompt=negative_prompt,
             num_inference_steps=num_inference_steps
         ).images[0]
 
 
 def save_image(image) -> str:
-    """Save image to disk and return URL"""
+    """Save image to disk and return local file path"""
     image_dir = os.path.join(tempfile.gettempdir(), "images")
     if not os.path.exists(image_dir):
         os.makedirs(image_dir)
@@ -82,4 +112,4 @@ def save_image(image) -> str:
     logger.info("Saving image to {}".format(image_path))
     image.save(image_path)
     
-    return os.path.join(settings.service_url, "images", filename)
+    return image_path  # Return local file path, not URL
