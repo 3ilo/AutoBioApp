@@ -7,6 +7,7 @@ from app.schemas.image import (
     S3ImageResponse
 )
 from app.services.illustration_service import IllustrationService
+from app.middleware.auth import get_auth_dependency
 
 router = APIRouter()
 
@@ -19,7 +20,8 @@ def get_illustration_service() -> IllustrationService:
 @router.post("/memory", response_model=S3ImageResponse)
 async def generate_memory_illustration(
     memory_input: GenerateMemoryIllustrationInput,
-    service: IllustrationService = Depends(get_illustration_service)
+    service: IllustrationService = Depends(get_illustration_service),
+    _: bool = Depends(get_auth_dependency())
 ):
     """Generate a memory illustration using user's avatar as IP-Adapter input"""
     try:
@@ -38,7 +40,8 @@ async def generate_memory_illustration(
 @router.post("/subject", response_model=S3ImageResponse)
 async def generate_subject_illustration(
     subject_input: GenerateSubjectIllustrationInput,
-    service: IllustrationService = Depends(get_illustration_service)
+    service: IllustrationService = Depends(get_illustration_service),
+    _: bool = Depends(get_auth_dependency())
 ):
     """Generate a subject illustration using user's uploaded photo and special prompt"""
     try:

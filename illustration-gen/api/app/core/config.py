@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     default_memory_style_prompt: str = "highest quality, monochrome, professional sketch, personal, nostalgic, clean"
     default_subject_style_prompt: str = "highest quality, professional sketch, monochrome"
     
+    # Authentication configuration
+    auth_token: str = ""
+    auth_enabled: bool = False
+    
     # Service configuration
     service_url: str = "http://localhost:8000"
     

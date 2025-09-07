@@ -16,10 +16,10 @@ The illustration generation service is fully operational with:
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   AutoBio API   │    │   Load Balancer │    │   SDXL Service  │
-│   (Existing)    │◄──►│   (ALB/NLB)     │◄──►│   (EC2/ECS)     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐   
+│   AutoBio API   │    │  Image Service  │
+│   (Existing)    │◄──►│      (EC2)      │
+└─────────────────┘    └─────────────────┘   
                               │
                               ▼
                        ┌─────────────────┐
@@ -120,6 +120,39 @@ The API will be available at `http://localhost:8000`
 
 Visit `http://localhost:8000/docs` for interactive API documentation.
 
+## 🔐 Authentication
+
+The API supports optional shared secret authentication using Bearer tokens. Authentication can be enabled/disabled via environment variables.
+
+### Authentication Configuration
+
+```bash
+# Enable/disable authentication
+AUTH_ENABLED=true
+
+# Set the shared secret token
+AUTH_TOKEN="your-secret-token-here"
+```
+
+### Using Authentication
+
+When authentication is enabled, include the Bearer token in the Authorization header:
+
+```bash
+curl -X POST "http://localhost:8000/v1/images/memory" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-token-here" \
+  -d '{"user_id": "user123", "prompt": "A beautiful sunset"}'
+```
+
+### Authentication Behavior
+
+- **When `AUTH_ENABLED=false`**: No authentication required (default)
+- **When `AUTH_ENABLED=true`**: All image generation endpoints require valid Bearer token
+- **Health endpoint**: Always accessible without authentication
+- **Invalid token**: Returns 401 Unauthorized
+- **Missing token**: Returns 401 Unauthorized with WWW-Authenticate header
+
 ## 📡 API Endpoints
 
 ### Generate Memory Illustration
@@ -209,6 +242,12 @@ S3_SUBJECT_PREFIX="subjects/"
 S3_GENERATED_PREFIX="generated/"
 ```
 
+#### Authentication Configuration
+```bash
+AUTH_ENABLED=false
+AUTH_TOKEN="your-secret-token-here"
+```
+
 #### Service Configuration
 ```bash
 SERVICE_URL="http://localhost:8000"
@@ -257,9 +296,24 @@ The `scripts/` directory contains ready-to-use test scripts:
 
 # Test health endpoint
 ./scripts/test-health.sh http://your-api-url
+
+# Test authentication
+./scripts/test-auth.sh http://your-api-url your-secret-token
+```
+
+### Testing with Authentication
+
+```bash
+# Test with authentication token
+./scripts/test-memory-illustration.sh http://your-api-url your-secret-token
+
+# Test authentication behavior
+./scripts/test-auth.sh http://your-api-url your-secret-token
 ```
 
 ### Manual Testing
+
+#### Without Authentication (if disabled)
 ```bash
 # Test memory illustration
 curl -X POST "http://localhost:8000/v1/images/memory" \
@@ -270,10 +324,25 @@ curl -X POST "http://localhost:8000/v1/images/memory" \
     "num_inference_steps": 30,
     "ip_adapter_scale": 0.5
   }'
+```
 
-# Test subject illustration
+#### With Authentication (if enabled)
+```bash
+# Test memory illustration with auth
+curl -X POST "http://localhost:8000/v1/images/memory" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-token" \
+  -d '{
+    "user_id": "test_user_123",
+    "prompt": "A beautiful sunset over mountains",
+    "num_inference_steps": 30,
+    "ip_adapter_scale": 0.5
+  }'
+
+# Test subject illustration with auth
 curl -X POST "http://localhost:8000/v1/images/subject" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-token" \
   -d '{
     "user_id": "test_user_123",
     "num_inference_steps": 30,
