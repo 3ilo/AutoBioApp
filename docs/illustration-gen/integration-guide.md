@@ -1,116 +1,60 @@
 # Integration Guide
 
-## Overview
+## 🚀 Current Status: **PRODUCTION READY**
 
-This guide outlines how to integrate the new illustration generation system with the existing AutoBio application. The integration involves updating the current image generation workflow to use the enhanced SDXL + IP-Adapter + LoRA pipeline while maintaining backward compatibility.
+The illustration generation service is fully operational and ready for integration with the AutoBio application. This guide provides step-by-step instructions for integrating the current working API.
 
-## Current System Analysis
+## 📡 Current API Endpoints
 
-### Existing Image Generation Flow
-```
-User Input → Memory Creation → Bedrock API → Generated Image → Memory Storage
-```
+### 1. Memory Illustration Generation
+- **Endpoint**: `POST /v1/images/memory`
+- **Purpose**: Generate illustrations using user avatars as IP-Adapter input
+- **Status**: ✅ **Production Ready**
 
-### Enhanced Flow
-```
-User Input → Memory Creation → Enhanced Prompt → SDXL Service → Generated Image → Memory Storage
-                ↓
-        Subject Reference Management
-                ↓
-        Style LoRA Application
-```
+### 2. Subject Illustration Generation  
+- **Endpoint**: `POST /v1/images/subject`
+- **Purpose**: Generate professional portraits from user photos
+- **Status**: ✅ **Production Ready**
 
-## Backend Integration
+### 3. Health Check
+- **Endpoint**: `GET /health/`
+- **Purpose**: Service health monitoring
+- **Status**: ✅ **Production Ready**
 
-### 1. Update Image Controller
+## 🔧 Integration Implementation
+
+### Backend Integration
+
+#### 1. Update AutoBio API Service
 
 ```typescript
-// server/src/controllers/imageController.ts
-import { IllustrationGenerationService } from '../services/illustrationGenerationService';
-import { SubjectReferenceService } from '../services/subjectReferenceService';
-
-export class ImageController {
-  private illustrationService: IllustrationGenerationService;
-  private subjectReferenceService: SubjectReferenceService;
-
-  constructor() {
-    this.illustrationService = new IllustrationGenerationService();
-    this.subjectReferenceService = new SubjectReferenceService();
-  }
-
-  async generateIllustration(req: Request, res: Response) {
-    try {
-      const { prompt, userId, memoryContext } = req.body;
-
-      // 1. Get user's subject references
-      const subjectReferences = await this.subjectReferenceService.getUserReferences(userId);
-
-      // 2. Enhance prompt with memory context
-      const enhancedPrompt = await this.enhancePrompt(prompt, memoryContext);
-
-      // 3. Generate illustration with new pipeline
-      const result = await this.illustrationService.generate({
-        prompt: enhancedPrompt,
-        subjectReferences,
-        userId,
-        memoryContext
-      });
-
-      // 4. Store generated image
-      const imageUrl = await this.storeGeneratedImage(result.image, userId);
-
-      res.json({
-        success: true,
-        imageUrl,
-        generationId: result.generationId,
-        metadata: result.metadata
-      });
-
-    } catch (error) {
-      // Fallback to existing Bedrock approach
-      return this.fallbackToBedrock(req, res);
-    }
-  }
-
-  private async fallbackToBedrock(req: Request, res: Response) {
-    // Existing Bedrock implementation
-    // ... existing code ...
-  }
-}
-```
-
-### 2. New Services
-
-#### Illustration Generation Service
-```typescript
-// server/src/services/illustrationGenerationService.ts
-export class IllustrationGenerationService {
+// server/src/services/illustrationService.ts
+export class IllustrationService {
   private sdxlServiceUrl: string;
 
   constructor() {
     this.sdxlServiceUrl = process.env.SDXL_SERVICE_URL || 'http://localhost:8000';
   }
 
-  async generate(params: {
-    prompt: string;
-    subjectReferences: SubjectReference[];
+  async generateMemoryIllustration(params: {
     userId: string;
-    memoryContext?: MemoryContext;
-  }): Promise<IllustrationResult> {
+    prompt: string;
+    numInferenceSteps?: number;
+    ipAdapterScale?: number;
+    negativePrompt?: string;
+    stylePrompt?: string;
+  }): Promise<{ s3Uri: string }> {
     
     const request = {
-      prompt: params.prompt,
-      subject_references: params.subjectReferences.map(ref => ({
-        name: ref.name,
-        image_url: ref.imageUrl
-      })),
       user_id: params.userId,
-      memory_context: params.memoryContext,
-      style_scale: 0.8,
-      content_scale: 1.0
+      prompt: params.prompt,
+      num_inference_steps: params.numInferenceSteps || 50,
+      ip_adapter_scale: params.ipAdapterScale || 0.33,
+      negative_prompt: params.negativePrompt || "error, glitch, mistake",
+      style_prompt: params.stylePrompt || "highest quality, monochrome, professional sketch, personal, nostalgic, clean"
     };
 
-    const response = await fetch(`${this.sdxlServiceUrl}/generate`, {
+    const response = await fetch(`${this.sdxlServiceUrl}/v1/images/memory`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,92 +66,196 @@ export class IllustrationGenerationService {
       throw new Error(`SDXL service error: ${response.statusText}`);
     }
 
+    const result = await response.json();
+    return { s3Uri: result.data[0].s3_uri };
+  }
+
+  async generateSubjectIllustration(params: {
+    userId: string;
+    numInferenceSteps?: number;
+    ipAdapterScale?: number;
+    negativePrompt?: string;
+    stylePrompt?: string;
+  }): Promise<{ s3Uri: string }> {
+    
+    const request = {
+      user_id: params.userId,
+      num_inference_steps: params.numInferenceSteps || 50,
+      ip_adapter_scale: params.ipAdapterScale || 0.33,
+      negative_prompt: params.negativePrompt || "error, glitch, mistake",
+      style_prompt: params.stylePrompt || "highest quality, professional sketch, monochrome"
+    };
+
+    const response = await fetch(`${this.sdxlServiceUrl}/v1/images/subject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      throw new Error(`SDXL service error: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return { s3Uri: result.data[0].s3_uri };
+  }
+
+  async checkHealth(): Promise<{ status: string; message: string }> {
+    const response = await fetch(`${this.sdxlServiceUrl}/health/`);
+    
+    if (!response.ok) {
+      throw new Error(`Health check failed: ${response.statusText}`);
+    }
+
     return await response.json();
   }
 }
 ```
 
-#### Subject Reference Service
+#### 2. Update Memory Controller
+
 ```typescript
-// server/src/services/subjectReferenceService.ts
-export class SubjectReferenceService {
-  async getUserReferences(userId: string): Promise<SubjectReference[]> {
-    // Query database for user's subject reference images
-    const references = await SubjectReference.find({ userId });
-    return references.map(ref => ({
-      name: ref.name,
-      imageUrl: ref.imageUrl,
-      createdAt: ref.createdAt
-    }));
+// server/src/controllers/memoryController.ts
+import { IllustrationService } from '../services/illustrationService';
+
+export class MemoryController {
+  private illustrationService: IllustrationService;
+
+  constructor() {
+    this.illustrationService = new IllustrationService();
   }
 
-  async storeReference(userId: string, name: string, imageFile: Express.Multer.File): Promise<SubjectReference> {
-    // Upload image to S3
-    const imageUrl = await this.uploadToS3(imageFile, userId);
-    
-    // Store reference in database
-    const reference = new SubjectReference({
-      userId,
-      name,
-      imageUrl,
-      createdAt: new Date()
-    });
+  async createMemory(req: Request, res: Response) {
+    try {
+      const { title, content, userId, generateIllustration } = req.body;
 
-    return await reference.save();
+      // Create memory record
+      const memory = await Memory.create({
+        title,
+        content,
+        userId,
+        createdAt: new Date()
+      });
+
+      // Generate illustration if requested
+      if (generateIllustration) {
+        try {
+          const illustrationResult = await this.illustrationService.generateMemoryIllustration({
+            userId,
+            prompt: `${title}: ${content}`,
+            numInferenceSteps: 50,
+            ipAdapterScale: 0.33
+          });
+
+          // Update memory with illustration
+          memory.illustrationS3Uri = illustrationResult.s3Uri;
+          await memory.save();
+
+          res.json({
+            success: true,
+            memory,
+            illustration: {
+              s3Uri: illustrationResult.s3Uri
+            }
+          });
+        } catch (illustrationError) {
+          console.error('Illustration generation failed:', illustrationError);
+          
+          // Return memory without illustration
+          res.json({
+            success: true,
+            memory,
+            illustration: null,
+            illustrationError: 'Failed to generate illustration'
+          });
+        }
+      } else {
+        res.json({
+          success: true,
+          memory,
+          illustration: null
+        });
+      }
+
+    } catch (error) {
+      console.error('Memory creation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create memory'
+      });
+    }
+  }
+
+  async generateSubjectPortrait(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { numInferenceSteps, ipAdapterScale, stylePrompt } = req.body;
+
+      const result = await this.illustrationService.generateSubjectIllustration({
+        userId,
+        numInferenceSteps,
+        ipAdapterScale,
+        stylePrompt
+      });
+
+      res.json({
+        success: true,
+        illustration: {
+          s3Uri: result.s3Uri
+        }
+      });
+
+    } catch (error) {
+      console.error('Subject illustration generation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate subject illustration'
+      });
+    }
   }
 }
 ```
 
-### 3. Database Schema Updates
+#### 3. Add New Routes
 
 ```typescript
-// server/src/models/SubjectReference.ts
-import mongoose from 'mongoose';
+// server/src/routes/memory.ts
+import express from 'express';
+import { MemoryController } from '../controllers/memoryController';
 
-const subjectReferenceSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  name: {
-    type: String,
-    required: true
-  },
-  imageUrl: {
-    type: String,
-    required: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+const router = express.Router();
+const memoryController = new MemoryController();
 
-// Compound index for efficient queries
-subjectReferenceSchema.index({ userId: 1, name: 1 });
+// Existing routes
+router.post('/', memoryController.createMemory.bind(memoryController));
 
-export const SubjectReference = mongoose.model('SubjectReference', subjectReferenceSchema);
+// New illustration routes
+router.post('/:userId/illustrations/subject', memoryController.generateSubjectPortrait.bind(memoryController));
+
+export default router;
 ```
 
-## Frontend Integration
+### Frontend Integration
 
-### 1. Update API Service
+#### 1. Update API Service
 
 ```typescript
 // client/src/services/api.ts
 export class ApiService {
-  // ... existing methods ...
+  private baseUrl: string;
 
-  async generateIllustration(params: {
-    prompt: string;
-    memoryContext?: {
-      title: string;
-      content: string;
-      date: string;
-    };
-  }): Promise<{ imageUrl: string; generationId: string }> {
-    const response = await fetch(`${this.baseUrl}/api/illustrations/generate`, {
+  constructor() {
+    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+  }
+
+  async createMemory(params: {
+    title: string;
+    content: string;
+    generateIllustration?: boolean;
+  }): Promise<{ memory: any; illustration?: { s3Uri: string } }> {
+    const response = await fetch(`${this.baseUrl}/api/memories`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -217,131 +265,282 @@ export class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to generate illustration');
+      throw new Error('Failed to create memory');
     }
 
     return await response.json();
   }
 
-  async uploadSubjectReference(name: string, imageFile: File): Promise<{ imageUrl: string }> {
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('image', imageFile);
-
-    const response = await fetch(`${this.baseUrl}/api/subject-references`, {
+  async generateSubjectPortrait(userId: string, options?: {
+    numInferenceSteps?: number;
+    ipAdapterScale?: number;
+    stylePrompt?: string;
+  }): Promise<{ s3Uri: string }> {
+    const response = await fetch(`${this.baseUrl}/api/memories/${userId}/illustrations/subject`, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.getToken()}`
       },
-      body: formData
+      body: JSON.stringify(options || {})
     });
 
     if (!response.ok) {
-      throw new Error('Failed to upload subject reference');
+      throw new Error('Failed to generate subject portrait');
     }
 
-    return await response.json();
+    const result = await response.json();
+    return { s3Uri: result.illustration.s3Uri };
   }
 
-  async getSubjectReferences(): Promise<SubjectReference[]> {
-    const response = await fetch(`${this.baseUrl}/api/subject-references`, {
-      headers: {
-        'Authorization': `Bearer ${this.getToken()}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch subject references');
-    }
-
-    return await response.json();
+  private getToken(): string {
+    return localStorage.getItem('authToken') || '';
   }
 }
 ```
 
-### 2. Enhanced Contribute Page
+#### 2. Enhanced Memory Creation Component
 
 ```typescript
-// client/src/pages/Contribute.tsx
-import { useState, useEffect } from 'react';
-import { SubjectReferenceSelector } from '../components/illustration/SubjectReferenceSelector';
-import { StylePreferences } from '../components/illustration/StylePreferences';
+// client/src/components/MemoryForm.tsx
+import React, { useState } from 'react';
+import { ApiService } from '../services/api';
 
-export const Contribute: React.FC = () => {
-  const [subjectReferences, setSubjectReferences] = useState<SubjectReference[]>([]);
-  const [selectedReferences, setSelectedReferences] = useState<string[]>([]);
-  const [stylePreferences, setStylePreferences] = useState<StylePreferences>({
-    artisticStyle: 'watercolor',
-    colorPalette: 'warm',
-    mood: 'nostalgic'
+interface MemoryFormProps {
+  onMemoryCreated: (memory: any) => void;
+}
+
+export const MemoryForm: React.FC<MemoryFormProps> = ({ onMemoryCreated }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    generateIllustration: true
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [illustrationOptions, setIllustrationOptions] = useState({
+    numInferenceSteps: 50,
+    ipAdapterScale: 0.33,
+    stylePrompt: 'highest quality, monochrome, professional sketch, personal, nostalgic, clean'
   });
 
-  useEffect(() => {
-    loadSubjectReferences();
-  }, []);
+  const apiService = new ApiService();
 
-  const loadSubjectReferences = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
     try {
-      const references = await apiService.getSubjectReferences();
-      setSubjectReferences(references);
+      const result = await apiService.createMemory({
+        title: formData.title,
+        content: formData.content,
+        generateIllustration: formData.generateIllustration
+      });
+
+      onMemoryCreated(result.memory);
+      
+      if (result.illustration) {
+        console.log('Illustration generated:', result.illustration.s3Uri);
+      }
+
     } catch (error) {
-      console.error('Failed to load subject references:', error);
+      console.error('Failed to create memory:', error);
+      alert('Failed to create memory. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleGenerateIllustration = async () => {
-    try {
-      setIsGenerating(true);
-      
-      const result = await apiService.generateIllustration({
-        prompt: memoryForm.title + ': ' + memoryForm.content,
-        memoryContext: {
-          title: memoryForm.title,
-          content: memoryForm.content,
-          date: memoryForm.date
-        }
-      });
+  return (
+    <form onSubmit={handleSubmit} className="memory-form">
+      <div className="form-group">
+        <label htmlFor="title">Memory Title</label>
+        <input
+          type="text"
+          id="title"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          required
+        />
+      </div>
 
-      setGeneratedImageUrl(result.imageUrl);
+      <div className="form-group">
+        <label htmlFor="content">Memory Content</label>
+        <textarea
+          id="content"
+          value={formData.content}
+          onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+          required
+          rows={4}
+        />
+      </div>
+
+      <div className="form-group">
+        <label>
+          <input
+            type="checkbox"
+            checked={formData.generateIllustration}
+            onChange={(e) => setFormData({ ...formData, generateIllustration: e.target.checked })}
+          />
+          Generate Illustration
+        </label>
+      </div>
+
+      {formData.generateIllustration && (
+        <div className="illustration-options">
+          <h4>Illustration Settings</h4>
+          
+          <div className="form-group">
+            <label htmlFor="inferenceSteps">Inference Steps</label>
+            <input
+              type="number"
+              id="inferenceSteps"
+              min="10"
+              max="100"
+              value={illustrationOptions.numInferenceSteps}
+              onChange={(e) => setIllustrationOptions({
+                ...illustrationOptions,
+                numInferenceSteps: parseInt(e.target.value)
+              })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="ipAdapterScale">IP Adapter Scale</label>
+            <input
+              type="range"
+              id="ipAdapterScale"
+              min="0.1"
+              max="1.0"
+              step="0.1"
+              value={illustrationOptions.ipAdapterScale}
+              onChange={(e) => setIllustrationOptions({
+                ...illustrationOptions,
+                ipAdapterScale: parseFloat(e.target.value)
+              })}
+            />
+            <span>{illustrationOptions.ipAdapterScale}</span>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="stylePrompt">Style Prompt</label>
+            <textarea
+              id="stylePrompt"
+              value={illustrationOptions.stylePrompt}
+              onChange={(e) => setIllustrationOptions({
+                ...illustrationOptions,
+                stylePrompt: e.target.value
+              })}
+              rows={2}
+            />
+          </div>
+        </div>
+      )}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Creating Memory...' : 'Create Memory'}
+      </button>
+    </form>
+  );
+};
+```
+
+#### 3. Subject Portrait Generation Component
+
+```typescript
+// client/src/components/SubjectPortraitGenerator.tsx
+import React, { useState } from 'react';
+import { ApiService } from '../services/api';
+
+interface SubjectPortraitGeneratorProps {
+  userId: string;
+}
+
+export const SubjectPortraitGenerator: React.FC<SubjectPortraitGeneratorProps> = ({ userId }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [options, setOptions] = useState({
+    numInferenceSteps: 50,
+    ipAdapterScale: 0.33,
+    stylePrompt: 'highest quality, professional sketch, monochrome'
+  });
+
+  const apiService = new ApiService();
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setGeneratedImage(null);
+
+    try {
+      const result = await apiService.generateSubjectPortrait(userId, options);
+      setGeneratedImage(result.s3Uri);
     } catch (error) {
-      console.error('Failed to generate illustration:', error);
-      // Fallback to existing generation method
+      console.error('Failed to generate subject portrait:', error);
+      alert('Failed to generate subject portrait. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   };
 
   return (
-    <div className="contribute-page">
-      {/* Existing memory form */}
+    <div className="subject-portrait-generator">
+      <h3>Generate Subject Portrait</h3>
       
-      {/* New illustration controls */}
-      <div className="illustration-section">
-        <h3>Illustration Settings</h3>
-        
-        <SubjectReferenceSelector
-          references={subjectReferences}
-          selected={selectedReferences}
-          onSelectionChange={setSelectedReferences}
-        />
-        
-        <StylePreferences
-          preferences={stylePreferences}
-          onPreferencesChange={setStylePreferences}
-        />
-        
-        <button 
-          onClick={handleGenerateIllustration}
-          disabled={isGenerating}
-        >
-          {isGenerating ? 'Generating...' : 'Generate Illustration'}
-        </button>
+      <div className="options">
+        <div className="form-group">
+          <label htmlFor="inferenceSteps">Inference Steps</label>
+          <input
+            type="number"
+            id="inferenceSteps"
+            min="10"
+            max="100"
+            value={options.numInferenceSteps}
+            onChange={(e) => setOptions({
+              ...options,
+              numInferenceSteps: parseInt(e.target.value)
+            })}
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="ipAdapterScale">IP Adapter Scale</label>
+          <input
+            type="range"
+            id="ipAdapterScale"
+            min="0.1"
+            max="1.0"
+            step="0.1"
+            value={options.ipAdapterScale}
+            onChange={(e) => setOptions({
+              ...options,
+              ipAdapterScale: parseFloat(e.target.value)
+            })}
+          />
+          <span>{options.ipAdapterScale}</span>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="stylePrompt">Style Prompt</label>
+          <textarea
+            id="stylePrompt"
+            value={options.stylePrompt}
+            onChange={(e) => setOptions({
+              ...options,
+              stylePrompt: e.target.value
+            })}
+            rows={2}
+          />
+        </div>
       </div>
-      
-      {/* Generated image display */}
-      {generatedImageUrl && (
+
+      <button onClick={handleGenerate} disabled={isGenerating}>
+        {isGenerating ? 'Generating...' : 'Generate Portrait'}
+      </button>
+
+      {generatedImage && (
         <div className="generated-image">
-          <img src={generatedImageUrl} alt="Generated illustration" />
+          <h4>Generated Portrait</h4>
+          <img src={generatedImage} alt="Generated subject portrait" />
+          <p>S3 URI: {generatedImage}</p>
         </div>
       )}
     </div>
@@ -349,237 +548,241 @@ export const Contribute: React.FC = () => {
 };
 ```
 
-### 3. New Components
-
-#### Subject Reference Selector
-```typescript
-// client/src/components/illustration/SubjectReferenceSelector.tsx
-interface SubjectReferenceSelectorProps {
-  references: SubjectReference[];
-  selected: string[];
-  onSelectionChange: (selected: string[]) => void;
-}
-
-export const SubjectReferenceSelector: React.FC<SubjectReferenceSelectorProps> = ({
-  references,
-  selected,
-  onSelectionChange
-}) => {
-  const handleToggle = (referenceId: string) => {
-    const newSelected = selected.includes(referenceId)
-      ? selected.filter(id => id !== referenceId)
-      : [...selected, referenceId];
-    onSelectionChange(newSelected);
-  };
-
-  return (
-    <div className="subject-reference-selector">
-      <h4>Subject References</h4>
-      <div className="reference-grid">
-        {references.map(reference => (
-          <div 
-            key={reference.id}
-            className={`reference-item ${selected.includes(reference.id) ? 'selected' : ''}`}
-            onClick={() => handleToggle(reference.id)}
-          >
-            <img src={reference.imageUrl} alt={reference.name} />
-            <span>{reference.name}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-```
-
-#### Style Preferences
-```typescript
-// client/src/components/illustration/StylePreferences.tsx
-interface StylePreferencesProps {
-  preferences: StylePreferences;
-  onPreferencesChange: (preferences: StylePreferences) => void;
-}
-
-export const StylePreferences: React.FC<StylePreferencesProps> = ({
-  preferences,
-  onPreferencesChange
-}) => {
-  const updatePreference = (key: keyof StylePreferences, value: string) => {
-    onPreferencesChange({
-      ...preferences,
-      [key]: value
-    });
-  };
-
-  return (
-    <div className="style-preferences">
-      <h4>Style Preferences</h4>
-      
-      <div className="preference-group">
-        <label>Artistic Style</label>
-        <select 
-          value={preferences.artisticStyle}
-          onChange={(e) => updatePreference('artisticStyle', e.target.value)}
-        >
-          <option value="watercolor">Watercolor</option>
-          <option value="digital">Digital Art</option>
-          <option value="sketch">Sketch</option>
-          <option value="painting">Oil Painting</option>
-        </select>
-      </div>
-      
-      <div className="preference-group">
-        <label>Color Palette</label>
-        <select 
-          value={preferences.colorPalette}
-          onChange={(e) => updatePreference('colorPalette', e.target.value)}
-        >
-          <option value="warm">Warm</option>
-          <option value="cool">Cool</option>
-          <option value="neutral">Neutral</option>
-          <option value="vibrant">Vibrant</option>
-        </select>
-      </div>
-      
-      <div className="preference-group">
-        <label>Mood</label>
-        <select 
-          value={preferences.mood}
-          onChange={(e) => updatePreference('mood', e.target.value)}
-        >
-          <option value="nostalgic">Nostalgic</option>
-          <option value="joyful">Joyful</option>
-          <option value="peaceful">Peaceful</option>
-          <option value="energetic">Energetic</option>
-        </select>
-      </div>
-    </div>
-  );
-};
-```
-
-## Migration Strategy
-
-### Phase 1: Parallel Implementation
-- Deploy new SDXL service alongside existing Bedrock service
-- Implement feature flags to control which service is used
-- Add new UI components while keeping existing functionality
-
-### Phase 2: Gradual Migration
-- Enable new service for a subset of users
-- Monitor performance and quality metrics
-- Gather user feedback and iterate
-
-### Phase 3: Full Migration
-- Switch all users to new service
-- Maintain Bedrock as fallback option
-- Optimize performance and costs
-
-### Phase 4: Enhancement
-- Train and deploy custom LoRA
-- Implement InstantStyle features
-- Add advanced style controls
-
-## Configuration Management
+## 🔧 Configuration
 
 ### Environment Variables
+
+#### AutoBio Backend (.env)
 ```bash
-# New SDXL service configuration
-SDXL_SERVICE_URL=http://localhost:8000
-SDXL_SERVICE_TIMEOUT=30000
-SDXL_FALLBACK_ENABLED=true
+# SDXL Service Configuration
+SDXL_SERVICE_URL=http://your-sdxl-service:8000
+SDXL_SERVICE_TIMEOUT=60000
 
-# Subject reference storage
-S3_BUCKET_NAME=autobio-subject-references
-S3_REGION=us-east-1
+# S3 Configuration (for serving generated images)
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=auto-bio-illustrations
 
-# Feature flags
-ENABLE_ENHANCED_ILLUSTRATION=true
-ENABLE_SUBJECT_REFERENCES=true
-ENABLE_STYLE_PREFERENCES=true
+# Feature Flags
+ENABLE_ILLUSTRATION_GENERATION=true
+ENABLE_SUBJECT_PORTRAITS=true
 ```
 
-### Feature Flags
+#### Frontend (.env)
+```bash
+REACT_APP_API_URL=http://your-autobio-api:3000
+REACT_APP_S3_BUCKET=auto-bio-illustrations
+REACT_APP_S3_REGION=us-east-1
+```
+
+### Database Schema Updates
+
+```sql
+-- Add illustration fields to memories table
+ALTER TABLE memories ADD COLUMN illustration_s3_uri VARCHAR(500);
+ALTER TABLE memories ADD COLUMN illustration_generated_at TIMESTAMP;
+
+-- Add subject references table
+CREATE TABLE subject_references (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    s3_uri VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_subject_references_user_id ON subject_references(user_id);
+```
+
+## 🧪 Testing Integration
+
+### 1. Test Scripts
+
+```bash
+# Test memory illustration generation
+curl -X POST "http://your-sdxl-service:8000/v1/images/memory" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "test_user_123",
+    "prompt": "A beautiful sunset over mountains",
+    "num_inference_steps": 50,
+    "ip_adapter_scale": 0.33,
+    "negative_prompt": "blurry, low quality",
+    "style_prompt": "highest quality, monochrome, professional sketch"
+  }'
+
+# Test subject illustration generation
+curl -X POST "http://your-sdxl-service:8000/v1/images/subject" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "test_user_123",
+    "num_inference_steps": 50,
+    "ip_adapter_scale": 0.33,
+    "negative_prompt": "blurry, low quality",
+    "style_prompt": "highest quality, professional sketch, monochrome"
+  }'
+
+# Test health check
+curl -X GET "http://your-sdxl-service:8000/health/"
+```
+
+### 2. Integration Tests
+
 ```typescript
-// server/src/config/featureFlags.ts
-export const FEATURE_FLAGS = {
-  ENHANCED_ILLUSTRATION: process.env.ENABLE_ENHANCED_ILLUSTRATION === 'true',
-  SUBJECT_REFERENCES: process.env.ENABLE_SUBJECT_REFERENCES === 'true',
-  STYLE_PREFERENCES: process.env.ENABLE_STYLE_PREFERENCES === 'true',
-  SDXL_FALLBACK: process.env.SDXL_FALLBACK_ENABLED === 'true'
+// tests/integration/illustration.test.ts
+import { IllustrationService } from '../../src/services/illustrationService';
+
+describe('Illustration Service Integration', () => {
+  let illustrationService: IllustrationService;
+
+  beforeEach(() => {
+    illustrationService = new IllustrationService();
+  });
+
+  test('should generate memory illustration', async () => {
+    const result = await illustrationService.generateMemoryIllustration({
+      userId: 'test_user_123',
+      prompt: 'A beautiful sunset over mountains',
+      numInferenceSteps: 20, // Faster for testing
+      ipAdapterScale: 0.33
+    });
+
+    expect(result.s3Uri).toMatch(/^s3:\/\/.+\/.+\.png$/);
+  });
+
+  test('should generate subject illustration', async () => {
+    const result = await illustrationService.generateSubjectIllustration({
+      userId: 'test_user_123',
+      numInferenceSteps: 20, // Faster for testing
+      ipAdapterScale: 0.33
+    });
+
+    expect(result.s3Uri).toMatch(/^s3:\/\/.+\/.+\.png$/);
+  });
+
+  test('should check service health', async () => {
+    const health = await illustrationService.checkHealth();
+    expect(health.status).toBe('healthy');
+  });
+});
+```
+
+## 🚀 Deployment
+
+### 1. Deploy SDXL Service
+
+```bash
+# Build and deploy SDXL service
+docker build -t illustration-gen-api .
+docker run --gpus all -d \
+  --name illustration-service \
+  -p 8000:8000 \
+  -e AWS_ACCESS_KEY_ID=your-key \
+  -e AWS_SECRET_ACCESS_KEY=your-secret \
+  -e S3_BUCKET_NAME=your-bucket \
+  illustration-gen-api
+```
+
+### 2. Update AutoBio Backend
+
+```bash
+# Deploy updated AutoBio backend with illustration integration
+docker build -t autobio-backend .
+docker run -d \
+  --name autobio-backend \
+  -p 3000:3000 \
+  -e SDXL_SERVICE_URL=http://illustration-service:8000 \
+  -e AWS_ACCESS_KEY_ID=your-key \
+  -e AWS_SECRET_ACCESS_KEY=your-secret \
+  autobio-backend
+```
+
+### 3. Update Frontend
+
+```bash
+# Deploy updated frontend
+npm run build
+# Deploy to your hosting platform
+```
+
+## 📊 Monitoring
+
+### Health Checks
+
+```typescript
+// Add to your monitoring system
+const checkSDXLService = async () => {
+  try {
+    const response = await fetch('http://your-sdxl-service:8000/health/');
+    const health = await response.json();
+    
+    if (health.status !== 'healthy') {
+      console.error('SDXL service is unhealthy:', health);
+      // Send alert
+    }
+  } catch (error) {
+    console.error('SDXL service health check failed:', error);
+    // Send alert
+  }
+};
+
+// Run every 30 seconds
+setInterval(checkSDXLService, 30000);
+```
+
+### Metrics Collection
+
+```typescript
+// Add metrics collection
+const collectIllustrationMetrics = async (userId: string, prompt: string, generationTime: number) => {
+  // Send to your metrics system
+  console.log('Illustration generated', {
+    userId,
+    promptLength: prompt.length,
+    generationTime,
+    timestamp: new Date()
+  });
 };
 ```
 
-## Testing Strategy
+## 🔄 Migration Strategy
 
-### Unit Tests
-- Test new services in isolation
-- Mock external dependencies
-- Validate error handling and fallbacks
+### Phase 1: Parallel Deployment
+1. Deploy SDXL service alongside existing system
+2. Add feature flags to control illustration generation
+3. Test with subset of users
 
-### Integration Tests
-- Test full pipeline from API to SDXL service
-- Validate subject reference management
-- Test style preference application
+### Phase 2: Gradual Rollout
+1. Enable for 10% of users
+2. Monitor performance and quality
+3. Gradually increase to 100%
 
-### End-to-End Tests
-- Test complete user workflow
-- Validate image generation quality
-- Test fallback mechanisms
+### Phase 3: Full Integration
+1. Remove feature flags
+2. Make illustration generation default
+3. Optimize performance
 
-### Performance Tests
-- Load test SDXL service
-- Measure generation latency
-- Test concurrent request handling
-
-## Monitoring and Observability
-
-### Metrics to Track
-- Generation success rate
-- Average generation time
-- User satisfaction scores
-- Cost per generation
-- Fallback usage rate
-
-### Logging
-```typescript
-// Enhanced logging for illustration generation
-logger.info('Illustration generation started', {
-  userId,
-  prompt,
-  subjectReferences: selectedReferences.length,
-  stylePreferences,
-  timestamp: new Date()
-});
-
-logger.info('Illustration generation completed', {
-  userId,
-  generationId,
-  generationTime,
-  success: true,
-  imageUrl
-});
-```
-
-### Alerts
-- SDXL service downtime
-- High error rates
-- Generation time spikes
-- Cost threshold exceeded
-
-## Rollback Plan
+## 🚨 Rollback Plan
 
 ### Immediate Rollback
-- Feature flags to disable new service
-- Automatic fallback to Bedrock
-- Database rollback scripts
+```bash
+# Disable illustration generation via feature flag
+export ENABLE_ILLUSTRATION_GENERATION=false
 
-### Data Migration
-- Export subject references
-- Backup generated images
-- Preserve user preferences
+# Restart AutoBio backend
+docker restart autobio-backend
+```
 
-### Communication
-- User notification of service changes
-- Status page updates
-- Support documentation updates
+### Data Preservation
+- Generated illustrations remain in S3
+- Memory records preserve illustration S3 URIs
+- No data loss during rollback
+
+## 📚 Resources
+
+- [SDXL Service API Documentation](http://your-sdxl-service:8000/docs)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [AWS S3 Documentation](https://docs.aws.amazon.com/s3/)
+- [IP-Adapter Documentation](https://huggingface.co/docs/diffusers/en/using-diffusers/ip_adapter)
