@@ -5,7 +5,7 @@
 # Example: ./test-memory-illustration.sh http://54.123.45.67:8000 your-secret-token
 # 
 # Environment variable fallback:
-# Set AUTH_TOKEN_ENV to use as default token if no second argument provided
+# Set AUTH_TOKEN to use as default token if no second argument provided
 
 if [ $# -eq 0 ]; then
     echo "❌ Error: Please provide the EC2 API URL as a parameter"
@@ -13,7 +13,7 @@ if [ $# -eq 0 ]; then
     echo "Example: $0 http://54.123.45.67:8000 your-secret-token"
     echo ""
     echo "Environment variable fallback:"
-    echo "Set AUTH_TOKEN_ENV to use as default token if no second argument provided"
+    echo "Set AUTH_TOKEN to use as default token if no second argument provided"
     exit 1
 fi
 
@@ -22,9 +22,11 @@ AUTH_TOKEN="$2"
 ENDPOINT="$API_URL/v1/images/memory"
 
 # Use environment variable as fallback if no token provided
-if [ -z "$AUTH_TOKEN" ] && [ -n "$AUTH_TOKEN_ENV" ]; then
-    AUTH_TOKEN="$AUTH_TOKEN_ENV"
-    echo "🔐 Using authentication token from environment variable"
+if [ -z "$AUTH_TOKEN" ]; then
+    AUTH_TOKEN="${AUTH_TOKEN:-}"
+    if [ -n "$AUTH_TOKEN" ]; then
+        echo "🔐 Using authentication token from environment variable"
+    fi
 fi
 
 # Build headers
@@ -33,7 +35,7 @@ if [ -n "$AUTH_TOKEN" ]; then
     HEADERS+=(-H "Authorization: Bearer $AUTH_TOKEN")
     echo "🔐 Using authentication token"
 else
-    echo "⚠️  No authentication token provided (set AUTH_TOKEN_ENV or pass as second argument)"
+    echo "⚠️  No authentication token provided (set AUTH_TOKEN or pass as second argument)"
 fi
 
 echo "🧪 Testing memory illustration generation..."

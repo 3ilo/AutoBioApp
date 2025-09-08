@@ -1,7 +1,7 @@
 import { IUser } from "./User";
 
 export interface IComment {
-  user: string; // User ID
+  user: string | any; // User ID (ObjectId or string)
   content: string;
   createdAt: Date;
 }
@@ -24,8 +24,8 @@ export interface IMemory {
   date: Date;
   images: IMemoryImage[];
   tags: string[];
-  author: string; // User ID
-  likes: string[]; // Array of User IDs
+  author: string | any; // User ID (ObjectId or string)
+  likes: (string | any)[]; // Array of User IDs (ObjectId or string)
   comments: IComment[];
   isPublic: boolean;
   createdAt?: Date;

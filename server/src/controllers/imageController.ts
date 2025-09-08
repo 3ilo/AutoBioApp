@@ -1,22 +1,20 @@
 import { Request, Response } from 'express';
 import { ApiResponse } from '../../../shared/types/ApiResponse';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
 import { BedrockSummarizationService } from '../services/summarizationService';
 import { PromptEnhancementService } from '../services/promptEnhancementService';
 import { BedrockMemorySummaryService } from '../services/memorySummaryService';
+import { illustrationService } from '../services/illustrationService';
+import { generateImageBedrock, uploadToS3, generateFakeImageUrl } from '../services/bedrockImageService';
 import { User } from '../models/User';
 import { Memory } from '../models/Memory';
-import { log } from 'console';
 
 // Environment variables
 const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
-const IMAGE_MODEL_ID = process.env.BEDROCK_IMAGE_MODEL_ID || 'stability.stable-diffusion-xl-v1';
-const BEDROCK_CLIENT_REGION = process.env.BEDROCK_CLIENT_REGION || 'us-west-2';
-const S3_CLIENT_REGION = process.env.S3_CLIENT_REGION || 'us-west-2';
-const AWS_REGION = process.env.AWS_REGION || 'us-west-2';
+const ILLUSTRATION_SERVICE_URL = process.env.ILLUSTRATION_SERVICE_URL || 'http://localhost:8000';
+const USE_ILLUSTRATION_SERVICE = process.env.USE_ILLUSTRATION_SERVICE === 'true'; // Only true if explicitly enabled
+const USE_BEDROCK_FALLBACK = process.env.USE_BEDROCK_FALLBACK === 'true'; // Only true if explicitly enabled
 
 // Types
 interface GenerateImageRequest {
@@ -30,23 +28,6 @@ interface RegenerateImageRequest extends GenerateImageRequest {
   previousUrl: string;
 }
 
-
-// Initialize AWS clients
-const s3Client = new S3Client({
-  region: S3_CLIENT_REGION || 'us-west-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
-
-const bedrockClient = new BedrockRuntimeClient({
-  region: BEDROCK_CLIENT_REGION || 'us-west-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
 
 // Initialize services
 const summarizationService = new BedrockSummarizationService();
@@ -143,81 +124,13 @@ async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): 
   }
 }
 
-// Helper function to generate a fake image URL (for development)
-async function generateFakeImageUrl(): Promise<string> {
-  // In production, this would be replaced with actual Bedrock API call
-  const imageKey = "IMG_0451.jpeg" // `staging/${uuidv4()}.jpg`;
-  
-  // For development, return a placeholder image URL
-  // return "https://milochase.com/assets/pfp-45e008ee.png"
-  return `https://${STAGING_BUCKET}.s3.amazonaws.com/${imageKey}`;
-}
-
-// Helper function to generate image using Bedrock
-async function generateImageBedrock(prompt: string): Promise<Buffer> {
+// Helper function to check if illustration service is available
+async function isIllustrationServiceAvailable(): Promise<boolean> {
   try {
-    if (!prompt) {
-      throw new Error('Prompt is required');
-    }
-
-    // Prepare the request payload for the image model
-    const payload = {
-      prompt: prompt,
-      mode: "text-to-image",
-      aspect_ratio: "1:1",
-      output_format: "jpeg",
-      seed: Math.floor(Math.random() * 1000000),
-    };
-
-    // Invoke the Bedrock model
-    const command = new InvokeModelCommand({
-      modelId: IMAGE_MODEL_ID,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify(payload),
-    });
-
-    const response = await bedrockClient.send(command);
-    
-    if (!response.body) {
-      throw new Error('No response body from Bedrock');
-    }
-
-    // Convert the response to a Buffer
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    if (!responseBody.images?.[0]) {
-      logger.error('Invalid response format from Bedrock:', Object.keys(responseBody));
-      throw new Error('Invalid response format from Bedrock');
-    }
-
-    logger.info('Response Body:', Object.keys(responseBody));
-
-    return Buffer.from(responseBody.images[0], 'base64'); //Images not Artifacts?
+    return await illustrationService.checkHealth();
   } catch (error) {
-    logger.error('Error generating image with Bedrock:', error);
-    throw error;
-  }
-}
-
-// Helper function to upload image to S3
-async function uploadToS3(imageBuffer: Buffer, key: string): Promise<string> {
-  try {
-    if (!imageBuffer || !key) {
-      throw new Error('Image buffer and key are required');
-    }
-
-    const command = new PutObjectCommand({
-      Bucket: STAGING_BUCKET,
-      Key: key,
-      Body: imageBuffer,
-      ContentType: 'image/jpeg',
-    });
-
-    await s3Client.send(command);
-    return `https://${STAGING_BUCKET}.s3.amazonaws.com/${key}`;
-  } catch (error) {
-    logger.error('Error uploading to S3:', error);
-    throw error;
+    logger.warn('Illustration service health check failed:', error);
+    return false;
   }
 }
 
@@ -231,6 +144,13 @@ export async function generateImage(req: Request, res: Response) {
         message: 'Title, content, and date are required',
       });
     }
+
+    if (!userId) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'User ID is required for illustration generation',
+      });
+    }
     
     // Use enhanced prompt if userId is provided, otherwise use basic prompt
     let prompt: string;
@@ -242,12 +162,56 @@ export async function generateImage(req: Request, res: Response) {
       prompt = craftBasicPrompt({ title, content, date });
     }
     
-    // Generate image using Bedrock
-    const imageBuffer = await generateImageBedrock(prompt);
-    
-    // Upload to S3
-    const imageKey = `staging/${uuidv4()}.jpg`;
-    const imageUrl = await uploadToS3(imageBuffer, imageKey);
+    let imageUrl: string;
+
+    // Check if illustration service is enabled
+    if (!USE_ILLUSTRATION_SERVICE) {
+      logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
+    // Check if illustration service is available
+    if (!(await isIllustrationServiceAvailable())) {
+      logger.error('Illustration service is not available');
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
+    // Use illustration service
+    try {
+      logger.info('Using illustration service for image generation');
+      const s3Uri = await illustrationService.generateMemoryIllustration(userId, prompt);
+      imageUrl = illustrationService.convertS3UriToPublicUrl(s3Uri);
+      logger.info(`Generated image via illustration service: ${imageUrl}`);
+    } catch (error) {
+      logger.error('Illustration service failed:', error);
+      
+      // Only fall back to Bedrock if explicitly enabled
+      if (USE_BEDROCK_FALLBACK) {
+        logger.warn('Falling back to deprecated Bedrock service');
+        try {
+          const imageBuffer = await generateImageBedrock(prompt);
+          const imageKey = `staging/${uuidv4()}.jpg`;
+          imageUrl = await uploadToS3(imageBuffer, imageKey);
+        } catch (bedrockError) {
+          logger.error('Bedrock fallback also failed:', bedrockError);
+          return res.status(500).json({
+            status: 'fail',
+            message: 'Image generation failed',
+          });
+        }
+      } else {
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image generation failed',
+        });
+      }
+    }
 
     const response: ApiResponse<{ url: string }> = {
       status: 'success',
@@ -269,6 +233,13 @@ export async function regenerateImage(req: Request, res: Response) {
   try {
     const { title, content, date, previousUrl, userId } = req.body as RegenerateImageRequest;
     
+    if (!userId) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'User ID is required for illustration regeneration',
+      });
+    }
+    
     // Use enhanced prompt if userId is provided, otherwise use basic prompt
     let basePrompt: string;
     if (userId) {
@@ -279,9 +250,56 @@ export async function regenerateImage(req: Request, res: Response) {
     
     const prompt = `${basePrompt}\n\nPlease create a different variation of this illustration while maintaining the same style and quality.`;
     
-    // TODO: Replace with actual Bedrock API call
-    // For now, generate a fake image URL
-    const imageUrl = await generateFakeImageUrl();
+    let imageUrl: string;
+
+    // Check if illustration service is enabled
+    if (!USE_ILLUSTRATION_SERVICE) {
+      logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
+    // Check if illustration service is available
+    if (!(await isIllustrationServiceAvailable())) {
+      logger.error('Illustration service is not available');
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
+    // Use illustration service
+    try {
+      logger.info('Using illustration service for image regeneration');
+      const s3Uri = await illustrationService.generateMemoryIllustration(userId, prompt);
+      imageUrl = illustrationService.convertS3UriToPublicUrl(s3Uri);
+      logger.info(`Regenerated image via illustration service: ${imageUrl}`);
+    } catch (error) {
+      logger.error('Illustration service failed:', error);
+      
+      // Only fall back to Bedrock if explicitly enabled
+      if (USE_BEDROCK_FALLBACK) {
+        logger.warn('Falling back to deprecated Bedrock service');
+        try {
+          const imageBuffer = await generateImageBedrock(prompt);
+          const imageKey = `staging/${uuidv4()}.jpg`;
+          imageUrl = await uploadToS3(imageBuffer, imageKey);
+        } catch (bedrockError) {
+          logger.error('Bedrock fallback also failed:', bedrockError);
+          return res.status(500).json({
+            status: 'fail',
+            message: 'Image regeneration failed',
+          });
+        }
+      } else {
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image regeneration failed',
+        });
+      }
+    }
 
     const response: ApiResponse<{ url: string }> = {
       status: 'success',
@@ -291,10 +309,71 @@ export async function regenerateImage(req: Request, res: Response) {
 
     res.json(response);
   } catch (error) {
-    console.error('Error regenerating image:', error);
+    logger.error('Error regenerating image:', error);
     res.status(500).json({
       status: 'fail',
       message: 'Failed to regenerate image',
+    });
+  }
+}
+
+export async function generateSubjectIllustration(req: Request, res: Response) {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'User ID is required for subject illustration generation',
+      });
+    }
+    
+    let imageUrl: string;
+
+    // Check if illustration service is enabled
+    if (!USE_ILLUSTRATION_SERVICE) {
+      logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
+    // Check if illustration service is available
+    if (!(await isIllustrationServiceAvailable())) {
+      logger.error('Illustration service is not available');
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
+    // Use illustration service
+    try {
+      logger.info('Using illustration service for subject illustration generation');
+      const s3Uri = await illustrationService.generateSubjectIllustration(userId);
+      imageUrl = illustrationService.convertS3UriToPublicUrl(s3Uri);
+      logger.info(`Generated subject illustration via illustration service: ${imageUrl}`);
+    } catch (error) {
+      logger.error('Illustration service failed for subject illustration:', error);
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Failed to generate subject illustration',
+      });
+    }
+
+    const response: ApiResponse<{ url: string }> = {
+      status: 'success',
+      data: { url: imageUrl },
+      message: 'Subject illustration generated successfully',
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Error generating subject illustration:', error);
+    res.status(500).json({
+      status: 'fail',
+      message: 'Failed to generate subject illustration',
     });
   }
 } 

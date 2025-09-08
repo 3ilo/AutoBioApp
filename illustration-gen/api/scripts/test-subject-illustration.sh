@@ -12,19 +12,21 @@ if [ $# -eq 0 ]; then
 fi
 
 API_URL="$1"
-AUTH_TOKEN="$2"
+AUTH_TOKEN_COMMAND="$2"
 ENDPOINT="$API_URL/v1/images/subject"
 
 # Use environment variable as fallback if no token provided
-if [ -z "$AUTH_TOKEN" ] && [ -n "$AUTH_TOKEN_ENV" ]; then
-    AUTH_TOKEN="$AUTH_TOKEN_ENV"
-    echo "🔐 Using authentication token from environment variable"
+if [ -z "$AUTH_TOKEN" ]; then
+    AUTH_TOKEN="${AUTH_TOKEN:-}"
+    if [ -n "$AUTH_TOKEN" ]; then
+        echo "🔐 Using authentication token from environment variable"
+    fi
 fi
 
 # Build headers
 HEADERS=(-H "Content-Type: application/json")
-if [ -n "$AUTH_TOKEN" ]; then
-    HEADERS+=(-H "Authorization: Bearer $AUTH_TOKEN")
+if [ -n "$AUTH_TOKEN_COMMAND" ]; then
+    HEADERS+=(-H "Authorization: Bearer $AUTH_TOKEN_COMMAND")
     echo "🔐 Using authentication token"
 else
     echo "⚠️  No authentication token provided"
@@ -38,7 +40,7 @@ curl -X POST "$ENDPOINT" \
   -d '{
     "user_id": "test_user_123",
     "num_inference_steps": 70,
-    "ip_adapter_scale": 1.0,
+    "ip_adapter_scale": 1.3,
     "negative_prompt": "error, glitch, mistake",
     "style_prompt": "professional sketch portrait"
   }' \

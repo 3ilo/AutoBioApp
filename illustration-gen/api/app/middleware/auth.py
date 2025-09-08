@@ -58,8 +58,6 @@ def get_auth_dependency():
     Get authentication dependency based on configuration.
     
     Returns:
-        Dependency function or None
+        Dependency function
     """
-    if settings.auth_enabled:
-        return Depends(verify_token)
-    return None
+    return verify_token  # Return the function directly

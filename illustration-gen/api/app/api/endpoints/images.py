@@ -21,7 +21,7 @@ def get_illustration_service() -> IllustrationService:
 async def generate_memory_illustration(
     memory_input: GenerateMemoryIllustrationInput,
     service: IllustrationService = Depends(get_illustration_service),
-    _: bool = Depends(get_auth_dependency())
+    _: bool = Depends(get_auth_dependency)
 ):
     """Generate a memory illustration using user's avatar as IP-Adapter input"""
     try:
@@ -41,7 +41,7 @@ async def generate_memory_illustration(
 async def generate_subject_illustration(
     subject_input: GenerateSubjectIllustrationInput,
     service: IllustrationService = Depends(get_illustration_service),
-    _: bool = Depends(get_auth_dependency())
+    _ = Depends(get_auth_dependency)
 ):
     """Generate a subject illustration using user's uploaded photo and special prompt"""
     try:
