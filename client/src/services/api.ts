@@ -166,6 +166,48 @@ export const imageGenerationApi = {
     const response = await api.post<ApiResponse<{ url: string }>>('/images/regenerate', data);
     return response.data;
   },
+
+  generateSubjectIllustration: async (userId: string) => {
+    const response = await api.post<ApiResponse<{ url: string }>>('/images/subject', { userId });
+    return response.data;
+  },
+
+  generatePresignedUploadUrl: async (contentType: string) => {
+    const response = await api.post<ApiResponse<{ uploadUrl: string; key: string }>>('/images/presigned-upload-url', {
+      contentType,
+    });
+    return response.data;
+  },
+
+  generatePresignedAvatarUploadUrl: async (contentType: string) => {
+    const response = await api.post<ApiResponse<{ uploadUrl: string; key: string }>>('/images/presigned-avatar-upload-url', {
+      contentType,
+    });
+    return response.data;
+  },
+
+  uploadToS3: async (presignedUrl: string, file: File) => {
+    const response = await fetch(presignedUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.statusText}`);
+    }
+    
+    return response;
+  },
+
+  generatePresignedViewUrl: async (s3Uri: string) => {
+    const response = await api.post<ApiResponse<{ presignedUrl: string }>>('/images/presigned-view-url', {
+      s3Uri,
+    });
+    return response.data;
+  },
 };
 
 export default api; 

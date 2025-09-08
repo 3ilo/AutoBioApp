@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';
 
 // Environment variables
@@ -121,7 +122,11 @@ export class IllustrationService {
 
     const s3Uri = response.data[0].s3_uri;
     logger.info(`Memory illustration generated: ${s3Uri}`);
-    return s3Uri;
+    
+    // Convert S3 URI to pre-signed URL for viewing
+    const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
+    logger.info(`Generated pre-signed URL for memory illustration`);
+    return presignedUrl;
   }
 
   /**
@@ -156,7 +161,11 @@ export class IllustrationService {
 
     const s3Uri = response.data[0].s3_uri;
     logger.info(`Subject illustration generated: ${s3Uri}`);
-    return s3Uri;
+    
+    // Convert S3 URI to pre-signed URL for viewing
+    const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
+    logger.info(`Generated pre-signed URL for subject illustration`);
+    return presignedUrl;
   }
 
   /**
@@ -165,7 +174,7 @@ export class IllustrationService {
   async checkHealth(): Promise<boolean> {
     try {
       const response = await axios.get(`${this.baseUrl}/health/`, {
-        timeout: 5000,
+        timeout: 2000,
       });
       return response.status === 200;
     } catch (error) {

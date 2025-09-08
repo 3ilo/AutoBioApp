@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { usePresignedUrl } from '../hooks/usePresignedUrl';
 import { UserCircleIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -11,6 +12,9 @@ export function Layout({ children }: LayoutProps) {
   const { isAuthenticated, logout, user } = useAuthStore();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Convert user avatar to pre-signed URL for display
+  const userAvatarUrl = usePresignedUrl(user?.avatar);
 
   const navigationLinks = [
     { to: '/contribute', label: 'Contribute' },
@@ -67,14 +71,14 @@ export function Layout({ children }: LayoutProps) {
                     >
                       {user?.avatar ? (
                         <img
-                          src={user.avatar}
-                          alt={user.name}
+                          src={userAvatarUrl}
+                          alt={`${user?.firstName} ${user?.lastName}`}
                           className="h-8 w-8 rounded-full"
                         />
                       ) : (
                         <UserCircleIcon className="h-8 w-8 text-gray-400" />
                       )}
-                      <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+                      <span className="text-sm font-medium text-gray-700">{user?.firstName} {user?.lastName}</span>
                     </button>
                     
                     {isDropdownOpen && (

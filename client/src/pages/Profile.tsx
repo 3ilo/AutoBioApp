@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
-import { IUser } from '@shared/types/User';
+import { AvatarGenerator } from '../components/avatar/AvatarGenerator';
+import { usePresignedUrl } from '../hooks/usePresignedUrl';
 
 // Temporary mock data
 const mockStats = {
@@ -32,6 +33,9 @@ export function Profile() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [interestsInput, setInterestsInput] = useState('');
+  
+  // Convert avatar S3 URI to pre-signed URL for display
+  const avatarUrl = usePresignedUrl(user?.avatar);
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
@@ -42,6 +46,7 @@ export function Profile() {
     interests: [] as string[],
     culturalBackground: '',
     preferredStyle: '',
+    avatar: '',
   });
 
   // Update profile data when user data changes
@@ -57,6 +62,7 @@ export function Profile() {
         interests: user.interests || [],
         culturalBackground: user.culturalBackground || '',
         preferredStyle: user.preferredStyle || '',
+        avatar: user.avatar || '',
       });
       // Also update the interests input field
       setInterestsInput(user.interests ? user.interests.join(', ') : '');
@@ -99,9 +105,9 @@ export function Profile() {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <img
-                  src={user?.avatar || 'https://picsum.photos/100/100'}
+                  src={avatarUrl}
                   alt={user?.firstName}
-                  className="h-16 w-16 rounded-full"
+                  className="h-16 w-16 rounded-full object-cover"
                 />
                 <div className="ml-4">
                   <h2 className="text-2xl font-bold text-gray-900">{user?.firstName} {user?.lastName}</h2>
@@ -255,6 +261,14 @@ export function Profile() {
                     value={profileData.bio}
                     onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                
+                {/* Avatar Generation Section */}
+                <div className="sm:col-span-2">
+                  <AvatarGenerator
+                    onAvatarSelected={(avatarUrl) => setProfileData({ ...profileData, avatar: avatarUrl })}
+                    currentAvatar={profileData.avatar}
                   />
                 </div>
                 <div className="sm:col-span-2 flex justify-end space-x-3">

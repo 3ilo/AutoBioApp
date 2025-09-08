@@ -9,6 +9,8 @@ import { illustrationService } from '../services/illustrationService';
 import { generateImageBedrock, uploadToS3, generateFakeImageUrl } from '../services/bedrockImageService';
 import { User } from '../models/User';
 import { Memory } from '../models/Memory';
+import { s3Client } from '../utils/s3Client';
+import '../utils/auth'; // Import to ensure Request type extension is loaded
 
 // Environment variables
 const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
@@ -185,8 +187,7 @@ export async function generateImage(req: Request, res: Response) {
     // Use illustration service
     try {
       logger.info('Using illustration service for image generation');
-      const s3Uri = await illustrationService.generateMemoryIllustration(userId, prompt);
-      imageUrl = illustrationService.convertS3UriToPublicUrl(s3Uri);
+      imageUrl = await illustrationService.generateMemoryIllustration(userId, prompt);
       logger.info(`Generated image via illustration service: ${imageUrl}`);
     } catch (error) {
       logger.error('Illustration service failed:', error);
@@ -273,8 +274,7 @@ export async function regenerateImage(req: Request, res: Response) {
     // Use illustration service
     try {
       logger.info('Using illustration service for image regeneration');
-      const s3Uri = await illustrationService.generateMemoryIllustration(userId, prompt);
-      imageUrl = illustrationService.convertS3UriToPublicUrl(s3Uri);
+      imageUrl = await illustrationService.generateMemoryIllustration(userId, prompt);
       logger.info(`Regenerated image via illustration service: ${imageUrl}`);
     } catch (error) {
       logger.error('Illustration service failed:', error);
@@ -351,8 +351,7 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
     // Use illustration service
     try {
       logger.info('Using illustration service for subject illustration generation');
-      const s3Uri = await illustrationService.generateSubjectIllustration(userId);
-      imageUrl = illustrationService.convertS3UriToPublicUrl(s3Uri);
+      imageUrl = await illustrationService.generateSubjectIllustration(userId);
       logger.info(`Generated subject illustration via illustration service: ${imageUrl}`);
     } catch (error) {
       logger.error('Illustration service failed for subject illustration:', error);
@@ -374,6 +373,132 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate subject illustration',
+    });
+  }
+}
+
+export async function generatePresignedUploadUrl(req: Request, res: Response) {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+
+    const userId = req.user._id;
+    const { contentType } = req.body;
+    
+    if (!contentType || !contentType.startsWith('image/')) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Valid image content type is required',
+      });
+    }
+
+    // Generate pre-signed URL for reference image upload
+    const presignedUrl = await s3Client.generatePresignedUploadUrl(userId, contentType);
+    
+    logger.info(`Generated presigned upload URL for user ${userId}`);
+
+    const response: ApiResponse<{ uploadUrl: string; key: string }> = {
+      status: 'success',
+      data: { 
+        uploadUrl: presignedUrl,
+        key: s3Client.getSubjectKey(userId)
+      },
+      message: 'Pre-signed upload URL generated successfully',
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Error generating presigned upload URL:', error);
+    res.status(500).json({
+      status: 'fail',
+      message: 'Failed to generate upload URL',
+    });
+  }
+}
+
+export async function generatePresignedAvatarUploadUrl(req: Request, res: Response) {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+
+    const userId = req.user._id;
+    const { contentType } = req.body;
+    
+    if (!contentType || !contentType.startsWith('image/')) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Valid image content type is required',
+      });
+    }
+
+    // Generate pre-signed URL for avatar upload
+    const presignedUrl = await s3Client.generatePresignedAvatarUploadUrl(userId, contentType);
+    
+    logger.info(`Generated presigned avatar upload URL for user ${userId}`);
+
+    const response: ApiResponse<{ uploadUrl: string; key: string }> = {
+      status: 'success',
+      data: { 
+        uploadUrl: presignedUrl,
+        key: s3Client.getAvatarKey(userId)
+      },
+      message: 'Pre-signed avatar upload URL generated successfully',
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Error generating presigned avatar upload URL:', error);
+    res.status(500).json({
+      status: 'fail',
+      message: 'Failed to generate avatar upload URL',
+    });
+  }
+}
+
+export async function generatePresignedViewUrl(req: Request, res: Response) {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+
+    const { s3Uri } = req.body;
+    
+    if (!s3Uri) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'S3 URI is required',
+      });
+    }
+
+    const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
+    
+    logger.info(`Generated presigned view URL for user ${req.user._id}`);
+
+    const response: ApiResponse<{ presignedUrl: string }> = {
+      status: 'success',
+      data: { 
+        presignedUrl: presignedUrl
+      },
+      message: 'Pre-signed view URL generated successfully',
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Error generating presigned view URL:', error);
+    res.status(500).json({
+      status: 'fail',
+      message: 'Failed to generate presigned view URL',
     });
   }
 } 

@@ -7,7 +7,7 @@
 if [ $# -eq 0 ]; then
     echo "❌ Error: Please provide the EC2 API URL as a parameter"
     echo "Usage: $0 <EC2_API_URL> [AUTH_TOKEN]"
-    echo "Example: $0 http://54.123.45.67:8000 your-secret-token"
+    echo "Example: $0 http://34.203.194.200:8000 your-secret-token"
     exit 1
 fi
 

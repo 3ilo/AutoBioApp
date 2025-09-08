@@ -20,6 +20,7 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.799.0",
     "@aws-sdk/client-s3": "^3.779.0",
+    "@aws-sdk/s3-request-presigner": "^3.883.0",
     "@types/axios": "^0.14.4",
     "@types/winston": "^2.4.4",
     "axios": "^1.11.0",
