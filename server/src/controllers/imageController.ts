@@ -26,11 +26,6 @@ interface GenerateImageRequest {
   userId?: string; // Optional for backward compatibility
 }
 
-interface RegenerateImageRequest extends GenerateImageRequest {
-  previousUrl: string;
-}
-
-
 // Initialize services
 const summarizationService = new BedrockSummarizationService();
 const promptEnhancementService = new PromptEnhancementService();
@@ -164,7 +159,7 @@ export async function generateImage(req: Request, res: Response) {
       prompt = craftBasicPrompt({ title, content, date });
     }
     
-    let imageUrl: string;
+    let imageURI: string;
 
     // Check if illustration service is enabled
     if (!USE_ILLUSTRATION_SERVICE) {
@@ -187,8 +182,8 @@ export async function generateImage(req: Request, res: Response) {
     // Use illustration service
     try {
       logger.info('Using illustration service for image generation');
-      imageUrl = await illustrationService.generateMemoryIllustration(userId, prompt);
-      logger.info(`Generated image via illustration service: ${imageUrl}`);
+      imageURI = await illustrationService.generateMemoryIllustration(userId, prompt, {ipAdapterScale: 0.5});
+      logger.info(`Generated image via illustration service (S3 URI): ${imageURI}`);
     } catch (error) {
       logger.error('Illustration service failed:', error);
       
@@ -198,7 +193,7 @@ export async function generateImage(req: Request, res: Response) {
         try {
           const imageBuffer = await generateImageBedrock(prompt);
           const imageKey = `staging/${uuidv4()}.jpg`;
-          imageUrl = await uploadToS3(imageBuffer, imageKey);
+          imageURI = await uploadToS3(imageBuffer, imageKey);
         } catch (bedrockError) {
           logger.error('Bedrock fallback also failed:', bedrockError);
           return res.status(500).json({
@@ -216,7 +211,7 @@ export async function generateImage(req: Request, res: Response) {
 
     const response: ApiResponse<{ url: string }> = {
       status: 'success',
-      data: { url: imageUrl },
+      data: { url: imageURI },
       message: 'Image generated successfully',
     };
 
@@ -226,93 +221,6 @@ export async function generateImage(req: Request, res: Response) {
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate image',
-    });
-  }
-}
-
-export async function regenerateImage(req: Request, res: Response) {
-  try {
-    const { title, content, date, previousUrl, userId } = req.body as RegenerateImageRequest;
-    
-    if (!userId) {
-      return res.status(400).json({
-        status: 'fail',
-        message: 'User ID is required for illustration regeneration',
-      });
-    }
-    
-    // Use enhanced prompt if userId is provided, otherwise use basic prompt
-    let basePrompt: string;
-    if (userId) {
-      basePrompt = await craftEnhancedPrompt({ title, content, date }, userId);
-    } else {
-      basePrompt = craftBasicPrompt({ title, content, date });
-    }
-    
-    const prompt = `${basePrompt}\n\nPlease create a different variation of this illustration while maintaining the same style and quality.`;
-    
-    let imageUrl: string;
-
-    // Check if illustration service is enabled
-    if (!USE_ILLUSTRATION_SERVICE) {
-      logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
-      return res.status(500).json({
-        status: 'fail',
-        message: 'Image generation service is not available',
-      });
-    }
-
-    // Check if illustration service is available
-    if (!(await isIllustrationServiceAvailable())) {
-      logger.error('Illustration service is not available');
-      return res.status(500).json({
-        status: 'fail',
-        message: 'Image generation service is not available',
-      });
-    }
-
-    // Use illustration service
-    try {
-      logger.info('Using illustration service for image regeneration');
-      imageUrl = await illustrationService.generateMemoryIllustration(userId, prompt);
-      logger.info(`Regenerated image via illustration service: ${imageUrl}`);
-    } catch (error) {
-      logger.error('Illustration service failed:', error);
-      
-      // Only fall back to Bedrock if explicitly enabled
-      if (USE_BEDROCK_FALLBACK) {
-        logger.warn('Falling back to deprecated Bedrock service');
-        try {
-          const imageBuffer = await generateImageBedrock(prompt);
-          const imageKey = `staging/${uuidv4()}.jpg`;
-          imageUrl = await uploadToS3(imageBuffer, imageKey);
-        } catch (bedrockError) {
-          logger.error('Bedrock fallback also failed:', bedrockError);
-          return res.status(500).json({
-            status: 'fail',
-            message: 'Image regeneration failed',
-          });
-        }
-      } else {
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image regeneration failed',
-        });
-      }
-    }
-
-    const response: ApiResponse<{ url: string }> = {
-      status: 'success',
-      data: { url: imageUrl },
-      message: 'Image regenerated successfully',
-    };
-
-    res.json(response);
-  } catch (error) {
-    logger.error('Error regenerating image:', error);
-    res.status(500).json({
-      status: 'fail',
-      message: 'Failed to regenerate image',
     });
   }
 }

@@ -3,6 +3,7 @@ import { Memory } from '../models/Memory';
 import { User } from '../models/User';
 import { AppError } from '../utils/errorHandler';
 import { BedrockMemorySummaryService } from '../services/memorySummaryService';
+import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';
 
 // Initialize memory summary service
@@ -67,12 +68,16 @@ export const getAllMemories = async (req: Request, res: Response, next: NextFunc
     const memories = await Memory.find({ author: req.user._id })
       .populate('author', 'firstName lastName avatar')
       .sort('-date')
+      .lean()  // Returns plain objects instead of Mongoose documents
       .exec();
+
+    // Convert S3 URIs to pre-signed URLs for all memories
+    const memoriesWithPresignedUrls = await s3Client.convertMemoriesImagesToPresignedUrls(memories);
 
     res.status(200).json({
       status: 'success',
-      results: memories.length,
-      data: memories,
+      results: memoriesWithPresignedUrls.length,
+      data: memoriesWithPresignedUrls,
     });
   } catch (error) {
     next(error);
@@ -91,14 +96,18 @@ export const getPublicMemories = async (req: Request, res: Response, next: NextF
     })
       .populate('author', 'firstName lastName avatar')
       .sort('-date')
+      .lean()  // Returns plain objects instead of Mongoose documents
       .exec();
 
     logger.info(`Retrieved ${memories.length} public memories for explore page`);
     
+    // Convert S3 URIs to pre-signed URLs for all memories
+    const memoriesWithPresignedUrls = await s3Client.convertMemoriesImagesToPresignedUrls(memories);
+    
     res.status(200).json({
       status: 'success',
-      results: memories.length,
-      data: memories,
+      results: memoriesWithPresignedUrls.length,
+      data: memoriesWithPresignedUrls,
     });
   } catch (error) {
     next(error);
@@ -140,12 +149,16 @@ export const getFeed = async (req: Request, res: Response, next: NextFunction) =
     })
       .populate('author', 'firstName lastName avatar')
       .sort('-date')
+      .lean()  // Returns plain objects instead of Mongoose documents
       .exec();
+
+    // Convert S3 URIs to pre-signed URLs for all feed memories
+    const feedMemoriesWithPresignedUrls = await s3Client.convertMemoriesImagesToPresignedUrls(feedMemories);
 
     res.status(200).json({
       status: 'success',
-      results: feedMemories.length,
-      data: feedMemories,
+      results: feedMemoriesWithPresignedUrls.length,
+      data: feedMemoriesWithPresignedUrls,
     });
   } catch (error) {
     next(error);
@@ -157,16 +170,20 @@ export const getMemory = async (req: Request, res: Response, next: NextFunction)
     const memory = await Memory.findById(req.params.id)
       .populate('author', 'firstName lastName avatar')
       .populate('comments.user', 'firstName lastName avatar')
+      .lean()  // Returns plain object instead of Mongoose document
       .exec();
 
     if (!memory) {
       return next(new AppError('Memory not found', 404));
     }
 
+    // Convert S3 URIs to pre-signed URLs for the memory
+    const memoryWithPresignedUrls = await s3Client.convertMemoryImagesToPresignedUrls(memory);
+
     res.status(200).json({
       status: 'success',
       data: {
-        memory,
+        memory: memoryWithPresignedUrls,
       },
     });
   } catch (error) {

@@ -90,6 +90,7 @@ export class IllustrationService {
 
   /**
    * Generate a memory illustration using the user's avatar as IP-Adapter input
+   * Returns S3 URI for database storage
    */
   async generateMemoryIllustration(
     userId: string,
@@ -121,12 +122,8 @@ export class IllustrationService {
     }
 
     const s3Uri = response.data[0].s3_uri;
-    logger.info(`Memory illustration generated: ${s3Uri}`);
-    
-    // Convert S3 URI to pre-signed URL for viewing
-    const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
-    logger.info(`Generated pre-signed URL for memory illustration`);
-    return presignedUrl;
+    logger.info(`Memory illustration generated (S3 URI): ${s3Uri}`);
+    return s3Uri;
   }
 
   /**
@@ -173,7 +170,7 @@ export class IllustrationService {
    */
   async checkHealth(): Promise<boolean> {
     try {
-      const response = await axios.get(`${this.baseUrl}/health/`, {
+      const response = await axios.get(`${this.baseUrl}/`, {
         timeout: 2000,
       });
       return response.status === 200;

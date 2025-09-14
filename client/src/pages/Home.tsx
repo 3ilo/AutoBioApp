@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { memoriesApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { MemoryImage } from '../components/memories/MemoryImage';
 
 export function Home() {
   const {
@@ -74,7 +75,7 @@ export function Home() {
               >
                 {memory.images.length > 0 && (
                   <div className="aspect-w-16 aspect-h-9">
-                    <img
+                    <MemoryImage
                       src={memory.images[0].url}
                       alt={memory.title}
                       className="w-full h-48 object-cover"

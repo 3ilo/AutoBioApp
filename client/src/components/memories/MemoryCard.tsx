@@ -5,6 +5,7 @@ import { TrashIcon, PencilIcon, UserPlusIcon, UserMinusIcon } from '@heroicons/r
 import { useState, useEffect } from 'react';
 import { memoriesApi, userApi } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
+import { MemoryImage } from './MemoryImage';
 
 interface MemoryCardProps {
   memory: IMemory;
@@ -111,6 +112,7 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
             </div>
             <div className="flex items-center gap-4">
               <time className="text-sm text-warm-500 flex-shrink-0">
+                {(() => {console.log(memory); return format(new Date(memory.date), 'MMM d, yyyy')})()}
                 {format(new Date(memory.date), 'MMM d, yyyy')}
               </time>
               {onEdit && (
@@ -150,7 +152,7 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
                     className="relative w-full"
                     style={{ minHeight: '300px' }}
                   >
-                    <img
+                    <MemoryImage
                       src={image.url}
                       alt={`Memory illustration ${index + 1}`}
                       className="w-full h-full object-cover rounded-lg shadow-md"

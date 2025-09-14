@@ -152,7 +152,7 @@ The summary should be written in third person and should help an image generatio
 Recent Memory Summaries:
 ${memorySummaries}
 
-Provide a concise one-paragraph summary that captures the user's recent experiences, interests, and activities.`;
+Provide a concise one-sentence summary that captures the user's recent experiences, interests, and activities.`;
   }
 
   private getUserContextString(user: IUser): string {

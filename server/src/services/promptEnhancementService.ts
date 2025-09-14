@@ -17,6 +17,10 @@ export class PromptEnhancementService {
     const recentMemoriesSection = this.getRecentMemoriesString(memorySummary);
     const styleSection = this.getStyleSection(user);
 
+
+    // TEMPORARY
+    return currentMemory.content;
+
     return `Create an illustration for a memory titled "${currentMemory.title}" from ${this.formatDate(currentMemory.date)}.
     Focus mainly on the details and subjects in CURRENT_MEMORY.
     Utilize the USER_CONTEXT data to provide the right physical characteristics of the subject.

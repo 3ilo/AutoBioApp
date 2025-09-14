@@ -1,6 +1,7 @@
 import { format, differenceInDays, addDays } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { IMemory } from '@shared/types/Memory';
+import { MemoryImage } from './MemoryImage';
 
 interface TimelineProps {
   memories: IMemory[];
@@ -94,7 +95,7 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
                   {format(new Date(memory.date), 'MMM d, yyyy')}
                 </time>
                 {memory.images.length > 0 && (
-                  <img
+                  <MemoryImage
                     src={memory.images[0].url}
                     alt={memory.title}
                     className="w-full h-16 object-cover rounded mt-2"

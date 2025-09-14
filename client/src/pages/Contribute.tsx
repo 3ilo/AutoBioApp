@@ -9,6 +9,8 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMemoryImage, IMemory } from '../../../shared/types/Memory';
 import { useAuthStore } from '../stores/authStore';
+import { MemoryImage } from '../components/memories/MemoryImage';
+
 
 interface MemoryImage extends IMemoryImage {
   id: string;
@@ -103,10 +105,13 @@ export function Contribute() {
         userId: user?._id, // Include user ID for enhanced prompts
       });
 
+      // Convert S3 URI to pre-signed URL
+      const presignedResponse = await imageGenerationApi.generatePresignedViewUrl(response.data.url);
+      
       const position = getRandomPosition();
       const newImage: MemoryImage = {
         id: Date.now().toString(),
-        url: response.data.url,
+        url: presignedResponse.data.presignedUrl, // Use the pre-signed URL
         position,
         isConfirmed: false,
       };
@@ -114,36 +119,6 @@ export function Contribute() {
       setImages([...images, newImage]);
     } catch (error) {
       console.error('Error generating image:', error);
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
-
-  const handleRegenerateImage = async () => {
-    if (!editor || !title || !selectedImage) return;
-    
-    setIsGeneratingImage(true);
-    try {
-      const response = await imageGenerationApi.regenerate({
-        title,
-        content: editor.getText(),
-        date: new Date(date),
-        previousUrl: selectedImage.url,
-        userId: user?._id, // Include user ID for enhanced prompts
-      });
-
-      const newImage: MemoryImage = {
-        id: Date.now().toString(),
-        url: response.data.url,
-        position: selectedImage.position,
-        isConfirmed: false,
-      };
-      setSelectedImage(newImage);
-      setImages(images.map(img => 
-        img.id === selectedImage.id ? newImage : img
-      ));
-    } catch (error) {
-      console.error('Error regenerating image:', error);
     } finally {
       setIsGeneratingImage(false);
     }
@@ -292,7 +267,7 @@ export function Contribute() {
                       height: `${image.position.height}px`,
                     }}
                   >
-                    <img
+                    <MemoryImage
                       src={image.url}
                       alt="Memory illustration"
                       className="w-full h-full object-cover rounded-lg shadow-md"

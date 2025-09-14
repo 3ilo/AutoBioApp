@@ -12,7 +12,7 @@ if [ $# -eq 0 ]; then
 fi
 
 API_URL="$1"
-ENDPOINT="$API_URL/health"
+ENDPOINT="$API_URL/"
 
 echo "🏥 Testing health check..."
 echo "📍 Endpoint: $ENDPOINT"
