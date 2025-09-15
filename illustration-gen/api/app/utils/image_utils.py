@@ -63,12 +63,19 @@ def memory_generation_inference(pipeline, prompt: str, num_inference_steps: int 
         style_prompt = settings.default_memory_style_prompt
     
     augmented_prompt = prompt_builder(prompt, style_prompt)
+    augmented_prompt = prompt
     return inference(pipeline, augmented_prompt, num_inference_steps, reference_image_url, 
-                    ip_adapter_scale, negative_prompt)
+                    ip_adapter_scale, negative_prompt, style_prompt)
 
 def inference(pipeline, prompt: str, num_inference_steps: int = None, reference_image_url: str = None, 
-              ip_adapter_scale: float = None, negative_prompt: str = None):
+              ip_adapter_scale: float = None, negative_prompt: str = None, style_prompt: str = ""):
     """Run inference on the pipeline"""
+    print("prompt", prompt)
+    print("num_inference_steps", num_inference_steps)
+    print("reference_image_url", reference_image_url)
+    print("ip_adapter_scale", ip_adapter_scale)
+    print("negative_prompt", negative_prompt)
+    print("style_prompt", style_prompt)
     
     # Use config defaults if not provided
     if num_inference_steps is None:
@@ -88,6 +95,7 @@ def inference(pipeline, prompt: str, num_inference_steps: int = None, reference_
         
         return pipeline(
             prompt=prompt,
+            prompt_2=style_prompt,
             negative_prompt=negative_prompt,
             ip_adapter_image=ip_adapter_image,
             num_inference_steps=num_inference_steps

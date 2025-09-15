@@ -11,6 +11,7 @@ import { User } from '../models/User';
 import { Memory } from '../models/Memory';
 import { s3Client } from '../utils/s3Client';
 import '../utils/auth'; // Import to ensure Request type extension is loaded
+import { log } from 'console';
 
 // Environment variables
 const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
@@ -56,7 +57,6 @@ The image should feel like a cherished page from a personal autobiography, captu
 
 // Helper function to craft enhanced prompt with user context
 async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): Promise<string> {
-  logger.info(`Crafting enhanced prompt for user ID: ${userId}`);
   try {
     // Get user data
     const user = await User.findById(userId);
@@ -84,7 +84,6 @@ async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): 
             
             // Update memory with generated summary
             await Memory.findByIdAndUpdate(memory._id, { summary });
-            
             return { ...memory, summary };
           } catch (error) {
             logger.error(`Error generating summary for memory ${memory._id}:`, error);
@@ -103,7 +102,9 @@ async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): 
     const memorySummary = await summarizationService.summarizeMemories(
       memoriesWithSummaries,
       user.toObject() as any,
-      { maxMemories: 5, summaryLength: 'paragraph' }
+      { maxMemories: 5, summaryLength: 'paragraph' },
+      data.content,
+      data.title
     );
 
     // Create enhanced prompt
@@ -182,7 +183,7 @@ export async function generateImage(req: Request, res: Response) {
     // Use illustration service
     try {
       logger.info('Using illustration service for image generation');
-      imageURI = await illustrationService.generateMemoryIllustration(userId, prompt, {ipAdapterScale: 0.5});
+      imageURI = await illustrationService.generateMemoryIllustration(userId, prompt+" highest quality, monochrome, professional sketch, personal, nostalgic, clean", {ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean"});
       logger.info(`Generated image via illustration service (S3 URI): ${imageURI}`);
     } catch (error) {
       logger.error('Illustration service failed:', error);

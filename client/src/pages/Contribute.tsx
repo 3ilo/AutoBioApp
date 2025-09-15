@@ -15,6 +15,7 @@ import { MemoryImage } from '../components/memories/MemoryImage';
 interface MemoryImage extends IMemoryImage {
   id: string;
   isConfirmed: boolean;
+  presignedUrl?: string; // Cached presigned URL for display
 }
 
 export function Contribute() {
@@ -31,15 +32,41 @@ export function Contribute() {
   const [date, setDate] = useState(editingMemory?.date ? new Date(editingMemory.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
   const [isPublic, setIsPublic] = useState(editingMemory?.isPublic ?? false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [images, setImages] = useState<MemoryImage[]>(
-    editingMemory?.images?.map((img, index) => ({
-      id: index.toString(),
-      url: img.url,
-      position: img.position,
-      isConfirmed: true,
-    })) || []
-  );
+  const [images, setImages] = useState<MemoryImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<MemoryImage | null>(null);
+
+  // Initialize images with presigned URLs when editing
+  useEffect(() => {
+    const initializeImages = async () => {
+      if (editingMemory?.images && editingMemory.images.length > 0) {
+        const imagesWithPresignedUrls = await Promise.all(
+          editingMemory.images.map(async (img, index) => {
+            try {
+              const presignedResponse = await imageGenerationApi.generatePresignedViewUrl(img.url);
+              return {
+                id: index.toString(),
+                url: img.url,
+                presignedUrl: presignedResponse.data.presignedUrl,
+                position: img.position,
+                isConfirmed: true,
+              };
+            } catch (error) {
+              console.error('Error generating presigned URL for existing image:', error);
+              return {
+                id: index.toString(),
+                url: img.url,
+                position: img.position,
+                isConfirmed: true,
+              };
+            }
+          })
+        );
+        setImages(imagesWithPresignedUrls);
+      }
+    };
+
+    initializeImages();
+  }, [editingMemory]);
 
   const {
     isLoading: isSaving,
@@ -105,18 +132,21 @@ export function Contribute() {
         userId: user?._id, // Include user ID for enhanced prompts
       });
 
-      // Convert S3 URI to pre-signed URL
+      // Convert S3 URI to pre-signed URL for display
       const presignedResponse = await imageGenerationApi.generatePresignedViewUrl(response.data.url);
       
       const position = getRandomPosition();
       const newImage: MemoryImage = {
         id: Date.now().toString(),
-        url: presignedResponse.data.presignedUrl, // Use the pre-signed URL
+        url: response.data.url, // Store the S3 URI
+        presignedUrl: presignedResponse.data.presignedUrl, // Cache presigned URL for display
         position,
         isConfirmed: false,
       };
       setSelectedImage(newImage);
-      setImages([...images, newImage]);
+      // Clear any existing unconfirmed images and add the new one
+      const confirmedImages = images.filter(img => img.isConfirmed);
+      setImages([...confirmedImages, newImage]);
     } catch (error) {
       console.error('Error generating image:', error);
     } finally {
@@ -125,11 +155,13 @@ export function Contribute() {
   };
 
   const handleConfirmImage = () => {
-    if (!selectedImage) return;
+      if (!selectedImage) return;
     
-    setImages(images.map(img => 
-      img.id === selectedImage.id ? { ...img, isConfirmed: true } : img
-    ));
+    // Replace all existing confirmed images with the new confirmed image
+    const confirmedNewImage = { ...selectedImage, isConfirmed: true };
+    const unconfirmedImages = images.filter(img => !img.isConfirmed && img.id !== selectedImage.id);
+    
+    setImages([...unconfirmedImages, confirmedNewImage]);
     setSelectedImage(null);
   };
 
@@ -284,7 +316,7 @@ export function Contribute() {
             Images
           </label>
           <div className="space-y-4">
-            {images.length === 0 && 
+            {(images.length === 0 || isEditing) && 
             <button
               onClick={handleGenerateImage}
               disabled={isGeneratingImage || !title}
@@ -293,7 +325,7 @@ export function Contribute() {
               {isGeneratingImage ? (
                 <LoadingSpinner size="sm" className="text-white mr-2" />
               ) : null}
-              Generate Image
+              {isEditing ? 'Generate New Image' : 'Generate Image'}
             </button>
             }
 
@@ -301,7 +333,7 @@ export function Contribute() {
               <div className="space-y-4">
                 <div className="relative w-full max-w-2xl mx-auto">
                   <img
-                    src={selectedImage.url}
+                    src={selectedImage.presignedUrl || selectedImage.url}
                     alt="Generated image"
                     className="w-full h-auto rounded-lg shadow-md"
                   />

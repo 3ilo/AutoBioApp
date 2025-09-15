@@ -14,7 +14,9 @@ export interface SummarizationService {
   summarizeMemories(
     memories: IMemory[],
     user: IUser,
-    config: SummarizationConfig
+    config: SummarizationConfig,
+    currentMemoryPrompt: string,
+    currentMemoryTitle: string
   ): Promise<string>;
 }
 
@@ -40,7 +42,9 @@ export class BedrockSummarizationService implements SummarizationService {
   async summarizeMemories(
     memories: IMemory[],
     user: IUser,
-    config: SummarizationConfig
+    config: SummarizationConfig,
+    currentMemoryPrompt: string,
+    currentMemoryTitle: string
   ): Promise<string> {
     try {
       // Return empty string if no memories
@@ -52,7 +56,7 @@ export class BedrockSummarizationService implements SummarizationService {
       const limitedMemories = memories.slice(0, config.maxMemories);
 
       // Check cache first
-      const cacheKey = this.getCacheKey(limitedMemories, user, config);
+      const cacheKey = this.getCacheKey(limitedMemories, user, config, currentMemoryPrompt, currentMemoryTitle);
       const cached = this.cache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
         logger.info('Using cached memory summary');
@@ -60,7 +64,7 @@ export class BedrockSummarizationService implements SummarizationService {
       }
 
       // Generate summary using pre-generated memory summaries
-      const summary = await this.generateSummaryFromSummaries(limitedMemories, user, config);
+      const summary = await this.generateSummaryFromSummaries(limitedMemories, user, config, currentMemoryPrompt, currentMemoryTitle);
 
       // Cache the result
       this.cache.set(cacheKey, {
@@ -79,10 +83,12 @@ export class BedrockSummarizationService implements SummarizationService {
   private async generateSummaryFromSummaries(
     memories: IMemory[],
     user: IUser,
-    config: SummarizationConfig
+    config: SummarizationConfig,
+    currentMemoryPrompt: string,
+    currentMemoryTitle: string
   ): Promise<string> {
     const systemPrompt = this.buildSystemPrompt(user, config);
-    const userMessage = this.buildUserMessage(memories);
+    const userMessage = this.buildUserMessage(memories, currentMemoryPrompt, currentMemoryTitle);
 
     const command = new ConverseCommand({
       modelId: this.SUMMARY_MODEL_ID,
@@ -129,17 +135,28 @@ export class BedrockSummarizationService implements SummarizationService {
     const userContext = this.getUserContextString(user);
     const lengthInstruction = this.getLengthInstruction(config.summaryLength);
 
-    return `You are an AI assistant helping to summarize a user's recent memories for image generation context. 
+    return `You are an AI assistant helping to distill a specific memory into a simplified description for image generation context.
 
 User Context:
 ${userContext}
 
-Your task is to provide ${lengthInstruction} summaries of memories that capture the user's recent experiences, interests, and activities. Focus on themes, patterns, and emotional context that would be relevant for creating personalized images.
+Your task is to distill the current memory into a ${lengthInstruction} description following this structure: I {VERBED} (optional preposition) the {OBJECT} at {PLACE} (optional with {OTHERS}).
 
-The summary should be written in third person and should help an image generation AI understand the user's lifestyle, interests, and recent experiences.`;
+Guidelines:
+- Focus on ONE scene/element if the memory is complex with multiple scenes
+- Any/each part of the sentence structure can be optionally removed if not relevant
+- describe the {PLACE} part succinctly based mainly on the details in the memory and the location part of the user context.
+- choose the optional OTHERS part based mainly on the details in the memory and supplemented with the recent memory context
+- Add limited useful adjectives and qualifiers to any part if it seems important.
+- Use the current memory prompt as the primary source
+- Use recent memories and user context only for context and support when needed
+- Write in first person
+- Keep it simple and focused for image generation
+
+The output should be a clean, simple description that captures the essence of the current memory.`;
   }
 
-  private buildUserMessage(memories: IMemory[]): string {
+  private buildUserMessage(memories: IMemory[], currentMemoryPrompt: string, currentMemoryTitle: string): string {
     const memorySummaries = memories
       .map((memory, index) => {
         const summary = memory.summary || `Memory about ${memory.title} from ${new Date(memory.date).toLocaleDateString()}`;
@@ -147,12 +164,14 @@ The summary should be written in third person and should help an image generatio
       })
       .join('\n');
 
-    return `Please provide a summary of these recent memories:
+    return `Current Memory to Distill:
+Title: ${currentMemoryTitle}
+Content: ${currentMemoryPrompt}
 
-Recent Memory Summaries:
+Recent Memory Context (for reference only):
 ${memorySummaries}
 
-Provide a concise one-sentence summary that captures the user's recent experiences, interests, and activities.`;
+Please distill the current memory into a simple description following the I {VERBED} (optional preposition) the {OBJECT} at {PLACE} (optional with {OTHERS}) structure. Focus primarily on the current memory content and use recent memories only for additional context if needed.`;
   }
 
   private getUserContextString(user: IUser): string {
@@ -196,12 +215,15 @@ Provide a concise one-sentence summary that captures the user's recent experienc
   private getCacheKey(
     memories: IMemory[],
     user: IUser,
-    config: SummarizationConfig
+    config: SummarizationConfig,
+    currentMemoryPrompt: string,
+    currentMemoryTitle: string
   ): string {
     const memoryIds = memories.map(m => m._id).sort().join(',');
     const userId = user._id;
     const configHash = `${config.maxMemories}-${config.summaryLength}`;
+    const currentMemoryHash = `${currentMemoryTitle}:${currentMemoryPrompt}`.replace(/\s+/g, '_').substring(0, 50);
     
-    return `summary:${userId}:${memoryIds}:${configHash}`;
+    return `summary:${userId}:${memoryIds}:${configHash}:${currentMemoryHash}`;
   }
 }

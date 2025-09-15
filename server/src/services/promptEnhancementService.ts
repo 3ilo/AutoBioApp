@@ -12,15 +12,15 @@ export class PromptEnhancementService {
     user: IUser,
     memorySummary: string
   ): Promise<string> {
+    // We might use this some day
     const userContext = this.getUserContextString(user);
     const currentMemorySection = this.getCurrentMemoryString(currentMemory);
     const recentMemoriesSection = this.getRecentMemoriesString(memorySummary);
     const styleSection = this.getStyleSection(user);
 
+    return memorySummary;
 
-    // TEMPORARY
-    return currentMemory.content;
-
+    // TODO: Remove this once the memory summary is working
     return `Create an illustration for a memory titled "${currentMemory.title}" from ${this.formatDate(currentMemory.date)}.
     Focus mainly on the details and subjects in CURRENT_MEMORY.
     Utilize the USER_CONTEXT data to provide the right physical characteristics of the subject.
