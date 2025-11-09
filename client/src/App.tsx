@@ -10,8 +10,15 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Layout } from './components/Layout';
 
 function App() {
+  // Get base path from Vite's environment (set via VITE_BASE_PATH or defaults to '/')
+  // Vite automatically sets import.meta.env.BASE_URL based on the base config
+  const basePath = import.meta.env.BASE_URL || '/';
+  
+  // Ensure basePath ends with / for consistency (Vite should handle this, but just in case)
+  const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
+  
   return (
-    <Router>
+    <Router basename={normalizedBasePath}>
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
