@@ -105,7 +105,7 @@ export function Memories() {
       <div className="flex flex-col items-center justify-center min-h-screen">
         <h1 className="text-3xl font-bold text-warm-900 mb-4">No Memories Yet</h1>
         <p className="text-warm-600 mb-8">Start creating your first memory!</p>
-        <Link to="/create" className="btn-primary">
+        <Link to="/contribute" className="btn-primary">
           Create Memory
         </Link>
       </div>

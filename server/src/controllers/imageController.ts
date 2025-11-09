@@ -6,6 +6,7 @@ import { BedrockSummarizationService } from '../services/summarizationService';
 import { PromptEnhancementService } from '../services/promptEnhancementService';
 import { BedrockMemorySummaryService } from '../services/memorySummaryService';
 import { illustrationService } from '../services/illustrationService';
+import { illustrationStubService } from '../services/stubs/illustrationStubService';
 import { generateImageBedrock, uploadToS3, generateFakeImageUrl } from '../services/bedrockImageService';
 import { User } from '../models/User';
 import { Memory } from '../models/Memory';
@@ -18,6 +19,7 @@ const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
 const ILLUSTRATION_SERVICE_URL = process.env.ILLUSTRATION_SERVICE_URL || 'http://localhost:8000';
 const USE_ILLUSTRATION_SERVICE = process.env.USE_ILLUSTRATION_SERVICE === 'true'; // Only true if explicitly enabled
 const USE_BEDROCK_FALLBACK = process.env.USE_BEDROCK_FALLBACK === 'true'; // Only true if explicitly enabled
+const USE_ILLUSTRATION_STUB = process.env.USE_ILLUSTRATION_STUB === 'true' || process.env.NODE_ENV === 'development'; // Use stub in dev mode by default
 
 // Types
 interface GenerateImageRequest {
@@ -162,51 +164,70 @@ export async function generateImage(req: Request, res: Response) {
     
     let imageURI: string;
 
-    // Check if illustration service is enabled
-    if (!USE_ILLUSTRATION_SERVICE) {
-      logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
-      return res.status(500).json({
-        status: 'fail',
-        message: 'Image generation service is not available',
-      });
-    }
+    // Use stub service if enabled (dev mode)
+    if (USE_ILLUSTRATION_STUB) {
+      logger.info('Using stub illustration service for image generation (dev mode)');
+      try {
+        imageURI = await illustrationStubService.generateMemoryIllustration(
+          userId,
+          prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean",
+          { ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean" }
+        );
+        logger.info(`Generated image via stub service (S3 URI): ${imageURI}`);
+      } catch (error) {
+        logger.error('Stub service failed:', error);
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image generation failed',
+        });
+      }
+    } else {
+      // Check if illustration service is enabled
+      if (!USE_ILLUSTRATION_SERVICE) {
+        logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image generation service is not available',
+        });
+      }
 
-    // Check if illustration service is available
-    if (!(await isIllustrationServiceAvailable())) {
-      logger.error('Illustration service is not available');
-      return res.status(500).json({
-        status: 'fail',
-        message: 'Image generation service is not available',
-      });
-    }
+      // Check if illustration service is available
+      if (!(await isIllustrationServiceAvailable())) {
+        logger.error('Illustration service is not available');
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image generation service is not available',
+        });
+      }
 
-    // Use illustration service
-    try {
-      logger.info('Using illustration service for image generation');
-      imageURI = await illustrationService.generateMemoryIllustration(userId, prompt+" highest quality, monochrome, professional sketch, personal, nostalgic, clean", {ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean"});
-      logger.info(`Generated image via illustration service (S3 URI): ${imageURI}`);
-    } catch (error) {
-      logger.error('Illustration service failed:', error);
-      
-      // Only fall back to Bedrock if explicitly enabled
-      if (USE_BEDROCK_FALLBACK) {
-        logger.warn('Falling back to deprecated Bedrock service');
-        try {
-          const imageBuffer = await generateImageBedrock(prompt);
-          const imageKey = `staging/${uuidv4()}.jpg`;
-          imageURI = await uploadToS3(imageBuffer, imageKey);
-        } catch (bedrockError) {
-          logger.error('Bedrock fallback also failed:', bedrockError);
+      // Use illustration service
+      try {
+        logger.info('Using illustration service for image generation');
+        imageURI = await illustrationService.generateMemoryIllustration(userId, prompt+" highest quality, monochrome, professional sketch, personal, nostalgic, clean", {ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean"});
+        logger.info(`Generated image via illustration service (S3 URI): ${imageURI}`);
+      } catch (error) {
+        logger.error('Illustration service failed:', error);
+        
+        // Only fall back to Bedrock if explicitly enabled
+        if (USE_BEDROCK_FALLBACK) {
+          logger.warn('Falling back to deprecated Bedrock service');
+          try {
+            const imageBuffer = await generateImageBedrock(prompt);
+            const imageKey = `staging/${uuidv4()}.jpg`;
+            imageURI = await uploadToS3(imageBuffer, imageKey);
+          } catch (bedrockError) {
+            logger.error('Bedrock fallback also failed:', bedrockError);
+            return res.status(500).json({
+              status: 'fail',
+              message: 'Image generation failed',
+            });
+          }
+        } else {
           return res.status(500).json({
             status: 'fail',
             message: 'Image generation failed',
           });
         }
-      } else {
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image generation failed',
-        });
       }
     }
 
@@ -239,35 +260,50 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
     
     let imageUrl: string;
 
-    // Check if illustration service is enabled
-    if (!USE_ILLUSTRATION_SERVICE) {
-      logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
-      return res.status(500).json({
-        status: 'fail',
-        message: 'Image generation service is not available',
-      });
-    }
+    // Use stub service if enabled (dev mode)
+    if (USE_ILLUSTRATION_STUB) {
+      logger.info('Using stub illustration service for subject illustration generation (dev mode)');
+      try {
+        imageUrl = await illustrationStubService.generateSubjectIllustration(userId);
+        logger.info(`Generated subject illustration via stub service: ${imageUrl}`);
+      } catch (error) {
+        logger.error('Stub service failed for subject illustration:', error);
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Failed to generate subject illustration',
+        });
+      }
+    } else {
+      // Check if illustration service is enabled
+      if (!USE_ILLUSTRATION_SERVICE) {
+        logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image generation service is not available',
+        });
+      }
 
-    // Check if illustration service is available
-    if (!(await isIllustrationServiceAvailable())) {
-      logger.error('Illustration service is not available');
-      return res.status(500).json({
-        status: 'fail',
-        message: 'Image generation service is not available',
-      });
-    }
+      // Check if illustration service is available
+      if (!(await isIllustrationServiceAvailable())) {
+        logger.error('Illustration service is not available');
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image generation service is not available',
+        });
+      }
 
-    // Use illustration service
-    try {
-      logger.info('Using illustration service for subject illustration generation');
-      imageUrl = await illustrationService.generateSubjectIllustration(userId);
-      logger.info(`Generated subject illustration via illustration service: ${imageUrl}`);
-    } catch (error) {
-      logger.error('Illustration service failed for subject illustration:', error);
-      return res.status(500).json({
-        status: 'fail',
-        message: 'Failed to generate subject illustration',
-      });
+      // Use illustration service
+      try {
+        logger.info('Using illustration service for subject illustration generation');
+        imageUrl = await illustrationService.generateSubjectIllustration(userId);
+        logger.info(`Generated subject illustration via illustration service: ${imageUrl}`);
+      } catch (error) {
+        logger.error('Illustration service failed for subject illustration:', error);
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Failed to generate subject illustration',
+        });
+      }
     }
 
     const response: ApiResponse<{ url: string }> = {

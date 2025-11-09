@@ -11,6 +11,7 @@ interface RegisterRequest {
   age: number;
   email: string;
   password: string;
+  registrationSecret?: string;
 }
 
 interface LoginRequest {
@@ -32,7 +33,15 @@ export const register = async (
   next: NextFunction
 ) => {
   try {
-    const { firstName, lastName, age, email, password } = req.body;
+    const { firstName, lastName, age, email, password, registrationSecret } = req.body;
+
+    // Check registration secret if required
+    const requiredSecret = process.env.REGISTRATION_SECRET;
+    if (requiredSecret) {
+      if (!registrationSecret || registrationSecret !== requiredSecret) {
+        return next(new AppError('Invalid registration secret', 403));
+      }
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });

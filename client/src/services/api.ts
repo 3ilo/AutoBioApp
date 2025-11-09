@@ -60,6 +60,7 @@ export const authApi = {
     firstName: string;
     lastName: string;
     age: number;
+    registrationSecret?: string;
   }) => {
     const response = await api.post<ApiResponse<{ user: IUser; token: string }>>('/auth/register', userData);
     return response.data;

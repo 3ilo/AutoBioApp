@@ -16,6 +16,7 @@ interface AuthState {
     firstName: string;
     lastName: string;
     age: number;
+    registrationSecret?: string;
   }) => Promise<void>;
   updateProfile: (profileData: Partial<IUser>) => Promise<void>;
   logout: () => void;

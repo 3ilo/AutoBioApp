@@ -1,0 +1,84 @@
+service: autobio-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 30
+  environment:
+    NODE_ENV: production
+    IS_SERVERLESS: 'true'
+    MONGODB_URI: ${env:MONGODB_URI}
+    JWT_SECRET: ${env:JWT_SECRET}
+    JWT_EXPIRES_IN: ${env:JWT_EXPIRES_IN, '7d'}
+    FRONTEND_URL: ${env:FRONTEND_URL}
+    AWS_REGION: ${self:provider.region}
+    AWS_S3_BUCKET: ${env:AWS_S3_BUCKET}
+    AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+    AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+    REGISTRATION_SECRET: ${env:REGISTRATION_SECRET}
+    USE_ILLUSTRATION_STUB: ${env:USE_ILLUSTRATION_STUB, 'true'}
+    USE_ILLUSTRATION_SERVICE: ${env:USE_ILLUSTRATION_SERVICE, 'false'}
+    ILLUSTRATION_SERVICE_URL: ${env:ILLUSTRATION_SERVICE_URL, ''}
+    ILLUSTRATION_SERVICE_AUTH_TOKEN: ${env:ILLUSTRATION_SERVICE_AUTH_TOKEN, ''}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource:
+            - 'arn:aws:s3:::${env:AWS_S3_BUCKET}/*'
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+          Resource: '*'
+
+functions:
+  api:
+    handler: dist/handler.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors:
+            origin: ${env:FRONTEND_URL}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Requested-With
+            allowCredentials: true
+      - http:
+          path: /
+          method: ANY
+          cors:
+            origin: ${env:FRONTEND_URL}
+            headers:
+              - Content-Type
+              - Authorization
+              - X-Requested-With
+            allowCredentials: true
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - '!src/**'
+    - '!tests/**'
+    - '!*.md'
+    - '!*.json'
+    - 'dist/**'
+    - 'node_modules/**'
+

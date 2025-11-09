@@ -20,6 +20,7 @@ export function Register() {
       firstName: formData.get('firstName') as string,
       lastName: formData.get('lastName') as string,
       age: parseInt(formData.get('age') as string),
+      registrationSecret: formData.get('registrationSecret') as string || undefined,
     };
 
     try {
@@ -105,8 +106,20 @@ export function Register() {
                 name="age"
                 type="number"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Age"
+              />
+            </div>
+            <div>
+              <label htmlFor="registrationSecret" className="sr-only">
+                Registration Secret
+              </label>
+              <input
+                id="registrationSecret"
+                name="registrationSecret"
+                type="password"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Registration Secret (required)"
               />
             </div>
           </div>

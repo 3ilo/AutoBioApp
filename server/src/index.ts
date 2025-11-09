@@ -26,8 +26,28 @@ import { handleError } from './utils/errorHandler';
 // Create Express app
 const app = express();
 
+// CORS configuration - only allow requests from frontend domain
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check if origin matches frontend URL
+    if (origin === FRONTEND_URL || origin.startsWith(FRONTEND_URL)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -40,9 +60,10 @@ app.use('/api/images', imageRoutes);
 // Error handling middleware
 app.use(handleError);
 
-// Connect to MongoDB only if not in test environment
+// Connect to MongoDB only if not in test environment and not in serverless mode
 const MONGODB_URI = process.env.MONGODB_URI as string;
 const PORT = process.env.PORT || 3000;
+const IS_SERVERLESS = process.env.IS_SERVERLESS === 'true' || process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined;
 
 // Add connection options
 const mongooseOptions = {
@@ -50,19 +71,27 @@ const mongooseOptions = {
   family: 4,
 };
 
-if (process.env.NODE_ENV !== 'test') {
+// Initialize MongoDB connection (for both serverless and regular mode)
+if (process.env.NODE_ENV !== 'test' && MONGODB_URI) {
   mongoose
     .connect(MONGODB_URI, mongooseOptions)
     .then(() => {
       console.log('Connected to MongoDB');
-      app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-      });
     })
     .catch((error) => {
       console.error('MongoDB connection error:', error);
-      process.exit(1);
+      // Don't exit in serverless mode, let Lambda handle it
+      if (!IS_SERVERLESS) {
+        process.exit(1);
+      }
     });
+}
+
+// Only start HTTP server if not in serverless mode
+if (process.env.NODE_ENV !== 'test' && !IS_SERVERLESS) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 }
 
 export default app;
