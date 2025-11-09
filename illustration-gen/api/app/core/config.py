@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     default_subject_style_prompt: str = "highest quality, professional sketch, monochrome"
     
     # Authentication configuration
-    auth_token: str = "foxy"
+    auth_token: str = ""  
     auth_enabled: bool = True
     
     # Service configuration
