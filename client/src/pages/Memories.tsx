@@ -4,7 +4,6 @@ import { MemoryCard } from '../components/memories/MemoryCard';
 import { Timeline } from '../components/memories/Timeline';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { memoriesApi } from '../services/api';
-import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
 import { Link, useNavigate } from 'react-router-dom';

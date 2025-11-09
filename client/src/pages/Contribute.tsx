@@ -98,7 +98,7 @@ export function Contribute() {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',
       },
-      handleClick: (view, pos, event) => {
+      handleClick: (_view, _pos, _event) => {
         return false;
       },
     },
@@ -170,16 +170,6 @@ export function Contribute() {
     
     setImages(images.filter(img => img.id !== selectedImage.id));
     setSelectedImage(null);
-  };
-
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
-
-    const items = Array.from(images);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    setImages(items);
   };
 
   const handleSave = async () => {

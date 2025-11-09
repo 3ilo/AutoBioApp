@@ -1,4 +1,3 @@
-import { IUser } from "./User";
 
 export interface IComment {
   user: string | any; // User ID (ObjectId or string)

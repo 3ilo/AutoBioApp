@@ -9,7 +9,7 @@ interface TimelineProps {
   onSelect: (index: number) => void;
 }
 
-export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
+export function Timeline({ memories, currentIndex: _currentIndex, onSelect }: TimelineProps) {
   const [timelinePoints, setTimelinePoints] = useState<Date[]>([]);
   const [hoveredMemory, setHoveredMemory] = useState<IMemory | null>(null);
 
@@ -52,7 +52,7 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
 
       {/* Timeline points */}
       <div className="absolute inset-0 flex items-center">
-        {timelinePoints.map((date, index) => (
+        {timelinePoints.map((date, _index) => (
           <div
             key={date.toISOString()}
             className="relative flex-1 flex flex-col items-center"
