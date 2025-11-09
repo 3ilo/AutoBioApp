@@ -304,3 +304,6 @@ results/
 
 # FastAPI specific
 .pytest_cache/
+
+# some notebooks are too big
+illustration-gen/training/lora/step_1_generate_data/generate_training_data.ipynb
