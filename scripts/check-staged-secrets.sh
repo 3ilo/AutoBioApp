@@ -23,9 +23,9 @@ if [ -z "$STAGED_FILES" ]; then
     exit 0
 fi
 
-# Check for .env files being committed
+# Check for .env files being committed (but allow .env.example files)
 echo "1. Checking for .env files..."
-ENV_FILES=$(echo "$STAGED_FILES" | grep -E "\.env$|\.env\.")
+ENV_FILES=$(echo "$STAGED_FILES" | grep -E "\.env$|\.env\." | grep -v "\.env\.example$")
 if [ -n "$ENV_FILES" ]; then
     echo -e "${RED}🚨 ERROR: Attempting to commit .env files!${NC}"
     echo "$ENV_FILES"
@@ -33,14 +33,25 @@ if [ -n "$ENV_FILES" ]; then
     echo "Please remove .env files from staging:"
     echo "  git reset HEAD <file>"
     echo "  Add .env to .gitignore if not already present"
+    echo ""
+    echo "Note: .env.example files are allowed and will not trigger this check."
     ISSUES_FOUND=1
 else
-    echo -e "${GREEN}✅ No .env files found${NC}"
+    echo -e "${GREEN}✅ No .env files found (excluding .env.example)${NC}"
 fi
 echo ""
 
-# Check staged content for secrets
-STAGED_CONTENT=$(git diff --cached)
+# Check staged content for secrets (exclude .env.example files)
+# Get staged files excluding .env.example
+STAGED_FILES_FOR_CONTENT=$(echo "$STAGED_FILES" | grep -v "\.env\.example$")
+if [ -z "$STAGED_FILES_FOR_CONTENT" ]; then
+    # Only .env.example files staged, skip content checks
+    STAGED_CONTENT=""
+else
+    # Get diff for files excluding .env.example
+    # Use xargs to handle multiple files correctly
+    STAGED_CONTENT=$(echo "$STAGED_FILES_FOR_CONTENT" | xargs git diff --cached --)
+fi
 
 # Check for MongoDB connection strings
 echo "2. Checking for MongoDB connection strings..."
