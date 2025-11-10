@@ -312,9 +312,6 @@ export function Contribute() {
         </div>
 
         <div>
-          <label className="form-label">
-            Images
-          </label>
           <div className="space-y-6">
             {(images.length === 0 || isEditing) && 
             <button
@@ -325,7 +322,7 @@ export function Contribute() {
               {isGeneratingImage ? (
                 <LoadingSpinner size="sm" className="text-white mr-2" />
               ) : null}
-              {isEditing ? 'Generate New Image' : 'Generate Image'}
+              {isEditing ? 'Generate New Illustration' : 'Generate Illustration'}
             </button>
             }
 
