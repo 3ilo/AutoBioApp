@@ -127,11 +127,16 @@ export function Profile() {
           <div className="px-8 py-8">
             <div className="flex items-center justify-between border-b border-slate-200 pb-6">
               <div className="flex items-center gap-6">
-                <div className="border-2 border-slate-900">
+                <div 
+                  style={{
+                    background: 'linear-gradient(to bottom, #c85064 0%, #c88250 14%, #c8aa64 28%, #64b48c 42%, #648cc8 57%, #7878c8 71%, #9678c8 85%, #c8648c 100%)',
+                    padding: '2px'
+                  }}
+                >
                   <img
                     src={avatarUrl}
                     alt={user?.firstName}
-                    className="h-20 w-20 object-cover"
+                    className="h-20 w-20 object-cover bg-white"
                   />
                 </div>
                 <div>

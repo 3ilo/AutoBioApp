@@ -51,23 +51,24 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
     return ((memoryTime - start) / (end - start)) * 100;
   };
 
-  // Generate rainbow color based on chronological position
+  // Generate rainbow color based on chronological position (subdued/muted)
   const getChronologicalColor = (index: number, total: number): string => {
-    if (total === 0) return '#2979ff';
+    if (total === 0) return '#5b7fb8';
     
     // Calculate position from 0 to 1
     const position = total === 1 ? 0 : index / (total - 1);
     
-    // Rainbow colors in order: red, orange, yellow, green, blue, indigo, purple, pink
+    // Subdued rainbow colors - reduced saturation and slightly darkened
+    // Mixing vibrant colors with gray to create more muted tones
     const rainbowColors = [
-      { r: 255, g: 23, b: 68 },   // #ff1744 - red
-      { r: 255, g: 111, b: 0 },   // #ff6f00 - orange
-      { r: 255, g: 196, b: 0 },   // #ffc400 - yellow
-      { r: 0, g: 230, b: 118 },   // #00e676 - green
-      { r: 41, g: 121, b: 255 },  // #2979ff - blue
-      { r: 61, g: 90, b: 254 },   // #3d5afe - indigo
-      { r: 124, g: 77, b: 255 },  // #7c4dff - purple
-      { r: 233, g: 30, b: 99 },   // #e91e63 - pink
+      { r: 200, g: 80, b: 100 },   // muted red
+      { r: 200, g: 130, b: 80 },   // muted orange
+      { r: 200, g: 170, b: 100 },  // muted yellow
+      { r: 100, g: 180, b: 140 },  // muted green
+      { r: 100, g: 140, b: 200 },  // muted blue
+      { r: 120, g: 120, b: 200 },  // muted indigo
+      { r: 150, g: 120, b: 200 },  // muted purple
+      { r: 200, g: 100, b: 140 },  // muted pink
     ];
     
     // Map position (0-1) to color index (0-7)

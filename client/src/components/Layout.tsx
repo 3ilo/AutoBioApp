@@ -70,11 +70,19 @@ export function Layout({ children }: LayoutProps) {
                       className="flex items-center space-x-3 focus:outline-none border border-slate-200 hover:border-slate-900 px-3 py-2 transition-all duration-150"
                     >
                       {user?.avatar ? (
-                        <img
-                          src={userAvatarUrl}
-                          alt={`${user?.firstName} ${user?.lastName}`}
-                          className="h-8 w-8 object-cover border border-slate-200"
-                        />
+                        <div 
+                          className="h-8 w-8"
+                          style={{
+                            background: 'linear-gradient(to bottom, #c85064 0%, #c88250 14%, #c8aa64 28%, #64b48c 42%, #648cc8 57%, #7878c8 71%, #9678c8 85%, #c8648c 100%)',
+                            padding: '1px'
+                          }}
+                        >
+                          <img
+                            src={userAvatarUrl}
+                            alt={`${user?.firstName} ${user?.lastName}`}
+                            className="h-full w-full object-cover bg-white"
+                          />
+                        </div>
                       ) : (
                         <UserCircleIcon className="h-8 w-8 text-slate-400" />
                       )}

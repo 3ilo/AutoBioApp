@@ -38,7 +38,7 @@ export default {
       },
       fontFamily: {
         sans: [
-          'Inter',
+          'Space Grotesk',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
@@ -48,7 +48,7 @@ export default {
           'sans-serif',
         ],
         display: [
-          'Inter',
+          'Space Grotesk',
           'system-ui',
           'sans-serif',
         ],
