@@ -70,9 +70,11 @@ PORT=3000
 MONGODB_URI=mongodb://localhost:27017/autobio
 JWT_SECRET=your-secret-key
 JWT_EXPIRES_IN=7d
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_REGION=us-east-1
+# Backend AWS Credentials (for local development only)
+# Note: Lambda uses IAM role - these are only for local dev
+BACKEND_AWS_KEY=your-backend-aws-access-key
+BACKEND_AWS_SECRET=your-backend-aws-secret-key
+AWS_CLIENT_REGION=us-east-1
 AWS_S3_BUCKET=your-s3-bucket
 ```
 
@@ -124,9 +126,9 @@ The server will be available at `http://localhost:3000`
 | `MONGODB_URI` | MongoDB connection string | Yes |
 | `JWT_SECRET` | JWT signing secret | Yes |
 | `JWT_EXPIRES_IN` | JWT token expiration | No (default: 7d) |
-| `AWS_ACCESS_KEY_ID` | AWS access key | Yes |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key | Yes |
-| `AWS_REGION` | AWS region | Yes |
+| `BACKEND_AWS_KEY` | Backend AWS access key (local dev only) | No (only for local dev) |
+| `BACKEND_AWS_SECRET` | Backend AWS secret key (local dev only) | No (only for local dev) |
+| `AWS_CLIENT_REGION` | AWS region | Yes |
 | `AWS_S3_BUCKET` | S3 bucket name | Yes |
 | `NODE_ENV` | Environment (development/production) | No |
 

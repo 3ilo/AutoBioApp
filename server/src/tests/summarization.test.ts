@@ -1,8 +1,9 @@
 // server/src/tests/summarization.test.ts
 import { IMemory } from '../../../shared/types/Memory';
 import { IUser } from '../../../shared/types/User';
+import { BedrockSummarizationService } from '../services/summarizationService';
 
-// Mock the summarization service since it doesn't exist yet
+// Mock the summarization service
 jest.mock('../services/summarizationService', () => ({
   BedrockSummarizationService: jest.fn().mockImplementation(() => ({
     summarizeMemories: jest.fn().mockResolvedValue('User has been enjoying outdoor activities and learning new skills.'),

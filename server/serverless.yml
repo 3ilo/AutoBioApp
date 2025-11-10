@@ -10,16 +10,20 @@ provider:
   memorySize: 512
   timeout: 30
   environment:
-    NODE_ENV: production
-    IS_SERVERLESS: 'true'
+    # Set NODE_ENV based on stage (dev or prod)
+    # This determines which .env.* file gets loaded in the Lambda runtime
+    # Note: The deploy script sets NODE_ENV before deployment, but this ensures
+    # Lambda runtime also has the correct value
+    NODE_ENV: ${env:NODE_ENV}
     MONGODB_URI: ${env:MONGODB_URI}
     JWT_SECRET: ${env:JWT_SECRET}
     JWT_EXPIRES_IN: ${env:JWT_EXPIRES_IN, '7d'}
     FRONTEND_URL: ${env:FRONTEND_URL}
-    AWS_REGION: ${self:provider.region}
-    AWS_S3_BUCKET: ${env:AWS_S3_BUCKET}
-    AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
-    AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+    AWS_CLIENT_REGION: ${self:provider.region}
+    AWS_STAGING_BUCKET: ${env:AWS_STAGING_BUCKET}
+    # Note: AWS credentials are NOT needed in Lambda environment
+    # Lambda uses the IAM role configured below for AWS service access
+    # BACKEND_AWS_KEY and BACKEND_AWS_SECRET are only for local development
     REGISTRATION_SECRET: ${env:REGISTRATION_SECRET}
     USE_ILLUSTRATION_STUB: ${env:USE_ILLUSTRATION_STUB, 'true'}
     USE_ILLUSTRATION_SERVICE: ${env:USE_ILLUSTRATION_SERVICE, 'false'}
@@ -34,15 +38,12 @@ provider:
             - s3:PutObject
             - s3:DeleteObject
           Resource:
-            - 'arn:aws:s3:::${env:AWS_S3_BUCKET}/*'
-        - Effect: Allow
-          Action:
-            - bedrock:InvokeModel
-          Resource: '*'
+            - 'arn:aws:s3:::${env:AWS_STAGING_BUCKET}/*'
+
 
 functions:
   api:
-    handler: dist/handler.handler
+    handler: dist/server/src/handler.handler
     events:
       - http:
           path: /{proxy+}
@@ -53,7 +54,9 @@ functions:
               - Content-Type
               - Authorization
               - X-Requested-With
+              - x-api-key
             allowCredentials: true
+          private: true  # Require API key
       - http:
           path: /
           method: ANY
@@ -63,9 +66,16 @@ functions:
               - Content-Type
               - Authorization
               - X-Requested-With
+              - x-api-key
             allowCredentials: true
+          private: true  # Require API key
+
+# Note: API keys and usage plans are created via the script after deployment
+# Run: ./scripts/create-api-key.sh <stage>
+# The 'private: true' setting above requires API keys for all endpoints
 
 plugins:
+  - serverless-dotenv-plugin
   - serverless-offline
 
 custom:

@@ -2,6 +2,7 @@ import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-r
 import { IMemory } from '../../../shared/types/Memory';
 import { IUser } from '../../../shared/types/User';
 import logger from '../utils/logger';
+import { getAwsClientConfig } from '../utils/env';
 
 // Configuration for individual memory summaries
 export interface MemorySummaryConfig {
@@ -25,13 +26,9 @@ export class BedrockMemorySummaryService implements MemorySummaryService {
   private readonly BEDROCK_REGION = process.env.BEDROCK_CLIENT_REGION || 'us-west-2';
 
   constructor() {
-    this.bedrockClient = new BedrockRuntimeClient({
-      region: this.BEDROCK_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
-    });
+    // Use centralized AWS client configuration
+    // Automatically handles credentials for local vs serverless (dev/prod)
+    this.bedrockClient = new BedrockRuntimeClient(getAwsClientConfig(this.BEDROCK_REGION));
   }
 
   async generateMemorySummary(

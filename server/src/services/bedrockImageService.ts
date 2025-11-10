@@ -10,6 +10,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
+import { getAwsClientConfig } from '../utils/env';
 
 // Environment variables
 const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
@@ -17,22 +18,10 @@ const IMAGE_MODEL_ID = process.env.BEDROCK_IMAGE_MODEL_ID || 'stability.stable-d
 const BEDROCK_CLIENT_REGION = process.env.BEDROCK_CLIENT_REGION || 'us-west-2';
 const S3_CLIENT_REGION = process.env.S3_CLIENT_REGION || 'us-west-2';
 
-// Initialize AWS clients
-const s3Client = new S3Client({
-  region: S3_CLIENT_REGION || 'us-west-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
-
-const bedrockClient = new BedrockRuntimeClient({
-  region: BEDROCK_CLIENT_REGION || 'us-west-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
+// Initialize AWS clients using centralized configuration
+// Automatically handles credentials for local vs serverless (dev/prod)
+const s3Client = new S3Client(getAwsClientConfig(S3_CLIENT_REGION || 'us-west-2'));
+const bedrockClient = new BedrockRuntimeClient(getAwsClientConfig(BEDROCK_CLIENT_REGION || 'us-west-2'));
 
 /**
  * @deprecated Use IllustrationService.generateMemoryIllustration() instead

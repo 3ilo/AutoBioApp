@@ -2,8 +2,39 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from .env file
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// NODE_ENV should be set by:
+// - package.json scripts (for local dev: NODE_ENV=local)
+// - serverless.yml (for deployments: NODE_ENV=dev or NODE_ENV=prod)
+// - Test runners (for tests: NODE_ENV=test)
+// If not set, default to 'local' for safety
+
+// Step 1: Determine which stage-specific .env file to load based on NODE_ENV
+function getStageEnvFile(): string {
+  const nodeEnv = process.env.NODE_ENV;
+  
+  if (nodeEnv === 'production' || nodeEnv === 'prod') {
+    return '.env.prod';
+  }
+  
+  if (nodeEnv === 'development' || nodeEnv === 'dev') {
+    return '.env.dev';
+  }
+  
+  if (nodeEnv === 'test') {
+    return '.env.test';
+  }
+  
+  // Default to local
+  return '.env.local';
+}
+
+const nodeEnv = process.env.NODE_ENV || 'local';
+const stageEnvFile = getStageEnvFile();
+const stageEnvPath = path.join(__dirname, `../${stageEnvFile}`);
+
+// Step 2: Load stage-specific environment variables
+console.log(`Loading environment: ${nodeEnv} from ${stageEnvFile}`);
+dotenv.config({ path: stageEnvPath });
 
 // Validate required environment variables
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'JWT_EXPIRES_IN'];
@@ -22,6 +53,7 @@ import memoryRoutes from './routes/memoryRoutes';
 import userRoutes from './routes/userRoutes';
 import imageRoutes from './routes/imageRoutes';
 import { handleError } from './utils/errorHandler';
+import { IS_SERVERLESS } from './utils/env';
 
 // Create Express app
 const app = express();
@@ -63,7 +95,6 @@ app.use(handleError);
 // Connect to MongoDB only if not in test environment and not in serverless mode
 const MONGODB_URI = process.env.MONGODB_URI as string;
 const PORT = process.env.PORT || 3000;
-const IS_SERVERLESS = process.env.IS_SERVERLESS === 'true' || process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined;
 
 // Add connection options
 const mongooseOptions = {

@@ -37,6 +37,7 @@ jobs:
         working-directory: ./client
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
           VITE_BASE_PATH: /AutoBioApp/
         run: npm run build
 

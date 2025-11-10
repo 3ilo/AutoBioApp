@@ -10,12 +10,19 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests
+// Add auth token and API key to requests
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Add API key for API Gateway authentication
+  const apiKey = import.meta.env.VITE_API_KEY;
+  if (apiKey) {
+    config.headers['x-api-key'] = apiKey;
+  }
+  
   console.log('Making request to:', config.url);
   return config;
 });

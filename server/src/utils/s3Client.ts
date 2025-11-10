@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { IMemory, IMemoryImage } from '../../../shared/types/Memory';
 import logger from './logger';
+import { getAwsClientConfig } from './env';
 
 // Environment variables
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'auto-bio-illustrations';
@@ -15,13 +16,9 @@ class S3ClientSingleton {
   private s3Client: S3Client;
 
   private constructor() {
-    this.s3Client = new S3Client({
-      region: S3_CLIENT_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      },
-    });
+    // Use centralized AWS client configuration
+    // Automatically handles credentials for local vs serverless (dev/prod)
+    this.s3Client = new S3Client(getAwsClientConfig(S3_CLIENT_REGION));
   }
 
   public static getInstance(): S3ClientSingleton {
