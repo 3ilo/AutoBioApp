@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import logger from '../utils/logger';
@@ -7,6 +7,11 @@ export function Register() {
   const navigate = useNavigate();
   const { register, error, setError } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Clear error when component mounts
+  useEffect(() => {
+    setError(null);
+  }, [setError]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

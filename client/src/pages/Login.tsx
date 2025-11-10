@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
@@ -15,7 +16,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading, error } = useAuthStore();
+  const { login, isLoading, error, setError } = useAuthStore();
   const from = location.state?.from?.pathname || '/';
 
   const {
@@ -25,6 +26,11 @@ export function Login() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  // Clear error when component mounts
+  useEffect(() => {
+    setError(null);
+  }, [setError]);
 
   const onSubmit = async (data: LoginFormData) => {
     try {

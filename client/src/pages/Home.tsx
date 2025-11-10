@@ -24,7 +24,7 @@ export function Home() {
               <span className="block">Precious Moments</span>
             </h1>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-slate-300 leading-relaxed">
-              Create beautiful memories with AI-powered storytelling. Share your journey with loved ones and preserve your legacy.
+              Tell your stories as an intelligently augmented autobiography. Share your experience and preserve your legacy.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
               <Link

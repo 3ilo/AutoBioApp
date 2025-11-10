@@ -98,6 +98,12 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Only persist user, token, and isAuthenticated - not error or isLoading
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 ); 
