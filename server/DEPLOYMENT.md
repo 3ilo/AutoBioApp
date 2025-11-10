@@ -175,7 +175,7 @@ The code automatically detects the environment and:
    This will output an API key value that you need to save securely.
 
 6. **Update Frontend Environment Variables:**
-   Set these in your GitHub repository secrets:
+   [IMPORTANT] Set these in your GitHub repository secrets:
    
    - `VITE_API_URL`: The API Gateway URL + `/api`
      ```
