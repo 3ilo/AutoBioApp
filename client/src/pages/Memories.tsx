@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { MemoryCard } from '../components/memories/MemoryCard';
 import { Timeline } from '../components/memories/Timeline';
@@ -6,21 +6,28 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { memoriesApi } from '../services/api';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import logger from '../utils/logger';
 
 export function Memories() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [memories, setMemories] = useState<IMemory[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isInitializingFromUrl = useRef(false);
+  const hasInitializedFromUrl = useRef(false);
+  const lastUrlMemoryId = useRef<string | null>(null);
 
   const fetchMemories = async () => {
     try {
       setIsLoading(true);
       setError(null);
+      // Reset initialization flags when fetching new memories
+      hasInitializedFromUrl.current = false;
+      isInitializingFromUrl.current = false;
       const response = await memoriesApi.getAll();
       setMemories(response.data);
       logger.debug('Memories loaded', { count: response.data.length });
@@ -39,9 +46,73 @@ export function Memories() {
   }, []);
 
   // Sort memories by date in ascending order (oldest to newest)
-  const sortedMemories = [...memories].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
+  const sortedMemories = useMemo(() => {
+    return [...memories].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  }, [memories]);
+
+  // Handle deep linking: find memory by ID from URL parameter
+  // This runs when memories are loaded or when URL changes externally
+  useEffect(() => {
+    if (sortedMemories.length > 0 && !isLoading) {
+      const memoryId = searchParams.get('memoryId');
+      const urlChangedExternally = memoryId !== lastUrlMemoryId.current;
+      
+      // Only process if we haven't initialized yet, or if URL changed externally
+      if (!hasInitializedFromUrl.current || urlChangedExternally) {
+        if (memoryId) {
+          const index = sortedMemories.findIndex(m => m._id === memoryId);
+          if (index !== -1 && index !== currentIndex) {
+            logger.debug('Deep linking to memory from URL', { memoryId, index, currentIndex, urlChangedExternally });
+            isInitializingFromUrl.current = true;
+            setCurrentIndex(index);
+            hasInitializedFromUrl.current = true;
+            lastUrlMemoryId.current = memoryId;
+            // Reset flag after a short delay to allow state to update
+            setTimeout(() => {
+              isInitializingFromUrl.current = false;
+            }, 0);
+          } else if (index === -1) {
+            // Memory not found, remove invalid parameter
+            logger.warn('Memory ID from URL not found', { memoryId });
+            setSearchParams({}, { replace: true });
+            hasInitializedFromUrl.current = true;
+            lastUrlMemoryId.current = null;
+          } else {
+            // Memory already at correct index
+            hasInitializedFromUrl.current = true;
+            lastUrlMemoryId.current = memoryId;
+          }
+        } else {
+          // No memoryId in URL
+          if (!hasInitializedFromUrl.current) {
+            hasInitializedFromUrl.current = true;
+          }
+          lastUrlMemoryId.current = null;
+        }
+      }
+    }
+  }, [sortedMemories, searchParams, setSearchParams, isLoading, currentIndex]);
+
+  // Update URL when currentIndex changes (but not when initializing from URL)
+  useEffect(() => {
+    // Skip if we're currently initializing from URL
+    if (isInitializingFromUrl.current) {
+      return;
+    }
+    
+    if (sortedMemories.length > 0 && sortedMemories[currentIndex]?._id) {
+      const memoryId = sortedMemories[currentIndex]._id;
+      const currentMemoryId = searchParams.get('memoryId');
+      
+      // Only update URL if it's different to avoid unnecessary navigation
+      if (memoryId && memoryId !== currentMemoryId) {
+        setSearchParams({ memoryId }, { replace: true });
+        lastUrlMemoryId.current = memoryId;
+      }
+    }
+  }, [currentIndex, sortedMemories, searchParams, setSearchParams]);
 
   const handleNext = () => {
     if (currentIndex < sortedMemories.length - 1) {

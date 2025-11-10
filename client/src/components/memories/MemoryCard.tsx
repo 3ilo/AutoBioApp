@@ -3,9 +3,11 @@ import { IMemory } from '@shared/types/Memory';
 import DOMPurify from 'dompurify';
 import { TrashIcon, PencilIcon, UserPlusIcon, UserMinusIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { memoriesApi, userApi } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { MemoryImage } from './MemoryImage';
+import { getMemoryLink } from '../../utils/memoryLinks';
 import logger from '../../utils/logger';
 
 interface MemoryCardProps {
@@ -15,14 +17,24 @@ interface MemoryCardProps {
   onEdit?: (memory: IMemory) => void;
   showAuthor?: boolean;
   showFollowButton?: boolean;
+  linkToMemory?: boolean; // If true, makes the card clickable to link to the memory in the carousel
 }
 
-export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = false, showFollowButton = false }: MemoryCardProps) {
+export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = false, showFollowButton = false, linkToMemory = false }: MemoryCardProps) {
   const user = useAuthStore((state) => state.user);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // Check if this memory belongs to the current user
+  const isOwnMemory = user?._id && (
+    (typeof memory.author === 'string' && memory.author === user._id) ||
+    (typeof memory.author === 'object' && memory.author?._id === user._id)
+  );
+
+  // Only link if linkToMemory is true AND it's the user's own memory
+  const shouldLink = linkToMemory && isOwnMemory && memory._id;
 
   // Check if current user is following the memory's author
   useEffect(() => {
@@ -84,106 +96,140 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
   // Sanitize the HTML content
   const sanitizedContent = DOMPurify.sanitize(memory.content);
 
+  // Stop event propagation for buttons to prevent link navigation
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const cardContent = (
+    <div className="p-6">
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1 mr-4">
+          <h2 className={`text-2xl font-bold text-warm-900 truncate ${shouldLink ? 'hover:text-indigo-600' : ''}`}>
+            {shouldLink ? (
+              <Link to={getMemoryLink(memory._id)} className="hover:text-indigo-600">
+                {memory.title}
+              </Link>
+            ) : (
+              memory.title
+            )}
+          </h2>
+          {showAuthor && memory.author && typeof memory.author !== 'string' && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-warm-600">
+                by {(memory.author as any).firstName} {(memory.author as any).lastName}
+              </span>
+              {showFollowButton && user?._id !== (memory.author as any)._id && (
+                <button
+                  onClick={(e) => {
+                    handleButtonClick(e);
+                    handleFollowToggle();
+                  }}
+                  disabled={isFollowLoading}
+                  className="p-1 text-warm-400 hover:text-indigo-600 transition-colors duration-200 disabled:opacity-50"
+                  title={isFollowing ? 'Unfollow' : 'Follow'}
+                >
+                  {isFollowLoading ? (
+                    <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  ) : isFollowing ? (
+                    <UserMinusIcon className="w-4 h-4" />
+                  ) : (
+                    <UserPlusIcon className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <time className="text-sm text-warm-500 flex-shrink-0">
+            {format(new Date(memory.date), 'MMM d, yyyy')}
+          </time>
+          {onEdit && (
+            <button
+              onClick={(e) => {
+                handleButtonClick(e);
+                onEdit(memory);
+              }}
+              className="p-2 text-warm-400 hover:text-indigo-600 transition-colors duration-200"
+              title="Edit memory"
+            >
+              <PencilIcon className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              handleButtonClick(e);
+              setShowConfirmDialog(true);
+            }}
+            className="p-2 text-warm-400 hover:text-accent-error transition-colors duration-200"
+            title="Delete memory"
+          >
+            <TrashIcon className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+      
+      <div className="relative flex gap-6">
+        {/* Content container with fixed width and proper overflow handling */}
+        <div className="prose prose-sm flex-1">
+          <div 
+            className="text-warm-700 whitespace-pre-wrap break-words"
+            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+          />
+        </div>
+
+        {/* Images container */}
+        {memory.images.length > 0 && (
+          <div className="w-1/3 flex-shrink-0 flex flex-col gap-4">
+            {memory.images.map((image, index) => (
+              <div
+                key={index}
+                className="relative w-full"
+                style={{ minHeight: '300px' }}
+              >
+                <MemoryImage
+                  src={image.url}
+                  alt={`Memory illustration ${index + 1}`}
+                  className="w-full h-full object-cover rounded-lg shadow-md"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {memory.tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-4">
+          {memory.tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <div
         className={`bg-white shadow-lg rounded-lg overflow-hidden transition-all duration-300 w-full ${
           isActive ? 'scale-105 shadow-xl' : 'opacity-75'
-        }`}
+        } ${shouldLink ? 'cursor-pointer hover:shadow-xl' : ''}`}
+        onClick={shouldLink ? () => {} : undefined}
       >
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex-1 mr-4">
-              <h2 className="text-2xl font-bold text-warm-900 truncate">{memory.title}</h2>
-              {showAuthor && memory.author && typeof memory.author !== 'string' && (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-warm-600">
-                    by {(memory.author as any).firstName} {(memory.author as any).lastName}
-                  </span>
-                  {showFollowButton && user?._id !== (memory.author as any)._id && (
-                    <button
-                      onClick={handleFollowToggle}
-                      disabled={isFollowLoading}
-                      className="p-1 text-warm-400 hover:text-indigo-600 transition-colors duration-200 disabled:opacity-50"
-                      title={isFollowing ? 'Unfollow' : 'Follow'}
-                    >
-                      {isFollowLoading ? (
-                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                      ) : isFollowing ? (
-                        <UserMinusIcon className="w-4 h-4" />
-                      ) : (
-                        <UserPlusIcon className="w-4 h-4" />
-                      )}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <time className="text-sm text-warm-500 flex-shrink-0">
-                {format(new Date(memory.date), 'MMM d, yyyy')}
-              </time>
-              {onEdit && (
-                <button
-                  onClick={() => onEdit(memory)}
-                  className="p-2 text-warm-400 hover:text-indigo-600 transition-colors duration-200"
-                  title="Edit memory"
-                >
-                  <PencilIcon className="w-5 h-5" />
-                </button>
-              )}
-              <button
-                onClick={() => setShowConfirmDialog(true)}
-                className="p-2 text-warm-400 hover:text-accent-error transition-colors duration-200"
-                title="Delete memory"
-              >
-                <TrashIcon className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="relative flex gap-6">
-            {/* Content container with fixed width and proper overflow handling */}
-            <div className="prose prose-sm flex-1">
-              <div 
-                className="text-warm-700 whitespace-pre-wrap break-words"
-                dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-              />
-            </div>
-
-            {/* Images container */}
-            {memory.images.length > 0 && (
-              <div className="w-1/3 flex-shrink-0 flex flex-col gap-4">
-                {memory.images.map((image, index) => (
-                  <div
-                    key={index}
-                    className="relative w-full"
-                    style={{ minHeight: '300px' }}
-                  >
-                    <MemoryImage
-                      src={image.url}
-                      alt={`Memory illustration ${index + 1}`}
-                      className="w-full h-full object-cover rounded-lg shadow-md"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {memory.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              {memory.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        {shouldLink ? (
+          <Link to={getMemoryLink(memory._id)} className="block">
+            {cardContent}
+          </Link>
+        ) : (
+          cardContent
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

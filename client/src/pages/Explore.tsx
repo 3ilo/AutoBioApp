@@ -188,6 +188,7 @@ export function Explore() {
               isActive={false}
               showAuthor={true}
               showFollowButton={true}
+              linkToMemory={true}
             />
           ))}
         </div>

@@ -3,29 +3,11 @@ import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
 import { AvatarGenerator } from '../components/avatar/AvatarGenerator';
 import { usePresignedUrl } from '../hooks/usePresignedUrl';
+import { memoriesApi } from '../services/api';
+import { IMemory } from '@shared/types/Memory';
+import { Link } from 'react-router-dom';
+import { getMemoryLink } from '../utils/memoryLinks';
 import logger from '../utils/logger';
-
-// Temporary mock data
-const mockStats = {
-  totalMemories: 12,
-  totalLikes: 45,
-  totalComments: 23,
-  joinedDate: '2024-01-01',
-};
-
-const mockMemories = [
-  {
-    id: '1',
-    title: 'First Day at School',
-    content: 'I remember walking into my first day of school, feeling both excited and nervous...',
-    date: '2024-01-15',
-    images: ['https://picsum.photos/800/400'],
-    tags: ['childhood', 'education'],
-    likes: 12,
-    comments: 3,
-  },
-  // Add more mock memories...
-];
 
 export function Profile() {
   const user = useAuthStore((state) => state.user);
@@ -34,6 +16,8 @@ export function Profile() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [interestsInput, setInterestsInput] = useState('');
+  const [memories, setMemories] = useState<IMemory[]>([]);
+  const [isLoadingMemories, setIsLoadingMemories] = useState(true);
   
   // Convert avatar S3 URI to pre-signed URL for display
   const avatarUrl = usePresignedUrl(user?.avatar);
@@ -49,6 +33,28 @@ export function Profile() {
     preferredStyle: '',
     avatar: '',
   });
+
+  // Fetch user's memories
+  useEffect(() => {
+    const fetchMemories = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoadingMemories(true);
+        const response = await memoriesApi.getAll();
+        setMemories(response.data);
+        logger.debug('Profile: Memories loaded', { count: response.data.length });
+      } catch (err) {
+        logger.error('Failed to fetch memories for profile', {
+          error: err instanceof Error ? err.message : 'Unknown error'
+        });
+      } finally {
+        setIsLoadingMemories(false);
+      }
+    };
+
+    fetchMemories();
+  }, [user]);
 
   // Update profile data when user data changes
   useEffect(() => {
@@ -69,6 +75,19 @@ export function Profile() {
       setInterestsInput(user.interests ? user.interests.join(', ') : '');
     }
   }, [user]);
+
+  // Calculate statistics from actual data
+  const stats = {
+    totalMemories: memories.length,
+    totalLikes: memories.reduce((sum, memory) => sum + (memory.likes?.length || 0), 0),
+    totalComments: memories.reduce((sum, memory) => sum + (memory.comments?.length || 0), 0),
+    joinedDate: user?.createdAt ? new Date(user.createdAt) : new Date(),
+  };
+
+  // Get recent memories (sorted by date, most recent first)
+  const recentMemories = memories
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 3); // Show only the 3 most recent
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +134,9 @@ export function Profile() {
                 />
                 <div className="ml-4">
                   <h2 className="text-2xl font-bold text-gray-900">{user?.firstName} {user?.lastName}</h2>
-                  <p className="text-sm text-gray-500">Member since {format(new Date(mockStats.joinedDate), 'MMMM yyyy')}</p>
+                  <p className="text-sm text-gray-500">
+                    Member since {format(stats.joinedDate, 'MMMM yyyy')}
+                  </p>
                 </div>
               </div>
               <button
@@ -334,19 +355,25 @@ export function Profile() {
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <dt className="text-sm font-medium text-gray-500 truncate">Total Memories</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">{mockStats.totalMemories}</dd>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                {isLoadingMemories ? '...' : stats.totalMemories}
+              </dd>
             </div>
           </div>
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <dt className="text-sm font-medium text-gray-500 truncate">Total Likes</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">{mockStats.totalLikes}</dd>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                {isLoadingMemories ? '...' : stats.totalLikes}
+              </dd>
             </div>
           </div>
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <dt className="text-sm font-medium text-gray-500 truncate">Total Comments</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">{mockStats.totalComments}</dd>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                {isLoadingMemories ? '...' : stats.totalComments}
+              </dd>
             </div>
           </div>
         </div>
@@ -357,27 +384,43 @@ export function Profile() {
             <h3 className="text-lg font-medium text-gray-900">Recent Memories</h3>
           </div>
           <div className="border-t border-gray-200">
-            <ul className="divide-y divide-gray-200">
-              {mockMemories.map((memory) => (
-                <li key={memory.id} className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-indigo-600 truncate">{memory.title}</h4>
-                      <p className="mt-1 text-sm text-gray-500 line-clamp-2">{memory.content}</p>
-                    </div>
-                    <div className="ml-4 flex-shrink-0 flex items-center space-x-4">
-                      <div className="text-sm text-gray-500">
-                        {format(new Date(memory.date), 'MMM d, yyyy')}
+            {isLoadingMemories ? (
+              <div className="px-4 py-8 text-center text-gray-500">Loading memories...</div>
+            ) : recentMemories.length === 0 ? (
+              <div className="px-4 py-8 text-center text-gray-500">No memories yet. Start creating your first memory!</div>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {recentMemories.map((memory) => (
+                  <li key={memory._id} className="px-4 py-4 sm:px-6 hover:bg-gray-50 transition-colors">
+                    <Link 
+                      to={getMemoryLink(memory._id)}
+                      className="flex items-center justify-between block"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-indigo-600 truncate hover:text-indigo-800">
+                          {memory.title}
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                          {(() => {
+                            const plainText = memory.content.replace(/<[^>]*>/g, '');
+                            return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText;
+                          })()}
+                        </p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500">❤️ {memory.likes}</span>
-                        <span className="text-sm text-gray-500">💬 {memory.comments}</span>
+                      <div className="ml-4 flex-shrink-0 flex items-center space-x-4">
+                        <div className="text-sm text-gray-500">
+                          {format(new Date(memory.date), 'MMM d, yyyy')}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-500">❤️ {memory.likes?.length || 0}</span>
+                          <span className="text-sm text-gray-500">💬 {memory.comments?.length || 0}</span>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>
