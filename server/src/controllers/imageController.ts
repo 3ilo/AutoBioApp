@@ -2,11 +2,14 @@ import { Request, Response } from 'express';
 import { ApiResponse } from '../../../shared/types/ApiResponse';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
-import { BedrockSummarizationService } from '../services/summarizationService';
-import { PromptEnhancementService } from '../services/promptEnhancementService';
-import { BedrockMemorySummaryService } from '../services/memorySummaryService';
+import { bedrockSummarizationService } from '../services/summarizationService';
+import { contextBasedPromptEnhancementService } from '../services/promptEnhancementService';
+import { bedrockMemorySummaryService } from '../services/memorySummaryService';
 import { illustrationService } from '../services/illustrationService';
 import { illustrationStubService } from '../services/stubs/illustrationStubService';
+import { summarizationStubService } from '../services/stubs/summarizationStubService';
+import { memorySummaryStubService } from '../services/stubs/memorySummaryStubService';
+import { promptEnhancementStubService } from '../services/stubs/promptEnhancementStubService';
 import { generateImageBedrock, uploadToS3, generateFakeImageUrl } from '../services/bedrockImageService';
 import { User } from '../models/User';
 import { Memory } from '../models/Memory';
@@ -19,7 +22,7 @@ const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
 const ILLUSTRATION_SERVICE_URL = process.env.ILLUSTRATION_SERVICE_URL || 'http://localhost:8000';
 const USE_ILLUSTRATION_SERVICE = process.env.USE_ILLUSTRATION_SERVICE === 'true'; // Only true if explicitly enabled
 const USE_BEDROCK_FALLBACK = process.env.USE_BEDROCK_FALLBACK === 'true'; // Only true if explicitly enabled
-const USE_ILLUSTRATION_STUB = process.env.USE_ILLUSTRATION_STUB === 'true' || process.env.NODE_ENV === 'development'; // Use stub in dev mode by default
+const USE_STUB = process.env.USE_STUB === 'true'; 
 
 // Types
 interface GenerateImageRequest {
@@ -29,10 +32,16 @@ interface GenerateImageRequest {
   userId?: string; // Optional for backward compatibility
 }
 
-// Initialize services
-const summarizationService = new BedrockSummarizationService();
-const promptEnhancementService = new PromptEnhancementService();
-const memorySummaryService = new BedrockMemorySummaryService();
+// Initialize services (use stubs if USE_STUB is enabled)
+const summarizationService = USE_STUB 
+  ? summarizationStubService 
+  : bedrockSummarizationService;
+const promptEnhancementService = USE_STUB
+  ? promptEnhancementStubService
+  : contextBasedPromptEnhancementService;
+const memorySummaryService = USE_STUB
+  ? memorySummaryStubService
+  : bedrockMemorySummaryService;
 
 // Helper function to craft the basic prompt (fallback)
 function craftBasicPrompt(data: GenerateImageRequest): string {
@@ -152,20 +161,14 @@ export async function generateImage(req: Request, res: Response) {
       });
     }
     
-    // Use enhanced prompt if userId is provided, otherwise use basic prompt
     let prompt: string;
-    if (userId) {
-      logger.info(`Crafting enhanced prompt for user ID: ${userId}`);
-      prompt = await craftEnhancedPrompt({ title, content, date }, userId);
-    } else {
-      logger.info(`Crafting basic prompt`);
-      prompt = craftBasicPrompt({ title, content, date });
-    }
-    
+    logger.info(`Crafting enhanced prompt for user ID: ${userId}`);
+    prompt = await craftEnhancedPrompt({ title, content, date }, userId);
+ 
     let imageURI: string;
 
     // Use stub service if enabled (dev mode)
-    if (USE_ILLUSTRATION_STUB) {
+    if (USE_STUB) {
       logger.info('Using stub illustration service for image generation (dev mode)');
       try {
         imageURI = await illustrationStubService.generateMemoryIllustration(
@@ -261,7 +264,7 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
     let imageUrl: string;
 
     // Use stub service if enabled (dev mode)
-    if (USE_ILLUSTRATION_STUB) {
+    if (USE_STUB) {
       logger.info('Using stub illustration service for subject illustration generation (dev mode)');
       try {
         imageUrl = await illustrationStubService.generateSubjectIllustration(userId);

@@ -224,3 +224,6 @@ Please distill the current memory into a simple description following the I {VER
     return `summary:${userId}:${memoryIds}:${configHash}:${currentMemoryHash}`;
   }
 }
+
+// Export singleton instance
+export const bedrockSummarizationService = new BedrockSummarizationService();

@@ -47,7 +47,7 @@ BACKEND_AWS_KEY=your-backend-aws-access-key
 BACKEND_AWS_SECRET=your-backend-aws-secret-key
 
 # Illustration Service
-USE_ILLUSTRATION_STUB=true
+USE_STUB=true
 USE_ILLUSTRATION_SERVICE=false
 ```
 
@@ -74,7 +74,7 @@ AWS_STAGING_BUCKET=autobio-dev-bucket
 # BACKEND_AWS_SECRET=
 
 # Illustration Service
-USE_ILLUSTRATION_STUB=true
+USE_STUB=true
 USE_ILLUSTRATION_SERVICE=false
 ```
 
@@ -101,7 +101,7 @@ AWS_STAGING_BUCKET=autobio-prod-bucket
 # BACKEND_AWS_SECRET=
 
 # Illustration Service
-USE_ILLUSTRATION_STUB=false
+USE_STUB=false
 USE_ILLUSTRATION_SERVICE=true
 ILLUSTRATION_SERVICE_URL=https://your-illustration-service.com
 ILLUSTRATION_SERVICE_AUTH_TOKEN=production-auth-token

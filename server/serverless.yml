@@ -25,7 +25,7 @@ provider:
     # Lambda uses the IAM role configured below for AWS service access
     # BACKEND_AWS_KEY and BACKEND_AWS_SECRET are only for local development
     REGISTRATION_SECRET: ${env:REGISTRATION_SECRET}
-    USE_ILLUSTRATION_STUB: ${env:USE_ILLUSTRATION_STUB, 'true'}
+    USE_STUB: ${env:USE_STUB, 'true'}
     USE_ILLUSTRATION_SERVICE: ${env:USE_ILLUSTRATION_SERVICE, 'false'}
     ILLUSTRATION_SERVICE_URL: ${env:ILLUSTRATION_SERVICE_URL, ''}
     ILLUSTRATION_SERVICE_AUTH_TOKEN: ${env:ILLUSTRATION_SERVICE_AUTH_TOKEN, ''}

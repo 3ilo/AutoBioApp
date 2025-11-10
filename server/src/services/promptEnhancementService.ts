@@ -6,7 +6,17 @@ export interface MemoryData {
   date: Date;
 }
 
-export class PromptEnhancementService {
+// Interface for prompt enhancement service
+export interface PromptEnhancementService {
+  createEnhancedPrompt(
+    currentMemory: MemoryData,
+    user: IUser,
+    memorySummary: string
+  ): Promise<string>;
+}
+
+// Implementation of prompt enhancement service
+export class ContextBasedPromptEnhancementService implements PromptEnhancementService {
   async createEnhancedPrompt(
     currentMemory: MemoryData,
     user: IUser,
@@ -96,3 +106,6 @@ Date: ${this.formatDate(memory.date)}`;
     });
   }
 }
+
+// Export singleton instance
+export const contextBasedPromptEnhancementService = new ContextBasedPromptEnhancementService();

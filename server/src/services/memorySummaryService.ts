@@ -148,3 +148,6 @@ Date: ${new Date(memory.date).toLocaleDateString('en-US', {
     }
   }
 }
+
+// Export singleton instance
+export const bedrockMemorySummaryService = new BedrockMemorySummaryService();
