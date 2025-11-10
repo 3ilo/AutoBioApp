@@ -11,6 +11,7 @@ import { IMemoryImage, IMemory } from '../../../shared/types/Memory';
 import { useAuthStore } from '../stores/authStore';
 import { MemoryImage } from '../components/memories/MemoryImage';
 import logger from '../utils/logger';
+import { getErrorMessage } from '../utils/errorMessages';
 
 
 interface MemoryImage extends IMemoryImage {
@@ -364,7 +365,9 @@ export function Contribute() {
         </div>
 
         {saveError && (
-          <div className="error-text text-center">{saveError.message}</div>
+          <div className="error-message text-center">
+            {getErrorMessage(saveError)}
+          </div>
         )}
 
         <div className="flex justify-end pt-6 border-t border-slate-200">

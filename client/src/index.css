@@ -93,6 +93,13 @@
     @apply text-red-600 text-sm mt-1;
   }
 
+  /* Error message container - matches aesthetic */
+  .error-message {
+    @apply border-2 border-red-600 bg-white px-6 py-4;
+    @apply text-sm font-semibold text-red-600;
+    @apply uppercase tracking-wider;
+  }
+
   .success-text {
     @apply text-green-600 text-sm mt-1;
   }

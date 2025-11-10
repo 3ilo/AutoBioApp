@@ -8,6 +8,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import logger from '../utils/logger';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export function Memories() {
   const user = useAuthStore((state) => state.user);
@@ -32,10 +33,10 @@ export function Memories() {
       setMemories(response.data);
       logger.debug('Memories loaded', { count: response.data.length });
     } catch (err) {
-      setError('Failed to load memories. Please try again later.');
       logger.error('Failed to fetch memories', { 
         error: err instanceof Error ? err.message : 'Unknown error'
       });
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -161,14 +162,18 @@ export function Memories() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="text-center">
-          <p className="text-red-600 mb-6 text-sm uppercase tracking-wider">Error loading memories: {error}</p>
-          <button
-            onClick={() => fetchMemories()}
-            className="btn-secondary"
-          >
-            Try again
-          </button>
+        <div className="text-center max-w-md">
+          <div className="error-message inline-block mb-6">
+            {getErrorMessage(error)}
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={() => fetchMemories()}
+              className="btn-secondary"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       </div>
     );

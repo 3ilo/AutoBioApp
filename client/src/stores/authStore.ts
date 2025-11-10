@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { IUser } from '@shared/types/User';
 import { authApi } from '../services/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 interface AuthState {
   user: IUser | null;
@@ -44,8 +45,9 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error) {
+          const errorMessage = getErrorMessage(error);
           set({
-            error: error instanceof Error ? error.message : 'Login failed',
+            error: errorMessage,
             isLoading: false,
           });
           throw error;
@@ -62,8 +64,9 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error) {
+          const errorMessage = getErrorMessage(error);
           set({
-            error: error instanceof Error ? error.message : 'Registration failed',
+            error: errorMessage,
             isLoading: false,
           });
           throw error;
@@ -78,8 +81,9 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error) {
+          const errorMessage = getErrorMessage(error);
           set({
-            error: error instanceof Error ? error.message : 'Profile update failed',
+            error: errorMessage,
             isLoading: false,
           });
           throw error;

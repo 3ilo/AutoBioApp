@@ -4,6 +4,7 @@ import { memoriesApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { MemoryImage } from '../components/memories/MemoryImage';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export function Home() {
   const {
@@ -60,7 +61,9 @@ export function Home() {
           </div>
         ) : error ? (
           <div className="text-center py-20">
-            <p className="text-red-600 text-sm uppercase tracking-wider mb-4">Error loading featured memories: {error.message}</p>
+            <div className="error-message inline-block">
+              {getErrorMessage(error)}
+            </div>
           </div>
         ) : featuredMemories && featuredMemories.length > 0 ? (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">

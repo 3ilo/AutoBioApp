@@ -4,6 +4,7 @@ import { memoriesApi } from '../services/api';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
 import logger from '../utils/logger';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,7 +31,7 @@ export function Explore() {
       logger.error('Failed to fetch public memories', { 
         error: err instanceof Error ? err.message : 'Unknown error'
       });
-      setErrorAll('Failed to load public memories');
+      setErrorAll(getErrorMessage(err));
     } finally {
       setIsLoadingAll(false);
     }
@@ -48,7 +49,7 @@ export function Explore() {
       logger.error('Failed to fetch feed memories', { 
         error: err instanceof Error ? err.message : 'Unknown error'
       });
-      setErrorFeed('Failed to load feed memories');
+      setErrorFeed(getErrorMessage(err));
     } finally {
       setIsLoadingFeed(false);
     }
@@ -167,13 +168,17 @@ export function Explore() {
         </div>
       ) : error ? (
         <div className="text-center">
-          <p className="text-red-600 mb-6 text-sm uppercase tracking-wider">Error loading memories: {error}</p>
-          <button
-            onClick={() => viewMode === 'following' ? fetchFeedMemories() : fetchAllMemories()}
-            className="btn-secondary"
-          >
-            Try again
-          </button>
+          <div className="error-message inline-block mb-6">
+            {getErrorMessage(error)}
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={() => viewMode === 'following' ? fetchFeedMemories() : fetchAllMemories()}
+              className="btn-secondary"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       ) : sortedMemories.length === 0 ? (
         <div className="text-center py-12">

@@ -131,7 +131,9 @@ export function Register() {
           </div>
 
           {error && (
-            <div className="error-text text-center">{error}</div>
+            <div className="error-message text-center">
+              {error}
+            </div>
           )}
 
           <div>

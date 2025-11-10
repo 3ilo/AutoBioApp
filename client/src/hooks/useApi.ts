@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { ApiError } from '../services/api';
+import { getErrorMessage } from '../utils/errorMessages';
 
 interface UseApiState<T> {
   data: T | null;
@@ -33,10 +34,14 @@ export function useApi<T>(
           error: null,
         });
       } catch (error) {
+        const errorMessage = getErrorMessage(error);
         setState({
           data: null,
           isLoading: false,
-          error: error as ApiError,
+          error: {
+            message: errorMessage,
+            status: (error as any)?.response?.status,
+          } as ApiError,
         });
       }
     },
