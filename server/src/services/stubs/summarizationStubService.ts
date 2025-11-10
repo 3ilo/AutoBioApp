@@ -15,14 +15,8 @@ export class SummarizationStubService implements SummarizationService {
     currentMemoryPrompt: string,
     currentMemoryTitle: string
   ): Promise<string> {
-    logger.info(`[STUB] Generating memory summary for user: ${user._id}`);
-    logger.info(`[STUB] Processing ${memories.length} memories`);
-    logger.info(`[STUB] Current memory: ${currentMemoryTitle}`);
-    
-    // Return a simple mock summary based on the current memory
+    // Stub service - return simple mock summary
     const mockSummary = `I experienced ${currentMemoryTitle.toLowerCase()} with ${memories.length > 0 ? 'recent context' : 'no prior context'}.`;
-    
-    logger.info(`[STUB] Generated mock summary: ${mockSummary.substring(0, 100)}...`);
     return mockSummary;
   }
 }

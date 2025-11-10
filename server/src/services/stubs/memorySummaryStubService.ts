@@ -13,10 +13,7 @@ export class MemorySummaryStubService implements MemorySummaryService {
     user: IUser,
     config: MemorySummaryConfig
   ): Promise<string> {
-    logger.info(`[STUB] Generating summary for memory: ${memory._id}`);
-    logger.info(`[STUB] Memory title: ${memory.title}`);
-    
-    // Return a simple mock summary based on the memory
+    // Stub service - return simple mock summary
     const dateStr = new Date(memory.date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -27,7 +24,6 @@ export class MemorySummaryStubService implements MemorySummaryService {
       ? `This is a detailed summary of the memory "${memory.title}" from ${dateStr}. The memory contains information about ${memory.content.substring(0, 50)}...`
       : `Memory about ${memory.title} from ${dateStr}`;
     
-    logger.info(`[STUB] Generated mock summary: ${mockSummary}`);
     return mockSummary;
   }
 }

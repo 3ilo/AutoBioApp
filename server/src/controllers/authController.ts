@@ -39,6 +39,7 @@ export const register = async (
     const requiredSecret = process.env.REGISTRATION_SECRET;
     if (requiredSecret) {
       if (!registrationSecret || registrationSecret !== requiredSecret) {
+        logger.warn('[SENSITIVE] Registration attempt with invalid secret', { email });
         return next(new AppError('Invalid registration secret', 403));
       }
     }
@@ -46,6 +47,7 @@ export const register = async (
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      logger.warn('[SENSITIVE] Registration attempt with existing email', { email });
       return next(new AppError('Email already in use', 400));
     }
 
@@ -58,9 +60,11 @@ export const register = async (
       password,
     });
 
+    logger.info('[SENSITIVE] User registered successfully', { userId: user._id, email });
     // Generate token and send response
     createSendToken(user.toObject() as IUser, 201, res);
   } catch (error) {
+    logger.error('Registration error', { error: (error as Error).message });
     next(error);
   }
 };
@@ -81,24 +85,28 @@ export const login = async (
     // Check if user exists && password is correct
     const user = await User.findOne({ email }).select('+password');
     if (!user || !(await user.comparePassword(password))) {
+      logger.warn('[SENSITIVE] Failed login attempt', { email });
       return next(new AppError('Incorrect email or password', 401));
     }
 
+    logger.info('[SENSITIVE] User logged in successfully', { userId: user._id, email });
     // Generate token and send response
     createSendToken(user.toObject() as IUser, 200, res);
   } catch (error) {
+    logger.error('Login error', { error: (error as Error).message });
     next(error);
   }
 };
 
 export const getMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    logger.info("getMe", req.user);
     const user = await User.findById(req.user?._id);
     if (!user) {
+      logger.warn('getMe: User not found', { userId: req.user?._id });
       return next(new AppError('User not found', 404));
     }
 
+    logger.debug('[SENSITIVE] Retrieved user profile', { userId: user._id, email: user.email });
     res.status(200).json({
       status: 'success',
       data: {
@@ -106,6 +114,7 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
       },
     });
   } catch (error) {
+    logger.error('getMe error', { error: (error as Error).message });
     next(error);
   }
 };
@@ -135,9 +144,11 @@ export const updateMe = async (
     );
 
     if (!user) {
+      logger.warn('updateMe: User not found', { userId: req.user?._id });
       return next(new AppError('User not found', 404));
     }
 
+    logger.debug('[SENSITIVE] Updated user profile data', { userId: user._id, email: user.email });
     res.status(200).json({
       status: 'success',
       data: {
@@ -145,6 +156,7 @@ export const updateMe = async (
       },
     });
   } catch (error) {
+    logger.error('updateMe error', { error: (error as Error).message });
     next(error);
   }
 }; 

@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { IMemory } from '@shared/types/Memory';
 import { IUser } from '@shared/types/User';
+import logger from '../utils/logger';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
@@ -23,7 +24,7 @@ api.interceptors.request.use((config) => {
     config.headers['x-api-key'] = apiKey;
   }
   
-  console.log('Making request to:', config.url);
+  logger.debug('Making API request', { url: config.url, method: config.method });
   return config;
 });
 
@@ -31,8 +32,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    console.error('API Error:', error.config?.url, error.response?.status, error.response?.data);
+    logger.error('API request failed', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+    });
+    
     if (error.response?.status === 401) {
+      logger.warn('Unauthorized request, logging out user');
       useAuthStore.getState().logout();
     }
     return Promise.reject(error);

@@ -12,10 +12,7 @@ export class PromptEnhancementStubService implements PromptEnhancementService {
     user: IUser,
     memorySummary: string
   ): Promise<string> {
-    logger.info(`[STUB] Creating enhanced prompt for memory: ${currentMemory.title}`);
-    logger.info(`[STUB] User: ${user._id}`);
-    
-    // Return a simple mock enhanced prompt
+    // Stub service - return simple mock enhanced prompt
     const dateStr = new Date(currentMemory.date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -23,8 +20,6 @@ export class PromptEnhancementStubService implements PromptEnhancementService {
     });
     
     const mockPrompt = `Create an illustration for "${currentMemory.title}" from ${dateStr}. ${currentMemory.content.substring(0, 200)}...`;
-    
-    logger.info(`[STUB] Generated mock enhanced prompt: ${mockPrompt.substring(0, 100)}...`);
     return mockPrompt;
   }
 }

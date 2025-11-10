@@ -3,6 +3,7 @@ import { MemoryCard } from '../components/memories/MemoryCard';
 import { memoriesApi } from '../services/api';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
+import logger from '../utils/logger';
 
 export function Explore() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,8 +25,11 @@ export function Explore() {
       setErrorAll(null);
       const response = await memoriesApi.getPublic();
       setAllMemories(response.data);
+      logger.debug('Public memories loaded', { count: response.data.length });
     } catch (err) {
-      console.error('Error fetching all memories:', err);
+      logger.error('Failed to fetch public memories', { 
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
       setErrorAll('Failed to load public memories');
     } finally {
       setIsLoadingAll(false);
@@ -39,8 +43,11 @@ export function Explore() {
       setErrorFeed(null);
       const response = await memoriesApi.getFeed();
       setFeedMemories(response.data);
+      logger.debug('Feed memories loaded', { count: response.data.length });
     } catch (err) {
-      console.error('Error fetching feed memories:', err);
+      logger.error('Failed to fetch feed memories', { 
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
       setErrorFeed('Failed to load feed memories');
     } finally {
       setIsLoadingFeed(false);

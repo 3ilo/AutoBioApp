@@ -10,6 +10,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { IMemoryImage, IMemory } from '../../../shared/types/Memory';
 import { useAuthStore } from '../stores/authStore';
 import { MemoryImage } from '../components/memories/MemoryImage';
+import logger from '../utils/logger';
 
 
 interface MemoryImage extends IMemoryImage {
@@ -51,7 +52,10 @@ export function Contribute() {
                 isConfirmed: true,
               };
             } catch (error) {
-              console.error('Error generating presigned URL for existing image:', error);
+              logger.error('Failed to generate presigned URL for existing image', { 
+                error: error instanceof Error ? error.message : 'Unknown error',
+                imageUrl: img.url.substring(0, 50) + '...'
+              });
               return {
                 id: index.toString(),
                 url: img.url,
@@ -148,7 +152,9 @@ export function Contribute() {
       const confirmedImages = images.filter(img => img.isConfirmed);
       setImages([...confirmedImages, newImage]);
     } catch (error) {
-      console.error('Error generating image:', error);
+      logger.error('Failed to generate image', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     } finally {
       setIsGeneratingImage(false);
     }
@@ -202,7 +208,10 @@ export function Contribute() {
       setSelectedImage(null);
       navigate('/memories');
     } catch (error) {
-      console.error('Error saving memory:', error);
+      logger.error('Failed to save memory', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        isEditing: !!editingMemory
+      });
     }
   };
 

@@ -3,6 +3,7 @@ import { imageGenerationApi } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { usePresignedUrl } from '../../hooks/usePresignedUrl';
+import logger from '../../utils/logger';
 
 interface AvatarOption {
   id: string;
@@ -85,7 +86,9 @@ export function AvatarGenerator({ onAvatarSelected, currentAvatar }: AvatarGener
       
       setAvatarOptions(options);
     } catch (error) {
-      console.error('Error generating avatar options:', error);
+      logger.error('Failed to generate avatar options', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       setError('Failed to generate avatar options. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -133,8 +136,11 @@ export function AvatarGenerator({ onAvatarSelected, currentAvatar }: AvatarGener
       
       // Call the callback to save the avatar to the user's profile
       onAvatarSelected(avatarUrl);
+      logger.info('Avatar selected and saved');
     } catch (error) {
-      console.error('Error confirming avatar selection:', error);
+      logger.error('Failed to confirm avatar selection', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       setError('Failed to save selected avatar. Please try again.');
     } finally {
       setIsConfirming(false);

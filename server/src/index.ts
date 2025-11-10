@@ -1,6 +1,7 @@
 // Load environment variables first
 import dotenv from 'dotenv';
 import path from 'path';
+import logger from './utils/logger';
 
 // NODE_ENV should be set by:
 // - package.json scripts (for local dev: NODE_ENV=local)
@@ -33,14 +34,14 @@ const stageEnvFile = getStageEnvFile();
 const stageEnvPath = path.join(__dirname, `../${stageEnvFile}`);
 
 // Step 2: Load stage-specific environment variables
-console.log(`Loading environment: ${nodeEnv} from ${stageEnvFile}`);
+logger.info(`Loading environment: ${nodeEnv} from ${stageEnvFile}`);
 dotenv.config({ path: stageEnvPath });
 
 // Validate required environment variables
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'JWT_EXPIRES_IN'];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
-    console.error(`Error: ${envVar} environment variable is required`);
+    logger.error(`Missing required environment variable: ${envVar}`);
     process.exit(1);
   }
 }
@@ -107,10 +108,10 @@ if (process.env.NODE_ENV !== 'test' && MONGODB_URI) {
   mongoose
     .connect(MONGODB_URI, mongooseOptions)
     .then(() => {
-      console.log('Connected to MongoDB');
+      logger.info('MongoDB connection established');
     })
     .catch((error) => {
-      console.error('MongoDB connection error:', error);
+      logger.error('MongoDB connection failed', { error: error.message });
       // Don't exit in serverless mode, let Lambda handle it
       if (!IS_SERVERLESS) {
         process.exit(1);
@@ -121,7 +122,7 @@ if (process.env.NODE_ENV !== 'test' && MONGODB_URI) {
 // Only start HTTP server if not in serverless mode
 if (process.env.NODE_ENV !== 'test' && !IS_SERVERLESS) {
   app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    logger.info(`Server listening on port ${PORT}`);
   });
 }
 

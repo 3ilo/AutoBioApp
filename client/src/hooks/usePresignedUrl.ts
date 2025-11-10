@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { imageGenerationApi } from '../services/api';
+import logger from '../utils/logger';
 
 /**
  * Custom hook to convert S3 URIs to pre-signed URLs for viewing
@@ -10,34 +11,32 @@ export function usePresignedUrl(s3Uri: string | null | undefined): string {
   const [presignedUrl, setPresignedUrl] = useState<string>('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg=='); // Blank white image
 
   useEffect(() => {
-    console.log('usePresignedUrl hook called with s3Uri:', s3Uri);
-    
     if (!s3Uri) {
-      console.log('No s3Uri provided, using blank image');
       setPresignedUrl('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg==');
       return;
     }
 
     // Check if it's an S3 URI that needs conversion
     if (s3Uri.startsWith('s3://')) {
-      console.log('Converting S3 URI to pre-signed URL:', s3Uri);
+      logger.debug('Converting S3 URI to presigned URL', { s3Uri: s3Uri.substring(0, 50) + '...' });
       imageGenerationApi.generatePresignedViewUrl(s3Uri)
         .then((response) => {
-          console.log('Pre-signed URL response:', response);
           if (response.status === 'success') {
             setPresignedUrl(response.data.presignedUrl);
           } else {
-            console.error('Failed to generate pre-signed URL:', response);
+            logger.error('Failed to generate presigned URL', { s3Uri: s3Uri.substring(0, 50) + '...' });
             setPresignedUrl('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg==');
           }
         })
         .catch((err) => {
-          console.error('Error generating pre-signed URL:', err);
+          logger.error('Error generating presigned URL', { 
+            error: err instanceof Error ? err.message : 'Unknown error',
+            s3Uri: s3Uri.substring(0, 50) + '...'
+          });
           setPresignedUrl('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg==');
         });
     } else {
       // For other formats, use as-is
-      console.log('s3Uri is not an S3 URI or URL, using as-is:', s3Uri);
       setPresignedUrl(s3Uri);
     }
   }, [s3Uri]);

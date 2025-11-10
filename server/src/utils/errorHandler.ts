@@ -1,3 +1,5 @@
+import logger from './logger';
+
 export class AppError extends Error {
   statusCode: number;
   status: string;
@@ -85,8 +87,12 @@ class BaseErrorHandler implements ErrorHandler {
       };
     }
 
-    // Log unexpected errors
-    console.error('ERROR 💥', error);
+    // Log unexpected errors with full stack trace
+    logger.error('Unexpected error occurred', { 
+      error: error.message, 
+      stack: error.stack,
+      name: error.name 
+    });
 
     return {
       status: 'error',

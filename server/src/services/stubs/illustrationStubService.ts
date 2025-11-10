@@ -21,12 +21,8 @@ export class IllustrationStubService {
       stylePrompt?: string;
     } = {}
   ): Promise<string> {
-    logger.info(`[STUB] Generating memory illustration for user: ${userId}`);
-    logger.info(`[STUB] Prompt: ${prompt.substring(0, 100)}...`);
-    
+    // Stub service - no actual generation
     const s3Uri = "s3://auto-bio-illustrations/stubs/StubbedMode.png";
-    
-    logger.info(`[STUB] Generated mock S3 URI: ${s3Uri}`);
     return s3Uri;
   }
 
@@ -43,15 +39,11 @@ export class IllustrationStubService {
       stylePrompt?: string;
     } = {}
   ): Promise<string> {
-    logger.info(`[STUB] Generating subject illustration for user: ${userId}`);
-    
     // Generate a mock S3 URI
     const bucket = process.env.AWS_S3_BUCKET || 'autobio-staging';
     const timestamp = Date.now();
     const key = `stub/subjects/${userId}/${timestamp}-${uuidv4()}.jpg`;
     const s3Uri = `s3://${bucket}/${key}`;
-    
-    logger.info(`[STUB] Generated mock S3 URI: ${s3Uri}`);
     
     // Convert S3 URI to pre-signed URL for viewing (this will still work with S3)
     // In dev mode, this might return a placeholder URL or a real presigned URL
@@ -60,7 +52,7 @@ export class IllustrationStubService {
       return presignedUrl;
     } catch (error) {
       // If S3 conversion fails, return a placeholder URL
-      logger.warn(`[STUB] Could not generate presigned URL, returning placeholder`);
+      logger.warn('Stub service: Could not generate presigned URL, using placeholder', { userId });
       return `https://via.placeholder.com/512x512?text=Stub+Illustration+${userId}`;
     }
   }
@@ -69,7 +61,6 @@ export class IllustrationStubService {
    * Check if the stub service is "healthy" (always true for stubs)
    */
   async checkHealth(): Promise<boolean> {
-    logger.info('[STUB] Health check - stub service is always available');
     return true;
   }
 }

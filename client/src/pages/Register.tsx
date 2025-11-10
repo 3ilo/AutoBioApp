@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import logger from '../utils/logger';
 
 export function Register() {
   const navigate = useNavigate();
@@ -24,9 +25,12 @@ export function Register() {
 
     try {
       await register(userData);
+      logger.info('User registered successfully');
       navigate('/');
     } catch (error) {
-      console.error('Registration error:', error);
+      logger.error('Registration failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     } finally {
       setIsLoading(false);
     }

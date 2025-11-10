@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
 import { AvatarGenerator } from '../components/avatar/AvatarGenerator';
 import { usePresignedUrl } from '../hooks/usePresignedUrl';
+import logger from '../utils/logger';
 
 // Temporary mock data
 const mockStats = {
@@ -76,9 +77,12 @@ export function Profile() {
     
     try {
       await updateProfile(profileData);
+      logger.info('Profile updated successfully');
       setIsEditing(false);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      logger.error('Failed to update profile', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       setError(error instanceof Error ? error.message : 'Failed to update profile');
     } finally {
       setIsLoading(false);

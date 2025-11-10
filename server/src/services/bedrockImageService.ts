@@ -59,15 +59,17 @@ export async function generateImageBedrock(prompt: string): Promise<Buffer> {
     // Convert the response to a Buffer
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     if (!responseBody.images?.[0]) {
-      logger.error('Invalid response format from Bedrock:', Object.keys(responseBody));
+      logger.error('[SENSITIVE] Invalid response format from Bedrock', { 
+        responseKeys: Object.keys(responseBody) 
+      });
       throw new Error('Invalid response format from Bedrock');
     }
 
-    logger.info('Response Body:', Object.keys(responseBody));
-
     return Buffer.from(responseBody.images[0], 'base64');
   } catch (error) {
-    logger.error('Error generating image with Bedrock:', error);
+    logger.error('Failed to generate image with Bedrock', { 
+      error: (error as Error).message 
+    });
     throw error;
   }
 }
@@ -93,7 +95,10 @@ export async function uploadToS3(imageBuffer: Buffer, key: string): Promise<stri
     await s3Client.send(command);
     return `https://${STAGING_BUCKET}.s3.amazonaws.com/${key}`;
   } catch (error) {
-    logger.error('Error uploading to S3:', error);
+    logger.error('Failed to upload image to S3', { 
+      key, 
+      error: (error as Error).message 
+    });
     throw error;
   }
 }

@@ -46,7 +46,11 @@ export const createMemory = async (req: Request, res: Response, next: NextFuncti
         memory.summary = summary;
       }
     } catch (summaryError) {
-      logger.error('Error generating memory summary:', summaryError);
+      logger.error('Failed to generate memory summary during creation', { 
+        memoryId: memory._id, 
+        userId: req.user?._id,
+        error: (summaryError as Error).message 
+      });
       // Continue without summary - memory creation was successful
     }
 
@@ -105,7 +109,7 @@ export const getPublicMemories = async (req: Request, res: Response, next: NextF
       .lean()  // Returns plain objects instead of Mongoose documents
       .exec();
 
-    logger.info(`Retrieved ${memories.length} public memories for explore page`);
+    logger.info('Retrieved public memories for explore page', { count: memories.length });
     
     // Convert S3 URIs to pre-signed URLs for all memories
     const memoriesWithPresignedUrls = await s3Client.convertMemoriesImagesToPresignedUrls(memories);
@@ -238,7 +242,11 @@ export const updateMemory = async (req: Request, res: Response, next: NextFuncti
           memory.summary = summary;
         }
       } catch (summaryError) {
-        logger.error('Error regenerating memory summary:', summaryError);
+        logger.error('Failed to regenerate memory summary', { 
+          memoryId: memory._id, 
+          userId: req.user?._id,
+          error: (summaryError as Error).message 
+        });
         throw summaryError;
         // Continue without summary update - memory update was successful
       }

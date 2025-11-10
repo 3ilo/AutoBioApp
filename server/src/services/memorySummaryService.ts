@@ -74,10 +74,16 @@ export class BedrockMemorySummaryService implements MemorySummaryService {
         content.text ? [content.text] : []
       )
       .join(" ") || '';
-      logger.info('Generated memory summary:', summary);
+      logger.debug('Generated memory summary', { 
+        memoryId: memory._id, 
+        summaryLength: summary.length 
+      });
       return summary;
     } catch (error) {
-      logger.error('Error generating memory summary:', error);
+      logger.error('Failed to generate memory summary', { 
+        memoryId: memory._id, 
+        error: (error as Error).message 
+      });
       // Return a simple fallback summary
       return `Memory about ${memory.title} from ${new Date(memory.date).toLocaleDateString()}`;
     }

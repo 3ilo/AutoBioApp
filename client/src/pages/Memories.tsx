@@ -7,6 +7,7 @@ import { memoriesApi } from '../services/api';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { IMemory } from '@shared/types/Memory';
 import { Link, useNavigate } from 'react-router-dom';
+import logger from '../utils/logger';
 
 export function Memories() {
   const user = useAuthStore((state) => state.user);
@@ -22,9 +23,12 @@ export function Memories() {
       setError(null);
       const response = await memoriesApi.getAll();
       setMemories(response.data);
+      logger.debug('Memories loaded', { count: response.data.length });
     } catch (err) {
       setError('Failed to load memories. Please try again later.');
-      console.error('Error fetching memories:', err);
+      logger.error('Failed to fetch memories', { 
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     } finally {
       setIsLoading(false);
     }

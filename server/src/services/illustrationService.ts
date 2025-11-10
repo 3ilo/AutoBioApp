@@ -63,7 +63,7 @@ export class IllustrationService {
   ): Promise<T> {
     try {
       const url = `${this.baseUrl}${endpoint}`;
-      logger.info(`Making request to illustration service: ${method} ${url}`);
+      logger.debug('Making request to illustration service', { method, endpoint });
 
       const response: AxiosResponse<T> = await axios({
         method,
@@ -73,10 +73,15 @@ export class IllustrationService {
         timeout: 120000, // 2 minutes timeout for image generation
       });
 
-      logger.info(`Illustration service response: ${response.status}`);
+      logger.debug('Illustration service response received', { status: response.status, endpoint });
       return response.data;
     } catch (error: any) {
-      logger.error('Illustration service request failed:', error);
+      logger.error('Illustration service request failed', { 
+        endpoint, 
+        method,
+        statusCode: error.response?.status,
+        error: error.message 
+      });
 
       const serviceError: IllustrationServiceError = new Error(
         `Illustration service request failed: ${error.message}`
@@ -111,7 +116,7 @@ export class IllustrationService {
       style_prompt: options.stylePrompt || 'highest quality, monochrome, professional sketch, personal, nostalgic, clean',
     };
 
-    logger.info(`Generating memory illustration for user: ${userId}`);
+    logger.debug('Generating memory illustration', { userId, promptLength: prompt.length });
     const response = await this.makeRequest<IllustrationResponse>(
       '/v1/images/memory',
       request
@@ -122,7 +127,7 @@ export class IllustrationService {
     }
 
     const s3Uri = response.data[0].s3_uri;
-    logger.info(`Memory illustration generated (S3 URI): ${s3Uri}`);
+    logger.info('Memory illustration generated', { userId, s3Uri });
     return s3Uri;
   }
 
@@ -146,7 +151,7 @@ export class IllustrationService {
       style_prompt: options.stylePrompt || 'highest quality, professional sketch, monochrome',
     };
 
-    logger.info(`Generating subject illustration for user: ${userId}`);
+    logger.debug('Generating subject illustration', { userId });
     const response = await this.makeRequest<IllustrationResponse>(
       '/v1/images/subject',
       request
@@ -157,11 +162,10 @@ export class IllustrationService {
     }
 
     const s3Uri = response.data[0].s3_uri;
-    logger.info(`Subject illustration generated: ${s3Uri}`);
+    logger.info('Subject illustration generated', { userId, s3Uri });
     
     // Convert S3 URI to pre-signed URL for viewing
     const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
-    logger.info(`Generated pre-signed URL for subject illustration`);
     return presignedUrl;
   }
 
@@ -175,7 +179,7 @@ export class IllustrationService {
       });
       return response.status === 200;
     } catch (error) {
-      logger.error('Illustration service health check failed:', error);
+      logger.warn('Illustration service health check failed', { error: (error as Error).message });
       return false;
     }
   }

@@ -49,10 +49,14 @@ class S3ClientSingleton {
         expiresIn: 3600 // 1 hour
       });
       
-      logger.info(`Generated presigned upload URL for user ${userId}: ${key}`);
+      logger.debug('Generated presigned upload URL', { userId, key });
       return presignedUrl;
     } catch (error) {
-      logger.error('Error generating presigned upload URL:', error);
+      logger.error('Failed to generate presigned upload URL', { 
+        userId, 
+        key, 
+        error: (error as Error).message 
+      });
       throw error;
     }
   }
@@ -74,10 +78,14 @@ class S3ClientSingleton {
         expiresIn: 3600 // 1 hour
       });
       
-      logger.info(`Generated presigned avatar upload URL for user ${userId}: ${key}`);
+      logger.debug('Generated presigned avatar upload URL', { userId, key });
       return presignedUrl;
     } catch (error) {
-      logger.error('Error generating presigned avatar upload URL:', error);
+      logger.error('Failed to generate presigned avatar upload URL', { 
+        userId, 
+        key, 
+        error: (error as Error).message 
+      });
       throw error;
     }
   }
@@ -96,10 +104,13 @@ class S3ClientSingleton {
         expiresIn: 3600 // 1 hour
       });
       
-      logger.info(`Generated presigned download URL for key: ${key}`);
+      logger.debug('Generated presigned download URL', { key });
       return presignedUrl;
     } catch (error) {
-      logger.error('Error generating presigned download URL:', error);
+      logger.error('Failed to generate presigned download URL', { 
+        key, 
+        error: (error as Error).message 
+      });
       throw error;
     }
   }
@@ -188,7 +199,10 @@ class S3ClientSingleton {
           url: presignedUrl
         });
       } catch (error) {
-        logger.error(`Error converting image URL ${image.url} to pre-signed URL:`, error);
+        logger.error('Failed to convert image URL to presigned URL', { 
+          imageUrl: image.url, 
+          error: (error as Error).message 
+        });
         // If conversion fails, use the original URL
         convertedImages.push(image);
       }

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { memoriesApi, userApi } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { MemoryImage } from './MemoryImage';
+import logger from '../../utils/logger';
 
 interface MemoryCardProps {
   memory: IMemory;
@@ -29,7 +30,6 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
       const authorId = (memory.author as any)._id;
       const isCurrentlyFollowing = user.following?.includes(authorId) || false;
       setIsFollowing(isCurrentlyFollowing);
-      console.log(user, user.following, authorId);
     }
   }, [user, memory.author, showFollowButton]);
 
@@ -37,9 +37,13 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     try {
       setIsDeleting(true);
       await memoriesApi.delete(memory._id ?? '');
+      logger.info('Memory deleted', { memoryId: memory._id });
       onDelete?.(memory._id ?? '');
     } catch (error) {
-      console.error('Failed to delete memory:', error);
+      logger.error('Failed to delete memory', { 
+        memoryId: memory._id,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     } finally {
       setIsDeleting(false);
       setShowConfirmDialog(false);
@@ -49,24 +53,29 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
   const handleFollowToggle = async () => {
     if (!memory.author || typeof memory.author === 'string' || !user) return;
     
+    const authorId = (memory.author as any)._id;
     try {
       setIsFollowLoading(true);
-      const authorId = (memory.author as any)._id;
       if (isFollowing) {
         await userApi.unfollowUser(authorId);
         setIsFollowing(false);
         // Update user's following list in auth store
         const updatedUser = { ...user, following: user.following?.filter(id => id !== authorId) || [] };
         useAuthStore.getState().setUser(updatedUser);
+        logger.info('User unfollowed', { authorId });
       } else {
         await userApi.followUser(authorId);
         setIsFollowing(true);
         // Update user's following list in auth store
         const updatedUser = { ...user, following: [...(user.following || []), authorId] };
         useAuthStore.getState().setUser(updatedUser);
+        logger.info('User followed', { authorId });
       }
     } catch (error) {
-      console.error('Failed to toggle follow:', error);
+      logger.error('Failed to toggle follow', { 
+        authorId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     } finally {
       setIsFollowLoading(false);
     }
@@ -112,7 +121,6 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
             </div>
             <div className="flex items-center gap-4">
               <time className="text-sm text-warm-500 flex-shrink-0">
-                {(() => {console.log(memory); return format(new Date(memory.date), 'MMM d, yyyy')})()}
                 {format(new Date(memory.date), 'MMM d, yyyy')}
               </time>
               {onEdit && (

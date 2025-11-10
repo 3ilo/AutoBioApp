@@ -72,7 +72,7 @@ async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): 
     // Get user data
     const user = await User.findById(userId);
     if (!user) {
-      logger.warn(`User not found for ID: ${userId}, using basic prompt`);
+      logger.warn('User not found for prompt enhancement, using basic prompt', { userId });
       return craftBasicPrompt(data);
     }
 
@@ -97,7 +97,10 @@ async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): 
             await Memory.findByIdAndUpdate(memory._id, { summary });
             return { ...memory, summary };
           } catch (error) {
-            logger.error(`Error generating summary for memory ${memory._id}:`, error);
+            logger.error('Failed to generate memory summary', { 
+              memoryId: memory._id, 
+              error: (error as Error).message 
+            });
             // Use fallback summary
             return { 
               ...memory, 
@@ -127,7 +130,10 @@ async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): 
 
     return enhancedPrompt;
   } catch (error) {
-    logger.error('Error creating enhanced prompt:', error);
+    logger.error('Failed to create enhanced prompt, using basic prompt', { 
+      userId, 
+      error: (error as Error).message 
+    });
     // Fallback to basic prompt
     return craftBasicPrompt(data);
   }
@@ -138,7 +144,7 @@ async function isIllustrationServiceAvailable(): Promise<boolean> {
   try {
     return await illustrationService.checkHealth();
   } catch (error) {
-    logger.warn('Illustration service health check failed:', error);
+    logger.warn('Illustration service health check failed', { error: (error as Error).message });
     return false;
   }
 }
@@ -162,23 +168,24 @@ export async function generateImage(req: Request, res: Response) {
     }
     
     let prompt: string;
-    logger.info(`Crafting enhanced prompt for user ID: ${userId}`);
     prompt = await craftEnhancedPrompt({ title, content, date }, userId);
  
     let imageURI: string;
 
     // Use stub service if enabled (dev mode)
     if (USE_STUB) {
-      logger.info('Using stub illustration service for image generation (dev mode)');
+      logger.debug('[STUB][SENSITIVE] Generating memory illustration', { userId, title });
       try {
         imageURI = await illustrationStubService.generateMemoryIllustration(
           userId,
           prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean",
           { ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean" }
         );
-        logger.info(`Generated image via stub service (S3 URI): ${imageURI}`);
       } catch (error) {
-        logger.error('Stub service failed:', error);
+        logger.error('Stub illustration service failed', { 
+          userId, 
+          error: (error as Error).message 
+        });
         return res.status(500).json({
           status: 'fail',
           message: 'Image generation failed',
@@ -187,7 +194,7 @@ export async function generateImage(req: Request, res: Response) {
     } else {
       // Check if illustration service is enabled
       if (!USE_ILLUSTRATION_SERVICE) {
-        logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
+        logger.warn('Illustration service disabled', { userId });
         return res.status(500).json({
           status: 'fail',
           message: 'Image generation service is not available',
@@ -196,7 +203,7 @@ export async function generateImage(req: Request, res: Response) {
 
       // Check if illustration service is available
       if (!(await isIllustrationServiceAvailable())) {
-        logger.error('Illustration service is not available');
+        logger.error('Illustration service unavailable', { userId });
         return res.status(500).json({
           status: 'fail',
           message: 'Image generation service is not available',
@@ -205,21 +212,28 @@ export async function generateImage(req: Request, res: Response) {
 
       // Use illustration service
       try {
-        logger.info('Using illustration service for image generation');
+        logger.info('Generating memory illustration', { userId });
         imageURI = await illustrationService.generateMemoryIllustration(userId, prompt+" highest quality, monochrome, professional sketch, personal, nostalgic, clean", {ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean"});
-        logger.info(`Generated image via illustration service (S3 URI): ${imageURI}`);
+        logger.info('Memory illustration generated successfully', { userId, s3Uri: imageURI });
       } catch (error) {
-        logger.error('Illustration service failed:', error);
+        logger.error('Illustration service failed', { 
+          userId, 
+          error: (error as Error).message 
+        });
         
         // Only fall back to Bedrock if explicitly enabled
         if (USE_BEDROCK_FALLBACK) {
-          logger.warn('Falling back to deprecated Bedrock service');
+          logger.warn('Falling back to deprecated Bedrock service', { userId });
           try {
             const imageBuffer = await generateImageBedrock(prompt);
             const imageKey = `staging/${uuidv4()}.jpg`;
             imageURI = await uploadToS3(imageBuffer, imageKey);
+            logger.info('Bedrock fallback succeeded', { userId, s3Uri: imageURI });
           } catch (bedrockError) {
-            logger.error('Bedrock fallback also failed:', bedrockError);
+            logger.error('Bedrock fallback failed', { 
+              userId, 
+              error: (bedrockError as Error).message 
+            });
             return res.status(500).json({
               status: 'fail',
               message: 'Image generation failed',
@@ -242,7 +256,10 @@ export async function generateImage(req: Request, res: Response) {
 
     res.json(response);
   } catch (error) {
-    logger.error('Error in generateImage:', error);
+    logger.error('Failed to generate memory illustration', { 
+      userId: req.body.userId, 
+      error: (error as Error).message 
+    });
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate image',
@@ -265,12 +282,14 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
 
     // Use stub service if enabled (dev mode)
     if (USE_STUB) {
-      logger.info('Using stub illustration service for subject illustration generation (dev mode)');
+      logger.debug('[STUB] Generating subject illustration', { userId });
       try {
         imageUrl = await illustrationStubService.generateSubjectIllustration(userId);
-        logger.info(`Generated subject illustration via stub service: ${imageUrl}`);
       } catch (error) {
-        logger.error('Stub service failed for subject illustration:', error);
+        logger.error('Stub subject illustration service failed', { 
+          userId, 
+          error: (error as Error).message 
+        });
         return res.status(500).json({
           status: 'fail',
           message: 'Failed to generate subject illustration',
@@ -279,7 +298,7 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
     } else {
       // Check if illustration service is enabled
       if (!USE_ILLUSTRATION_SERVICE) {
-        logger.error('Illustration service is disabled. Set USE_ILLUSTRATION_SERVICE=true to enable.');
+        logger.warn('Illustration service disabled for subject illustration', { userId });
         return res.status(500).json({
           status: 'fail',
           message: 'Image generation service is not available',
@@ -288,7 +307,7 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
 
       // Check if illustration service is available
       if (!(await isIllustrationServiceAvailable())) {
-        logger.error('Illustration service is not available');
+        logger.error('Illustration service unavailable for subject illustration', { userId });
         return res.status(500).json({
           status: 'fail',
           message: 'Image generation service is not available',
@@ -297,11 +316,14 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
 
       // Use illustration service
       try {
-        logger.info('Using illustration service for subject illustration generation');
+        logger.info('Generating subject illustration', { userId });
         imageUrl = await illustrationService.generateSubjectIllustration(userId);
-        logger.info(`Generated subject illustration via illustration service: ${imageUrl}`);
+        logger.info('Subject illustration generated successfully', { userId, url: imageUrl });
       } catch (error) {
-        logger.error('Illustration service failed for subject illustration:', error);
+        logger.error('Subject illustration service failed', { 
+          userId, 
+          error: (error as Error).message 
+        });
         return res.status(500).json({
           status: 'fail',
           message: 'Failed to generate subject illustration',
@@ -317,7 +339,10 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
 
     res.json(response);
   } catch (error) {
-    logger.error('Error generating subject illustration:', error);
+    logger.error('Failed to generate subject illustration', { 
+      userId: req.body.userId, 
+      error: (error as Error).message 
+    });
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate subject illustration',
@@ -346,8 +371,6 @@ export async function generatePresignedUploadUrl(req: Request, res: Response) {
 
     // Generate pre-signed URL for reference image upload
     const presignedUrl = await s3Client.generatePresignedUploadUrl(userId, contentType);
-    
-    logger.info(`Generated presigned upload URL for user ${userId}`);
 
     const response: ApiResponse<{ uploadUrl: string; key: string }> = {
       status: 'success',
@@ -360,7 +383,10 @@ export async function generatePresignedUploadUrl(req: Request, res: Response) {
 
     res.json(response);
   } catch (error) {
-    logger.error('Error generating presigned upload URL:', error);
+    logger.error('Failed to generate presigned upload URL', { 
+      userId: req.user?._id, 
+      error: (error as Error).message 
+    });
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate upload URL',
@@ -389,8 +415,6 @@ export async function generatePresignedAvatarUploadUrl(req: Request, res: Respon
 
     // Generate pre-signed URL for avatar upload
     const presignedUrl = await s3Client.generatePresignedAvatarUploadUrl(userId, contentType);
-    
-    logger.info(`Generated presigned avatar upload URL for user ${userId}`);
 
     const response: ApiResponse<{ uploadUrl: string; key: string }> = {
       status: 'success',
@@ -403,7 +427,10 @@ export async function generatePresignedAvatarUploadUrl(req: Request, res: Respon
 
     res.json(response);
   } catch (error) {
-    logger.error('Error generating presigned avatar upload URL:', error);
+    logger.error('Failed to generate presigned avatar upload URL', { 
+      userId: req.user?._id, 
+      error: (error as Error).message 
+    });
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate avatar upload URL',
@@ -430,8 +457,6 @@ export async function generatePresignedViewUrl(req: Request, res: Response) {
     }
 
     const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
-    
-    logger.info(`Generated presigned view URL for user ${req.user._id}`);
 
     const response: ApiResponse<{ presignedUrl: string }> = {
       status: 'success',
@@ -443,7 +468,12 @@ export async function generatePresignedViewUrl(req: Request, res: Response) {
 
     res.json(response);
   } catch (error) {
-    logger.error('Error generating presigned view URL:', error);
+    const s3Uri = req.body.s3Uri;
+    logger.error('Failed to generate presigned view URL', { 
+      userId: req.user?._id, 
+      s3Uri, 
+      error: (error as Error).message 
+    });
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate presigned view URL',

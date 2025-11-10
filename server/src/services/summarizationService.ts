@@ -56,7 +56,7 @@ export class BedrockSummarizationService implements SummarizationService {
       const cacheKey = this.getCacheKey(limitedMemories, user, config, currentMemoryPrompt, currentMemoryTitle);
       const cached = this.cache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-        logger.info('Using cached memory summary');
+        logger.debug('Using cached memory summary', { userId: user._id });
         return cached.summary;
       }
 
@@ -71,9 +71,12 @@ export class BedrockSummarizationService implements SummarizationService {
 
       return summary;
     } catch (error) {
-      logger.error('Error in summarizeMemories:', error);
+      logger.error('Failed to summarize memories', { 
+        userId: user._id, 
+        memoryCount: memories.length,
+        error: (error as Error).message 
+      });
       throw error;
-      // return 'no recent memories available';
     }
   }
 
@@ -121,7 +124,10 @@ export class BedrockSummarizationService implements SummarizationService {
     )
     .join(" ") || 'no recent memories available';
     
-    logger.info(`Generated memory summaries aggregation: ${summary}`);
+    logger.debug('Generated memory summaries aggregation', { 
+      summaryLength: summary.length,
+      memoryCount: memories.length 
+    });
     return summary;
   }
 

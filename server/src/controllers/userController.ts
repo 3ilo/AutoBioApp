@@ -20,7 +20,7 @@ export const getCurrentUser = async (req: Request, res: Response, next: NextFunc
       });
     }
 
-    logger.info(`Retrieved user profile for ${user.email}`);
+    logger.debug('[SENSITIVE] Retrieved user profile', { userId: user._id, email: user.email });
     res.status(200).json({
       status: 'success',
       data: { user: user.toObject() },
@@ -66,7 +66,8 @@ export const updateCurrentUser = async (req: Request, res: Response, next: NextF
 
     await user.save();
     
-    logger.info(`Updated user profile for ${user.email}`);
+    logger.info('User profile updated', { userId: user._id, updatedFields: updates });
+    logger.debug('[SENSITIVE] User profile data', { userId: user._id, email: user.email });
     res.status(200).json({
       status: 'success',
       data: { user: user.toObject() },
@@ -129,7 +130,7 @@ export const followUser = async (req: Request, res: Response, next: NextFunction
     userToFollow.followers.push(currentUserId);
     await userToFollow.save();
 
-    logger.info(`User ${currentUserId} started following ${userId}`);
+    logger.info('User followed', { followerId: currentUserId, followingId: userId });
     res.status(200).json({
       status: 'success',
       message: 'Successfully followed user',
@@ -190,7 +191,7 @@ export const unfollowUser = async (req: Request, res: Response, next: NextFuncti
     userToUnfollow.followers = (userToUnfollow.followers || []).filter(id => id.toString() !== currentUserId);
     await userToUnfollow.save();
 
-    logger.info(`User ${currentUserId} unfollowed ${userId}`);
+    logger.info('User unfollowed', { followerId: currentUserId, unfollowedId: userId });
     res.status(200).json({
       status: 'success',
       message: 'Successfully unfollowed user',
