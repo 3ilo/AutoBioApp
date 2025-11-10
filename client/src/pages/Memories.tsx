@@ -152,7 +152,7 @@ export function Memories() {
 
   if (isLoading) {
     return (
-      <div className="w-screen px-4 sm:px-6 lg:px-8 py-8 min-h-screen flex items-center justify-center">
+      <div className="w-full px-6 sm:px-8 lg:px-12 py-12 min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -160,12 +160,12 @@ export function Memories() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center px-6">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading memories: {error}</p>
+          <p className="text-red-600 mb-6 text-sm uppercase tracking-wider">Error loading memories: {error}</p>
           <button
             onClick={() => fetchMemories()}
-            className="text-indigo-600 hover:text-indigo-800"
+            className="btn-secondary"
           >
             Try again
           </button>
@@ -176,9 +176,9 @@ export function Memories() {
 
   if (memories.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <h1 className="text-3xl font-bold text-warm-900 mb-4">No Memories Yet</h1>
-        <p className="text-warm-600 mb-8">Start creating your first memory!</p>
+      <div className="flex flex-col items-center justify-center min-h-screen px-6">
+        <h1 className="text-4xl font-semibold text-slate-900 mb-4 tracking-tight">No Memories Yet</h1>
+        <p className="text-slate-600 mb-8 text-sm uppercase tracking-wider">Start creating your first memory!</p>
         <Link to="/contribute" className="btn-primary">
           Create Memory
         </Link>
@@ -187,27 +187,27 @@ export function Memories() {
   }
 
   return (
-    <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Your Memories</h1>
-        <div className="text-sm text-gray-500">
-          Welcome back, {user?.firstName} {user?.lastName}
+    <div className="w-full px-6 sm:px-8 lg:px-12 py-12">
+      <div className="flex justify-between items-baseline mb-12 border-b border-slate-200 pb-4">
+        <h1 className="text-4xl font-semibold text-slate-900 tracking-tight">Your Memories</h1>
+        <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+          {user?.firstName} {user?.lastName}
         </div>
       </div>
       {sortedMemories && sortedMemories.length > 0 ? (
         <>
-          <div className="relative mb-8 max-w-4xl mx-auto">
+          <div className="relative mb-12 max-w-6xl mx-auto">
             <button
               onClick={handlePrevious}
               disabled={currentIndex === 0 || isLoading}
-              className={`absolute z-10 left-0 top-1/2 -translate-y-1/2 -translate-x-4 sm:-translate-x-8 p-2 rounded-full bg-white shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ${
+              className={`absolute z-10 left-0 top-1/2 -translate-y-1/2 -translate-x-8 sm:-translate-x-16 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:cursor-not-allowed transition-colors duration-150 ${
                 currentIndex === 0 ? 'hidden' : ''
               }`}
             >
-              <ChevronLeftIcon className="w-6 h-6 text-gray-600" />
+              <ChevronLeftIcon className="w-8 h-8" />
             </button>
             
-            <div className={`transition-all duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
+            <div className={`transition-all duration-200 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
               <MemoryCard
                 memory={sortedMemories[currentIndex]}
                 isActive={true}
@@ -220,11 +220,11 @@ export function Memories() {
             <button
               onClick={handleNext}
               disabled={currentIndex === sortedMemories.length - 1 || isLoading}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 sm:translate-x-8 p-2 rounded-full bg-white shadow-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ${
+              className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-8 sm:translate-x-16 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:cursor-not-allowed transition-colors duration-150 ${
                 currentIndex === sortedMemories.length - 1 ? 'hidden' : ''
               }`}
             >
-              <ChevronRightIcon className="w-6 h-6 text-gray-600" />
+              <ChevronRightIcon className="w-8 h-8" />
             </button>
           </div>
 
@@ -235,16 +235,14 @@ export function Memories() {
           />
         </>
       ) : (
-        <div className="bg-white shadow rounded-lg p-6 max-w-7xl mx-auto">
-          <div className="text-center">
-            <p className="text-gray-500 mb-4">No memories yet. Start by creating one!</p>
-            <a
-              href="/contribute"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              Create Your First Memory
-            </a>
-          </div>
+        <div className="bg-white border border-slate-200 p-12 max-w-4xl mx-auto text-center">
+          <p className="text-slate-600 mb-6 text-sm uppercase tracking-wider">No memories yet. Start by creating one!</p>
+          <Link
+            to="/contribute"
+            className="btn-primary inline-flex"
+          >
+            Create Your First Memory
+          </Link>
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { format, differenceInDays, addDays } from 'date-fns';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { IMemory } from '@shared/types/Memory';
 import { MemoryImage } from './MemoryImage';
 
@@ -9,15 +9,23 @@ interface TimelineProps {
   onSelect: (index: number) => void;
 }
 
-export function Timeline({ memories, currentIndex: _currentIndex, onSelect }: TimelineProps) {
+export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
   const [timelinePoints, setTimelinePoints] = useState<Date[]>([]);
   const [hoveredMemory, setHoveredMemory] = useState<IMemory | null>(null);
 
+  // Sort memories chronologically (oldest first) for rainbow gradient
+  // Memoize to prevent infinite loops
+  const sortedMemories = useMemo(() => {
+    return [...memories].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  }, [memories]);
+
   useEffect(() => {
-    if (!memories.length) return;
+    if (!sortedMemories.length) return;
 
     // Calculate date range
-    const dates = memories.map(m => new Date(m.date));
+    const dates = sortedMemories.map(m => new Date(m.date));
     const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
     const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
     const totalDays = differenceInDays(maxDate, minDate);
@@ -33,7 +41,7 @@ export function Timeline({ memories, currentIndex: _currentIndex, onSelect }: Ti
     );
 
     setTimelinePoints(points);
-  }, [memories]);
+  }, [sortedMemories]);
 
   const getMemoryPosition = (date: Date) => {
     if (!timelinePoints.length) return 0;
@@ -43,11 +51,47 @@ export function Timeline({ memories, currentIndex: _currentIndex, onSelect }: Ti
     return ((memoryTime - start) / (end - start)) * 100;
   };
 
+  // Generate rainbow color based on chronological position
+  const getChronologicalColor = (index: number, total: number): string => {
+    if (total === 0) return '#2979ff';
+    
+    // Calculate position from 0 to 1
+    const position = total === 1 ? 0 : index / (total - 1);
+    
+    // Rainbow colors in order: red, orange, yellow, green, blue, indigo, purple, pink
+    const rainbowColors = [
+      { r: 255, g: 23, b: 68 },   // #ff1744 - red
+      { r: 255, g: 111, b: 0 },   // #ff6f00 - orange
+      { r: 255, g: 196, b: 0 },   // #ffc400 - yellow
+      { r: 0, g: 230, b: 118 },   // #00e676 - green
+      { r: 41, g: 121, b: 255 },  // #2979ff - blue
+      { r: 61, g: 90, b: 254 },   // #3d5afe - indigo
+      { r: 124, g: 77, b: 255 },  // #7c4dff - purple
+      { r: 233, g: 30, b: 99 },   // #e91e63 - pink
+    ];
+    
+    // Map position (0-1) to color index (0-7)
+    const colorIndex = position * (rainbowColors.length - 1);
+    const lowerIndex = Math.floor(colorIndex);
+    const upperIndex = Math.min(lowerIndex + 1, rainbowColors.length - 1);
+    const blend = colorIndex - lowerIndex;
+    
+    // Interpolate between two colors
+    const lowerColor = rainbowColors[lowerIndex];
+    const upperColor = rainbowColors[upperIndex];
+    
+    const r = Math.round(lowerColor.r + (upperColor.r - lowerColor.r) * blend);
+    const g = Math.round(lowerColor.g + (upperColor.g - lowerColor.g) * blend);
+    const b = Math.round(lowerColor.b + (upperColor.b - lowerColor.b) * blend);
+    
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
   return (
-    <div className="relative w-full h-24 bg-gray-100 rounded-lg">
+    <div className="relative w-full h-32 bg-slate-100 border border-slate-200">
       {/* Timeline line */}
       <div className="absolute inset-0 flex items-center">
-        <div className="w-full h-0.5 bg-gray-300" />
+        <div className="w-full h-1 bg-slate-300" />
       </div>
 
       {/* Timeline points */}
@@ -57,18 +101,21 @@ export function Timeline({ memories, currentIndex: _currentIndex, onSelect }: Ti
             key={date.toISOString()}
             className="relative flex-1 flex flex-col items-center"
           >
-            <div className="w-0.5 h-4 bg-gray-400" />
-            <span className="text-xs text-gray-500 mt-1">
+            <div className="w-1 h-6 bg-slate-400" />
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-2">
               {format(date, 'MMM d')}
             </span>
           </div>
         ))}
       </div>
 
-      {/* Memory markers */}
-      {memories.map((memory) => {
+      {/* Memory markers - colorful, chronological rainbow */}
+      {sortedMemories.map((memory, index) => {
         const date = new Date(memory.date);
         const percentage = getMemoryPosition(date);
+        const isActive = memories[currentIndex]?._id === memory._id;
+        // Get color based on chronological position (oldest = red, newest = pink)
+        const memoryColor = getChronologicalColor(index, sortedMemories.length);
         
         return (
           <div
@@ -80,26 +127,33 @@ export function Timeline({ memories, currentIndex: _currentIndex, onSelect }: Ti
               onClick={() => onSelect(memories.findIndex(m => m._id === memory._id))}
               onMouseEnter={() => setHoveredMemory(memory)}
               onMouseLeave={() => setHoveredMemory(null)}
-              className="relative w-2 h-2 cursor-pointer"
+              className="relative w-4 h-4 cursor-pointer"
             >
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-[8px] h-[5px] rounded-full bg-gray-400 group-hover:bg-gray-600 transition-colors" />
-              </div>
+              <div 
+                className="absolute inset-0 rounded-full border-2 border-slate-900 transition-all duration-150"
+                style={{ 
+                  backgroundColor: isActive ? memoryColor : 'transparent',
+                  borderColor: memoryColor,
+                  transform: isActive ? 'scale(1.5)' : 'scale(1)',
+                }}
+              />
             </div>
             
-            {/* Hover preview */}
+            {/* Hover preview - sharp, minimal */}
             {hoveredMemory?._id === memory._id && (
-              <div className="fixed bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-white rounded-lg shadow-lg p-3 z-50">
-                <h3 className="text-sm font-medium text-gray-900 mb-1 truncate">{memory.title}</h3>
-                <time className="text-xs text-gray-500">
+              <div className="fixed bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 bg-white border-2 border-slate-900 p-4 z-50">
+                <h3 className="text-sm font-semibold text-slate-900 mb-1 truncate tracking-tight">{memory.title}</h3>
+                <time className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-3">
                   {format(new Date(memory.date), 'MMM d, yyyy')}
                 </time>
                 {memory.images.length > 0 && (
-                  <MemoryImage
-                    src={memory.images[0].url}
-                    alt={memory.title}
-                    className="w-full h-16 object-cover rounded mt-2"
-                  />
+                  <div className="border-2 border-slate-200">
+                    <MemoryImage
+                      src={memory.images[0].url}
+                      alt={memory.title}
+                      className="w-full h-20 object-cover"
+                    />
+                  </div>
                 )}
               </div>
             )}

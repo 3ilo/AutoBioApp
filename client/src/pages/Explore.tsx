@@ -85,38 +85,38 @@ export function Explore() {
   const allTags = Array.from(new Set(memories?.flatMap(m => m.tags) || []));
 
   return (
-    <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Explore Memories</h1>
+    <div className="w-full px-6 sm:px-8 lg:px-12 py-12">
+      <div className="mb-12 border-b border-slate-200 pb-6">
+        <h1 className="text-4xl font-semibold text-slate-900 mb-8 tracking-tight">Explore Memories</h1>
         
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1 min-w-[300px]">
             <input
               type="text"
               placeholder="Search memories..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="input-field w-full"
             />
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={() => setViewMode('all')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-all duration-150 whitespace-nowrap ${
                 viewMode === 'all'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-slate-900 text-white border-2 border-slate-900'
+                  : 'bg-transparent text-slate-900 border-2 border-slate-900 hover:bg-slate-900 hover:text-white'
               }`}
             >
-              All Memories
+              All
             </button>
             <button
               onClick={() => setViewMode('following')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-all duration-150 whitespace-nowrap ${
                 viewMode === 'following'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-slate-900 text-white border-2 border-slate-900'
+                  : 'bg-transparent text-slate-900 border-2 border-slate-900 hover:bg-slate-900 hover:text-white'
               }`}
             >
               Following
@@ -126,7 +126,7 @@ export function Explore() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'date' | 'likes')}
-            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="input-field flex-shrink-0 w-auto"
           >
             <option value="date">Sort by Date</option>
             <option value="likes">Sort by Likes</option>
@@ -134,8 +134,8 @@ export function Explore() {
         </div>
 
         {allTags.length > 0 && (
-          <div className="mt-4">
-            <h2 className="text-sm font-medium text-gray-700 mb-2">Filter by Tags</h2>
+          <div className="mt-6">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Filter by Tags</h2>
             <div className="flex flex-wrap gap-2">
               {allTags.map(tag => (
                 <button
@@ -147,10 +147,10 @@ export function Explore() {
                         : [...prev, tag]
                     );
                   }}
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border transition-all duration-150 ${
                     selectedTags.includes(tag)
-                      ? 'bg-indigo-100 text-indigo-800'
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-transparent text-slate-700 border-slate-200 hover:border-slate-900 hover:text-slate-900'
                   }`}
                 >
                   {tag}
@@ -166,18 +166,18 @@ export function Explore() {
           <LoadingSpinner size="lg" />
         </div>
       ) : error ? (
-        <div className="text-center text-red-600">
-          <p>Error loading memories: {error}</p>
+        <div className="text-center">
+          <p className="text-red-600 mb-6 text-sm uppercase tracking-wider">Error loading memories: {error}</p>
           <button
             onClick={() => viewMode === 'following' ? fetchFeedMemories() : fetchAllMemories()}
-            className="mt-2 text-indigo-600 hover:text-indigo-800"
+            className="btn-secondary"
           >
             Try again
           </button>
         </div>
       ) : sortedMemories.length === 0 ? (
-        <div className="text-center text-gray-500">
-          <p>No memories found matching your criteria.</p>
+        <div className="text-center py-12">
+          <p className="text-slate-600 text-sm uppercase tracking-wider">No memories found matching your criteria.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

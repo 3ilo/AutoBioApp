@@ -7,55 +7,38 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand colors
-        primary: {
-          50: '#f5f7ff',  // Lightest - for backgrounds
-          100: '#eef1fe', // Very light - for hover states
-          200: '#d9e0fd', // Light - for borders
-          300: '#b3c4fb', // Medium light - for secondary elements
-          400: '#8a9ff9', // Medium - for accents
-          500: '#6179f7', // Base - for primary actions
-          600: '#4d61e5', // Dark - for hover states
-          700: '#3c4bd4', // Darker - for active states
-          800: '#2b35c3', // Very dark - for text
-          900: '#1a1fb2', // Darkest - for emphasis
+        // Sophisticated grayscale palette for UI
+        slate: {
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e5e5e5',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#171717',
+          950: '#0a0a0a',
         },
-        // Warm neutrals for text and backgrounds
-        warm: {
-          50: '#faf9f7',   // Lightest - for main background
-          100: '#f5f3f0',  // Very light - for cards
-          200: '#e9e6e1',  // Light - for borders
-          300: '#d9d4cc',  // Medium light - for dividers
-          400: '#c9c2b7',  // Medium - for disabled states
-          500: '#b9b0a2',  // Base - for secondary text
-          600: '#a99e8d',  // Dark - for borders
-          700: '#998c78',  // Darker - for icons
-          800: '#897a63',  // Very dark - for text
-          900: '#79684e',  // Darkest - for emphasis
-        },
-        // Accent colors for success, warning, error states
-        accent: {
-          success: {
-            light: '#e6f4ea',
-            DEFAULT: '#34a853',
-            dark: '#1e7e34',
-          },
-          warning: {
-            light: '#fff3e0',
-            DEFAULT: '#fbbc04',
-            dark: '#f29900',
-          },
-          error: {
-            light: '#fce8e6',
-            DEFAULT: '#ea4335',
-            dark: '#d93025',
+        // Vibrant colors for user content (memories, images, etc.)
+        content: {
+          // These will be used dynamically for user-generated content
+          vibrant: {
+            red: '#ff1744',
+            orange: '#ff6f00',
+            yellow: '#ffc400',
+            green: '#00e676',
+            blue: '#2979ff',
+            indigo: '#3d5afe',
+            purple: '#7c4dff',
+            pink: '#e91e63',
           },
         },
       },
       fontFamily: {
         sans: [
           'Inter',
-          'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
@@ -64,32 +47,42 @@ export default {
           'Arial',
           'sans-serif',
         ],
-        serif: [
-          'Merriweather',
-          'Georgia',
-          'Cambria',
-          'Times New Roman',
-          'Times',
-          'serif',
+        display: [
+          'Inter',
+          'system-ui',
+          'sans-serif',
         ],
       },
       fontSize: {
-        '2xs': ['0.625rem', { lineHeight: '0.75rem' }],
-        xs: ['0.75rem', { lineHeight: '1rem' }],
-        sm: ['0.875rem', { lineHeight: '1.25rem' }],
-        base: ['1rem', { lineHeight: '1.5rem' }],
-        lg: ['1.125rem', { lineHeight: '1.75rem' }],
-        xl: ['1.25rem', { lineHeight: '1.75rem' }],
-        '2xl': ['1.5rem', { lineHeight: '2rem' }],
-        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+        '2xs': ['0.625rem', { lineHeight: '0.875rem', letterSpacing: '0.025em' }],
+        xs: ['0.75rem', { lineHeight: '1rem', letterSpacing: '0.025em' }],
+        sm: ['0.875rem', { lineHeight: '1.25rem', letterSpacing: '0.01em' }],
+        base: ['1rem', { lineHeight: '1.5rem', letterSpacing: '0' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem', letterSpacing: '-0.01em' }],
+        xl: ['1.25rem', { lineHeight: '1.875rem', letterSpacing: '-0.015em' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.02em' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem', letterSpacing: '-0.025em' }],
+        '4xl': ['2.25rem', { lineHeight: '2.5rem', letterSpacing: '-0.03em' }],
       },
       borderRadius: {
-        '4xl': '2rem',
+        'none': '0',
+        'sharp': '0',
+        'minimal': '2px',
       },
       boxShadow: {
-        'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
-        'card': '0 0 0 1px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.05)',
+        'none': 'none',
+        'sharp': '0 1px 0 0 rgba(0, 0, 0, 0.05)',
+        'border': '0 0 0 1px rgba(0, 0, 0, 0.08)',
+        'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+        '128': '32rem',
+      },
+      borderWidth: {
+        '1': '1px',
+        '3': '3px',
       },
     },
   },

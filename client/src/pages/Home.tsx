@@ -13,114 +13,120 @@ export function Home() {
   } = useApi(memoriesApi.getAll, []);
 
   return (
-    <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
-      {/* Hero Section */}
-      <div className="bg-indigo-600 text-white">
-        <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+    <div className="w-full">
+      {/* Hero Section - Minimal, sharp */}
+      <div className="bg-slate-900 text-white border-b-4 border-slate-700">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-24">
           <div className="text-center">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-              <span className="block text-indigo-200">Capture Your Life's</span>
-              <span className="block text-indigo-200">Precious Moments</span>
+            <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight mb-6">
+              <span className="block">Capture Your Life's</span>
+              <span className="block">Precious Moments</span>
             </h1>
-            <p className="mt-3 max-w-md mx-auto text-base text-indigo-100 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+            <p className="mt-6 max-w-2xl mx-auto text-lg text-slate-300 leading-relaxed">
               Create beautiful memories with AI-powered storytelling. Share your journey with loved ones and preserve your legacy.
             </p>
-            <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
-              <div className="rounded-md shadow">
-                <Link
-                  to="/contribute"
-                  className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50 md:py-4 md:text-lg md:px-10"
-                >
-                  Start Contributing
-                </Link>
-              </div>
-              <div className="mt-3 sm:mt-0 sm:ml-3">
-                <Link
-                  to="/explore"
-                  className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-500 hover:bg-indigo-400 md:py-4 md:text-lg md:px-10"
-                >
-                  View Memories
-                </Link>
-              </div>
+            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/contribute"
+                className="btn-primary"
+              >
+                Start Contributing
+              </Link>
+              <Link
+                to="/explore"
+                className="btn-secondary text-white border-white hover:bg-white hover:text-slate-900"
+              >
+                View Memories
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Featured Memories Section */}
-      <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+      {/* Featured Memories Section - Colorful cards */}
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-semibold text-slate-900 tracking-tight mb-3">
             Featured Memories
           </h2>
-          <p className="mt-4 text-lg text-gray-500">
+          <p className="text-sm text-slate-500 uppercase tracking-wider">
             Discover stories from our community
           </p>
         </div>
 
         {isLoading ? (
-          <div className="mt-12 flex justify-center">
+          <div className="flex justify-center py-20">
             <LoadingSpinner size="lg" />
           </div>
         ) : error ? (
-          <div className="mt-12 text-center text-red-600">
-            <p>Error loading featured memories: {error.message}</p>
+          <div className="text-center py-20">
+            <p className="text-red-600 text-sm uppercase tracking-wider mb-4">Error loading featured memories: {error.message}</p>
           </div>
         ) : featuredMemories && featuredMemories.length > 0 ? (
-          <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {featuredMemories.slice(0, 3).map((memory) => (
-              <div
-                key={memory._id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden"
-              >
-                {memory.images.length > 0 && (
-                  <div className="aspect-w-16 aspect-h-9">
-                    <MemoryImage
-                      src={memory.images[0].url}
-                      alt={memory.title}
-                      className="w-full h-48 object-cover"
-                    />
-                  </div>
-                )}
-                <div className="p-6">
-                  <div className="flex items-center mb-4">
-                    <img
-                      src={memory.author.avatar || `https://ui-avatars.com/api/?name=${memory.author.firstName}`}
-                      alt={memory.author.firstName}
-                      className="h-10 w-10 rounded-full"
-                    />
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900">
-                        {memory.author.firstName}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {format(new Date(memory.date), 'MMM d, yyyy')}
-                      </p>
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {featuredMemories.slice(0, 3).map((memory) => {
+              // Generate vibrant color for each memory card
+              const getMemoryColor = (id: string | undefined) => {
+                if (!id) return '#2979ff';
+                const colors = ['#ff1744', '#ff6f00', '#ffc400', '#00e676', '#2979ff', '#3d5afe', '#7c4dff', '#e91e63'];
+                const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                return colors[hash % colors.length];
+              };
+              const memoryColor = getMemoryColor(memory._id);
+              
+              return (
+                <div
+                  key={memory._id}
+                  className="bg-white border-2 border-slate-200 hover:border-slate-900 transition-all duration-150"
+                >
+                  {memory.images.length > 0 && (
+                    <div className="border-b-2 border-slate-200">
+                      <MemoryImage
+                        src={memory.images[0].url}
+                        alt={memory.title}
+                        className="w-full h-64 object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
+                      <div 
+                        className="w-10 h-10 border-2 border-slate-200"
+                        style={{ backgroundColor: memoryColor }}
+                      />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                          {memory.author.firstName} {memory.author.lastName}
+                        </p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">
+                          {format(new Date(memory.date), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-semibold text-slate-900 mb-3 tracking-tight">
+                      {memory.title}
+                    </h3>
+                    <p className="text-sm text-slate-600 line-clamp-3 mb-4 leading-relaxed">
+                      {memory.content.replace(/<[^>]*>/g, '').substring(0, 150)}...
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {memory.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200"
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {memory.title}
-                  </h3>
-                  <p className="text-gray-600 line-clamp-3 mb-4">
-                    {memory.content}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {memory.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <div className="mt-12 text-center text-gray-500">
-            <p>No featured memories available yet.</p>
+          <div className="text-center py-20">
+            <p className="text-slate-600 text-sm uppercase tracking-wider">No featured memories available yet.</p>
           </div>
         )}
       </div>

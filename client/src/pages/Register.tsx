@@ -37,17 +37,20 @@ export function Register() {
   };
 
   return (
-    <div className="w-screen px-4 sm:px-6 lg:px-8 py-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+    <div className="w-full px-6 sm:px-8 lg:px-12 py-12 flex items-center justify-center min-h-[calc(100vh-5rem)]">
+      <div className="max-w-md w-full">
+        <div className="mb-12 text-center">
+          <h2 className="text-4xl font-semibold text-slate-900 tracking-tight mb-2">
             Create your account
           </h2>
+          <p className="text-sm text-slate-500 uppercase tracking-wider">
+            Join the community
+          </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
             <div>
-              <label htmlFor="firstName" className="sr-only">
+              <label htmlFor="firstName" className="form-label">
                 First Name
               </label>
               <input
@@ -55,12 +58,12 @@ export function Register() {
                 name="firstName"
                 type="text"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="input-field"
                 placeholder="First Name"
               />
             </div>
             <div>
-              <label htmlFor="lastName" className="sr-only">
+              <label htmlFor="lastName" className="form-label">
                 Last Name
               </label>
               <input
@@ -68,12 +71,12 @@ export function Register() {
                 name="lastName"
                 type="text"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="input-field"
                 placeholder="Last Name"
               />
             </div>
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="form-label">
                 Email address
               </label>
               <input
@@ -82,12 +85,12 @@ export function Register() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="input-field"
                 placeholder="Email address"
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="form-label">
                 Password
               </label>
               <input
@@ -96,12 +99,12 @@ export function Register() {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="input-field"
                 placeholder="Password"
               />
             </div>
             <div>
-              <label htmlFor="age" className="sr-only">
+              <label htmlFor="age" className="form-label">
                 Age
               </label>
               <input
@@ -109,33 +112,33 @@ export function Register() {
                 name="age"
                 type="number"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="input-field"
                 placeholder="Age"
               />
             </div>
             <div>
-              <label htmlFor="registrationSecret" className="sr-only">
+              <label htmlFor="registrationSecret" className="form-label">
                 Registration Secret
               </label>
               <input
                 id="registrationSecret"
                 name="registrationSecret"
                 type="password"
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Registration Secret (required)"
+                className="input-field"
+                placeholder="Registration Secret"
               />
             </div>
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <div className="error-text text-center">{error}</div>
           )}
 
           <div>
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="btn-primary w-full"
             >
               {isLoading ? 'Creating account...' : 'Create account'}
             </button>

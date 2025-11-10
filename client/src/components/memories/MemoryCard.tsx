@@ -102,125 +102,136 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     e.preventDefault();
   };
 
+
   const cardContent = (
-    <div className="p-6">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1 mr-4">
-          <h2 className={`text-2xl font-bold text-warm-900 truncate ${shouldLink ? 'hover:text-indigo-600' : ''}`}>
-            {shouldLink ? (
-              <Link to={getMemoryLink(memory._id)} className="hover:text-indigo-600">
-                {memory.title}
-              </Link>
-            ) : (
-              memory.title
-            )}
-          </h2>
-          {showAuthor && memory.author && typeof memory.author !== 'string' && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm text-warm-600">
-                by {(memory.author as any).firstName} {(memory.author as any).lastName}
-              </span>
-              {showFollowButton && user?._id !== (memory.author as any)._id && (
-                <button
-                  onClick={(e) => {
-                    handleButtonClick(e);
-                    handleFollowToggle();
-                  }}
-                  disabled={isFollowLoading}
-                  className="p-1 text-warm-400 hover:text-indigo-600 transition-colors duration-200 disabled:opacity-50"
-                  title={isFollowing ? 'Unfollow' : 'Follow'}
-                >
-                  {isFollowLoading ? (
-                    <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                  ) : isFollowing ? (
-                    <UserMinusIcon className="w-4 h-4" />
-                  ) : (
-                    <UserPlusIcon className="w-4 h-4" />
-                  )}
-                </button>
+    <div className="relative">
+      {/* Rainbow gradient accent border on left */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-1"
+        style={{ 
+          background: 'linear-gradient(to bottom, #ff1744, #ff6f00, #ffc400, #00e676, #2979ff, #3d5afe, #7c4dff, #e91e63)'
+        }}
+      />
+      
+      <div className="pl-8 pr-8 pt-8 pb-8">
+        <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
+          <div className="flex-1 mr-6">
+            <h2 className={`text-3xl font-semibold text-slate-900 mb-2 tracking-tight ${shouldLink ? 'hover:text-slate-600' : ''}`}>
+              {shouldLink ? (
+                <Link to={getMemoryLink(memory._id)} className="transition-colors duration-150">
+                  {memory.title}
+                </Link>
+              ) : (
+                memory.title
               )}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <time className="text-sm text-warm-500 flex-shrink-0">
-            {format(new Date(memory.date), 'MMM d, yyyy')}
-          </time>
-          {onEdit && (
+            </h2>
+            {showAuthor && memory.author && typeof memory.author !== 'string' && (
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  {(memory.author as any).firstName} {(memory.author as any).lastName}
+                </span>
+                {showFollowButton && user?._id !== (memory.author as any)._id && (
+                  <button
+                    onClick={(e) => {
+                      handleButtonClick(e);
+                      handleFollowToggle();
+                    }}
+                    disabled={isFollowLoading}
+                    className="p-1.5 border border-slate-300 hover:border-slate-900 hover:bg-slate-900 hover:text-white text-slate-600 transition-all duration-150 disabled:opacity-50"
+                    title={isFollowing ? 'Unfollow' : 'Follow'}
+                  >
+                    {isFollowLoading ? (
+                      <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent animate-spin" />
+                    ) : isFollowing ? (
+                      <UserMinusIcon className="w-3.5 h-3.5" />
+                    ) : (
+                      <UserPlusIcon className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <time className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              {format(new Date(memory.date), 'MMM d, yyyy')}
+            </time>
+            {onEdit && (
+              <button
+                onClick={(e) => {
+                  handleButtonClick(e);
+                  onEdit(memory);
+                }}
+                className="p-2 border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white text-slate-600 transition-all duration-150"
+                title="Edit memory"
+              >
+                <PencilIcon className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={(e) => {
                 handleButtonClick(e);
-                onEdit(memory);
+                setShowConfirmDialog(true);
               }}
-              className="p-2 text-warm-400 hover:text-indigo-600 transition-colors duration-200"
-              title="Edit memory"
+              className="p-2 border border-slate-200 hover:border-red-600 hover:bg-red-600 hover:text-white text-slate-600 transition-all duration-150"
+              title="Delete memory"
             >
-              <PencilIcon className="w-5 h-5" />
+              <TrashIcon className="w-4 h-4" />
             </button>
-          )}
-          <button
-            onClick={(e) => {
-              handleButtonClick(e);
-              setShowConfirmDialog(true);
-            }}
-            className="p-2 text-warm-400 hover:text-accent-error transition-colors duration-200"
-            title="Delete memory"
-          >
-            <TrashIcon className="w-5 h-5" />
-          </button>
+          </div>
         </div>
-      </div>
-      
-      <div className="relative flex gap-6">
-        {/* Content container with fixed width and proper overflow handling */}
-        <div className="prose prose-sm flex-1">
-          <div 
-            className="text-warm-700 whitespace-pre-wrap break-words"
-            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-          />
+        
+        <div className="relative flex gap-8">
+          {/* Content container */}
+          <div className="prose prose-sm flex-1 max-w-none">
+            <div 
+              className="text-slate-700 whitespace-pre-wrap break-words leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+            />
+          </div>
+
+          {/* Images container - colorful, vibrant */}
+          {memory.images.length > 0 && (
+            <div className="w-2/5 flex-shrink-0 flex flex-col gap-4">
+              {memory.images.map((image, index) => (
+                <div
+                  key={index}
+                  className="relative w-full border-2 border-slate-200"
+                  style={{ minHeight: '400px' }}
+                >
+                  <MemoryImage
+                    src={image.url}
+                    alt={`Memory illustration ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Images container */}
-        {memory.images.length > 0 && (
-          <div className="w-1/3 flex-shrink-0 flex flex-col gap-4">
-            {memory.images.map((image, index) => (
-              <div
-                key={index}
-                className="relative w-full"
-                style={{ minHeight: '300px' }}
+        {memory.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-6 pt-6 border-t border-slate-200">
+            {memory.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200"
               >
-                <MemoryImage
-                  src={image.url}
-                  alt={`Memory illustration ${index + 1}`}
-                  className="w-full h-full object-cover rounded-lg shadow-md"
-                />
-              </div>
+                {tag}
+              </span>
             ))}
           </div>
         )}
       </div>
-
-      {memory.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-4">
-          {memory.tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 
   return (
     <>
       <div
-        className={`bg-white shadow-lg rounded-lg overflow-hidden transition-all duration-300 w-full ${
-          isActive ? 'scale-105 shadow-xl' : 'opacity-75'
-        } ${shouldLink ? 'cursor-pointer hover:shadow-xl' : ''}`}
+        className={`bg-white border border-slate-200 transition-all duration-200 w-full ${
+          isActive ? 'border-slate-900' : 'opacity-90'
+        } ${shouldLink ? 'cursor-pointer hover:border-slate-400' : ''}`}
         onClick={shouldLink ? () => {} : undefined}
       >
         {shouldLink ? (
@@ -232,15 +243,15 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog - sharp, minimal */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-medium text-warm-900 mb-4">Delete Memory</h3>
-            <p className="text-warm-600 mb-6">
+        <div className="fixed inset-0 bg-slate-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white border-2 border-slate-900 p-8 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-slate-900 mb-3 tracking-tight">Delete Memory</h3>
+            <p className="text-slate-600 mb-8 text-sm leading-relaxed">
               Are you sure you want to delete this memory? This action cannot be undone.
             </p>
-            <div className="flex justify-end gap-4">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowConfirmDialog(false)}
                 className="btn-secondary"
@@ -250,7 +261,7 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
               </button>
               <button
                 onClick={handleDelete}
-                className="btn-primary bg-accent-error hover:bg-accent-error/90"
+                className="px-6 py-2.5 text-sm font-medium tracking-wide uppercase text-white bg-red-600 hover:bg-red-700 active:bg-red-800 focus:outline-none focus:ring-1 focus:ring-red-600 focus:ring-offset-2 transition-all duration-150"
                 disabled={isDeleting}
               >
                 {isDeleting ? 'Deleting...' : 'Delete'}

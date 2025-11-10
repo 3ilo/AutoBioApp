@@ -24,21 +24,21 @@ export function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="w-full px-10 sm:px-10 lg:px-20">
-          <div className="flex justify-between h-16">
-            <div className="flex">
+    <div className="min-h-screen bg-slate-50">
+      <nav className="bg-white border-b border-slate-200">
+        <div className="w-full px-6 sm:px-8 lg:px-12">
+          <div className="flex justify-between h-20">
+            <div className="flex items-center">
               <Link to="/" className="flex-shrink-0 flex items-center">
-                <span className="text-xl font-bold text-gray-900">AutoBio</span>
+                <span className="text-2xl font-semibold text-slate-900 tracking-tight">AutoBio</span>
               </Link>
               {isAuthenticated && (
-                <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <div className="hidden sm:ml-12 sm:flex sm:space-x-1">
                   {navigationLinks.map((link) => (
                     <Link
                       key={link.to}
                       to={link.to}
-                      className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                      className="inline-flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-150"
                     >
                       {link.label}
                     </Link>
@@ -52,14 +52,14 @@ export function Layout({ children }: LayoutProps) {
                   {/* Mobile menu button */}
                   <button
                     type="button"
-                    className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                    className="sm:hidden inline-flex items-center justify-center p-2 border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:ring-offset-2 transition-all duration-150"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   >
                     <span className="sr-only">Open main menu</span>
                     {isMobileMenuOpen ? (
-                      <XMarkIcon className="block h-6 w-6" aria-hidden="true" />
+                      <XMarkIcon className="block h-5 w-5" aria-hidden="true" />
                     ) : (
-                      <Bars3Icon className="block h-6 w-6" aria-hidden="true" />
+                      <Bars3Icon className="block h-5 w-5" aria-hidden="true" />
                     )}
                   </button>
 
@@ -67,26 +67,26 @@ export function Layout({ children }: LayoutProps) {
                   <div className="hidden sm:block relative">
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="flex items-center space-x-2 focus:outline-none"
+                      className="flex items-center space-x-3 focus:outline-none border border-slate-200 hover:border-slate-900 px-3 py-2 transition-all duration-150"
                     >
                       {user?.avatar ? (
                         <img
                           src={userAvatarUrl}
                           alt={`${user?.firstName} ${user?.lastName}`}
-                          className="h-8 w-8 rounded-full"
+                          className="h-8 w-8 object-cover border border-slate-200"
                         />
                       ) : (
-                        <UserCircleIcon className="h-8 w-8 text-gray-400" />
+                        <UserCircleIcon className="h-8 w-8 text-slate-400" />
                       )}
-                      <span className="text-sm font-medium text-gray-700">{user?.firstName} {user?.lastName}</span>
+                      <span className="text-sm font-medium text-slate-900 uppercase tracking-wide">{user?.firstName} {user?.lastName}</span>
                     </button>
                     
                     {isDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                      <div className="absolute right-0 mt-2 w-56 bg-white border-2 border-slate-900 z-50">
                         <div className="py-1" role="menu">
                           <Link
                             to="/profile"
-                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            className="block px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-900 hover:text-white uppercase tracking-wide transition-all duration-150"
                             role="menuitem"
                             onClick={() => setIsDropdownOpen(false)}
                           >
@@ -97,7 +97,7 @@ export function Layout({ children }: LayoutProps) {
                               logout();
                               setIsDropdownOpen(false);
                             }}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            className="block w-full text-left px-4 py-3 text-sm font-medium text-slate-900 hover:bg-slate-900 hover:text-white uppercase tracking-wide transition-all duration-150"
                             role="menuitem"
                           >
                             Logout
@@ -108,16 +108,16 @@ export function Layout({ children }: LayoutProps) {
                   </div>
                 </>
               ) : (
-                <div className="space-x-4">
+                <div className="flex items-center gap-3">
                   <Link
                     to="/login"
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50"
+                    className="btn-secondary"
                   >
                     Login
                   </Link>
                   <Link
                     to="/register"
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                    className="btn-primary"
                   >
                     Register
                   </Link>
@@ -129,13 +129,13 @@ export function Layout({ children }: LayoutProps) {
 
         {/* Mobile menu */}
         {isAuthenticated && isMobileMenuOpen && (
-          <div className="sm:hidden">
+          <div className="sm:hidden border-t border-slate-200">
             <div className="pt-2 pb-3 space-y-1">
               {navigationLinks.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
-                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                  className="block pl-6 pr-4 py-3 text-sm font-semibold uppercase tracking-wider text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-150"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {link.label}
@@ -146,7 +146,7 @@ export function Layout({ children }: LayoutProps) {
                   logout();
                   setIsMobileMenuOpen(false);
                 }}
-                className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                className="block w-full text-left pl-6 pr-4 py-3 text-sm font-semibold uppercase tracking-wider text-slate-600 hover:bg-slate-900 hover:text-white transition-all duration-150"
               >
                 Logout
               </button>
@@ -155,7 +155,7 @@ export function Layout({ children }: LayoutProps) {
         )}
       </nav>
 
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
+      <main className="w-full">
         {children}
       </main>
     </div>
