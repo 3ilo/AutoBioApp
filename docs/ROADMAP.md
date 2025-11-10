@@ -46,11 +46,19 @@ This document outlines the planned improvements and features for the AutoBio app
 - Improved mobile experience
 - Auto-save functionality
 - Better markdown support
+- **More detailed memory view:**
+  - Expandable/collapsible memory content sections
+  - Better content organization and hierarchy
+  - Enhanced readability for longer memories
+  - Improved navigation within memory details
+  - Better display of formatted content (headings, lists, etc.)
 
 **Benefits:**
 - Improved content creation experience
 - Reduced friction in memory creation
 - Better content quality
+- Enhanced memory viewing and reading experience
+- Better support for longer, more detailed memories
 
 ### Relationship Tagging System
 **Priority:** Medium  
