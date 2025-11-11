@@ -22,6 +22,7 @@ interface MemoryCardProps {
 
 export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = false, showFollowButton = false, linkToMemory = false }: MemoryCardProps) {
   const user = useAuthStore((state) => state.user);
+  const userFollowing = useAuthStore((state) => state.user?.following);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -40,10 +41,12 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
   useEffect(() => {
     if (user && memory.author && showFollowButton) {
       const authorId = (memory.author as any)._id;
-      const isCurrentlyFollowing = user.following?.includes(authorId) || false;
+      const isCurrentlyFollowing = userFollowing?.includes(authorId) || false;
       setIsFollowing(isCurrentlyFollowing);
+    } else if (!showFollowButton) {
+      setIsFollowing(false);
     }
-  }, [user, memory.author, showFollowButton]);
+  }, [user, userFollowing, memory.author, showFollowButton]);
 
   const handleDelete = async () => {
     try {
@@ -68,18 +71,19 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     const authorId = (memory.author as any)._id;
     try {
       setIsFollowLoading(true);
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) return;
+      
       if (isFollowing) {
         await userApi.unfollowUser(authorId);
-        setIsFollowing(false);
         // Update user's following list in auth store
-        const updatedUser = { ...user, following: user.following?.filter(id => id !== authorId) || [] };
+        const updatedUser = { ...currentUser, following: currentUser.following?.filter(id => id !== authorId) || [] };
         useAuthStore.getState().setUser(updatedUser);
         logger.info('User unfollowed', { authorId });
       } else {
         await userApi.followUser(authorId);
-        setIsFollowing(true);
         // Update user's following list in auth store
-        const updatedUser = { ...user, following: [...(user.following || []), authorId] };
+        const updatedUser = { ...currentUser, following: [...(currentUser.following || []), authorId] };
         useAuthStore.getState().setUser(updatedUser);
         logger.info('User followed', { authorId });
       }
@@ -114,8 +118,9 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
       />
       
       <div className="pl-8 pr-8 pt-8 pb-8">
-        <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
-          <div className="flex-1 mr-6 min-w-0">
+        <div className="mb-6 border-b border-slate-200 pb-4">
+          {/* Title row - full width on mobile */}
+          <div className="mb-4 sm:mb-0">
             <h2 className={`text-3xl font-semibold text-slate-900 mb-2 tracking-tight truncate ${shouldLink ? 'hover:text-slate-600' : ''}`}>
               {shouldLink ? (
                 <Link to={getMemoryLink(memory._id)} className="transition-colors duration-150 block truncate">
@@ -125,61 +130,69 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
                 memory.title
               )}
             </h2>
-              {showAuthor && memory.author && typeof memory.author !== 'string' && (
+            {showAuthor && memory.author && typeof memory.author !== 'string' && (
               <div className="flex items-center gap-3 mt-2">
                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                   {(memory.author as any).firstName} {(memory.author as any).lastName}
                   </span>
-                  {showFollowButton && user?._id !== (memory.author as any)._id && (
-                    <button
-                    onClick={(e) => {
-                      handleButtonClick(e);
-                      handleFollowToggle();
-                    }}
-                      disabled={isFollowLoading}
-                    className="p-1.5 border border-slate-300 hover:border-slate-900 hover:bg-slate-900 hover:text-white text-slate-600 transition-all duration-150 disabled:opacity-50"
-                      title={isFollowing ? 'Unfollow' : 'Follow'}
-                    >
-                      {isFollowLoading ? (
-                      <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent animate-spin" />
-                      ) : isFollowing ? (
-                      <UserMinusIcon className="w-3.5 h-3.5" />
-                      ) : (
-                      <UserPlusIcon className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <time className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                {format(new Date(memory.date), 'MMM d, yyyy')}
-              </time>
-              {onEdit && (
-                <button
-                onClick={(e) => {
-                  handleButtonClick(e);
-                  onEdit(memory);
-                }}
-                className="p-2 border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white text-slate-600 transition-all duration-150"
-                  title="Edit memory"
-                >
-                <PencilIcon className="w-4 h-4" />
-                </button>
-              )}
-              <button
-              onClick={(e) => {
-                handleButtonClick(e);
-                setShowConfirmDialog(true);
-              }}
-              className="p-2 border border-slate-200 hover:border-red-600 hover:bg-red-600 hover:text-white text-slate-600 transition-all duration-150"
-                title="Delete memory"
-              >
-              <TrashIcon className="w-4 h-4" />
-              </button>
-            </div>
+                {showFollowButton && user?._id !== (memory.author as any)._id && (
+                  <button
+                  onClick={(e) => {
+                    handleButtonClick(e);
+                    handleFollowToggle();
+                  }}
+                    disabled={isFollowLoading}
+                  className="p-1.5 border border-slate-300 hover:border-slate-900 hover:bg-slate-900 hover:text-white text-slate-600 transition-all duration-150 disabled:opacity-50"
+                    title={isFollowing ? 'Unfollow' : 'Follow'}
+                  >
+                    {isFollowLoading ? (
+                    <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent animate-spin" />
+                    ) : isFollowing ? (
+                    <UserMinusIcon className="w-3.5 h-3.5" />
+                    ) : (
+                    <UserPlusIcon className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+          
+          {/* Date and actions row - full width on mobile, flex on larger screens */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <time className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              {format(new Date(memory.date), 'MMM d, yyyy')}
+            </time>
+            {(onEdit || onDelete) && (
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {onEdit && (
+                  <button
+                  onClick={(e) => {
+                    handleButtonClick(e);
+                    onEdit(memory);
+                  }}
+                  className="p-2 border border-slate-200 hover:border-slate-900 hover:bg-slate-900 hover:text-white text-slate-600 transition-all duration-150"
+                    title="Edit memory"
+                  >
+                  <PencilIcon className="w-4 h-4" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                  onClick={(e) => {
+                    handleButtonClick(e);
+                    setShowConfirmDialog(true);
+                  }}
+                  className="p-2 border border-slate-200 hover:border-red-600 hover:bg-red-600 hover:text-white text-slate-600 transition-all duration-150"
+                    title="Delete memory"
+                  >
+                  <TrashIcon className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
           
         <div className="relative flex gap-8 min-w-0">
           {/* Content container */}
