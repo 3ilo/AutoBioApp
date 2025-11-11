@@ -201,11 +201,11 @@ export function Memories() {
       </div>
       {sortedMemories && sortedMemories.length > 0 ? (
         <>
-          <div className="relative mb-12 max-w-6xl mx-auto">
+          <div className="relative mb-12 max-w-6xl mx-auto px-8 sm:px-16">
             <button
               onClick={handlePrevious}
               disabled={currentIndex === 0 || isLoading}
-              className={`absolute z-10 left-0 top-1/2 -translate-y-1/2 -translate-x-8 sm:-translate-x-16 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:cursor-not-allowed transition-colors duration-150 ${
+              className={`absolute z-10 left-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:cursor-not-allowed transition-colors duration-150 ${
                 currentIndex === 0 ? 'hidden' : ''
               }`}
             >
@@ -225,7 +225,7 @@ export function Memories() {
             <button
               onClick={handleNext}
               disabled={currentIndex === sortedMemories.length - 1 || isLoading}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-8 sm:translate-x-16 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:cursor-not-allowed transition-colors duration-150 ${
+              className={`absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:cursor-not-allowed transition-colors duration-150 ${
                 currentIndex === sortedMemories.length - 1 ? 'hidden' : ''
               }`}
             >
@@ -233,11 +233,13 @@ export function Memories() {
             </button>
           </div>
 
-          <Timeline
-            memories={sortedMemories}
-            currentIndex={currentIndex}
-            onSelect={handleMemorySelect}
-          />
+          <div className="max-w-6xl mx-auto overflow-visible">
+            <Timeline
+              memories={sortedMemories}
+              currentIndex={currentIndex}
+              onSelect={handleMemorySelect}
+            />
+          </div>
         </>
       ) : (
         <div className="bg-white border border-slate-200 p-12 max-w-4xl mx-auto text-center">

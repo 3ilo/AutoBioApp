@@ -115,10 +115,10 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
       
       <div className="pl-8 pr-8 pt-8 pb-8">
         <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
-          <div className="flex-1 mr-6">
-            <h2 className={`text-3xl font-semibold text-slate-900 mb-2 tracking-tight ${shouldLink ? 'hover:text-slate-600' : ''}`}>
+          <div className="flex-1 mr-6 min-w-0">
+            <h2 className={`text-3xl font-semibold text-slate-900 mb-2 tracking-tight truncate ${shouldLink ? 'hover:text-slate-600' : ''}`}>
               {shouldLink ? (
-                <Link to={getMemoryLink(memory._id)} className="transition-colors duration-150">
+                <Link to={getMemoryLink(memory._id)} className="transition-colors duration-150 block truncate">
                   {memory.title}
                 </Link>
               ) : (
@@ -181,32 +181,35 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
             </div>
           </div>
           
-        <div className="relative flex gap-8">
+        <div className="relative flex gap-8 min-w-0">
           {/* Content container */}
-          <div className="prose prose-sm flex-1 max-w-none">
+          <div className="prose prose-sm flex-1 max-w-none min-w-0">
               <div 
               className="text-slate-700 whitespace-pre-wrap break-words leading-relaxed"
+              style={{ 
+                wordBreak: 'break-word', 
+                overflowWrap: 'anywhere',
+                display: '-webkit-box',
+                WebkitLineClamp: 6,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
                 dangerouslySetInnerHTML={{ __html: sanitizedContent }}
               />
             </div>
 
-          {/* Images container - colorful, vibrant */}
-            {memory.images.length > 0 && (
-            <div className="w-2/5 flex-shrink-0 flex flex-col gap-4">
-                {memory.images.map((image, index) => (
-                  <div
-                    key={index}
-                  className="relative w-full border-2 border-slate-200"
-                  style={{ minHeight: '400px' }}
-                  >
-                    <MemoryImage
-                      src={image.url}
-                      alt={`Memory illustration ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
+          {/* Images container - colorful, vibrant - show only main image */}
+            {(memory.mainImage || (memory.images && memory.images.length > 0)) && (
+            <div className="w-2/5 flex-shrink-0 min-w-0">
+              <div className="relative w-full border-2 border-slate-200 aspect-[4/3] overflow-hidden">
+                <MemoryImage
+                  src={memory.mainImage?.url || memory.images[0]?.url || ''}
+                  alt="Memory illustration"
+                  className="w-full h-full object-cover"
+                />
               </div>
+            </div>
             )}
           </div>
 

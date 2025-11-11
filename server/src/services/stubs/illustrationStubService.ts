@@ -10,6 +10,7 @@ export class IllustrationStubService {
   /**
    * Generate a stub memory illustration
    * Returns a mock S3 URI that can be used for testing
+   * Randomly selects one of 3 stub images to simulate different generations
    */
   async generateMemoryIllustration(
     userId: string,
@@ -21,8 +22,11 @@ export class IllustrationStubService {
       stylePrompt?: string;
     } = {}
   ): Promise<string> {
-    // Stub service - no actual generation
-    const s3Uri = "s3://auto-bio-illustrations/stubs/StubbedMode.png";
+    // Stub service - randomly select one of 3 stub images
+    // This simulates different image generations for testing
+    const stubImageNumber = Math.floor(Math.random() * 3) + 1; // Random number 1, 2, or 3
+    const s3Uri = `s3://auto-bio-illustrations/stubs/stub-image-${stubImageNumber}.png`;
+    logger.debug('Stub service: Generated memory illustration', { userId, s3Uri, stubImageNumber });
     return s3Uri;
   }
 

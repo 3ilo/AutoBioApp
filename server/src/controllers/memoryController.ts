@@ -17,13 +17,14 @@ const memorySummaryService = USE_STUB
 
 export const createMemory = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { title, content, date, images, tags } = req.body;
+    const { title, content, date, mainImage, images, tags } = req.body;
 
     // Create memory first
     const memory = await Memory.create({
       title,
       content,
       date,
+      mainImage,
       images,
       tags,
       author: req.user?._id,
@@ -203,7 +204,7 @@ export const getMemory = async (req: Request, res: Response, next: NextFunction)
 
 export const updateMemory = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { title, content, date, images, tags } = req.body;
+    const { title, content, date, mainImage, images, tags } = req.body;
 
     const memory = await Memory.findOneAndUpdate(
       { _id: req.params.id, author: req.user?._id },
@@ -211,6 +212,7 @@ export const updateMemory = async (req: Request, res: Response, next: NextFuncti
         title,
         content,
         date,
+        mainImage,
         images,
         tags,
       },

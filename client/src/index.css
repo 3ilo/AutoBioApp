@@ -266,6 +266,64 @@
   margin-bottom: 0.25rem;
 }
 
+/* Memory component styles */
+.memory-content-wrapper {
+  @apply w-full;
+}
+
+.memory-content-two-column {
+  @apply w-full;
+}
+
+/* Two-column layout on wide screens */
+@media (min-width: 1024px) {
+  .memory-content-two-column {
+    column-count: 2;
+    column-gap: 2rem;
+    column-fill: balance;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+  }
+  
+  .memory-content-two-column * {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -moz-hyphens: auto;
+    -ms-hyphens: auto;
+  }
+}
+
+/* Image wrapping styles */
+.memory-image-wrap {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  clear: none;
+}
+
+.memory-image-wrap.float-left {
+  float: left;
+  margin-right: 1rem;
+  margin-bottom: 1rem;
+}
+
+.memory-image-wrap.float-right {
+  float: right;
+  margin-left: 1rem;
+  margin-bottom: 1rem;
+}
+
+.memory-image-wrap img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 body {
   margin: 0;
   min-width: 100vw;

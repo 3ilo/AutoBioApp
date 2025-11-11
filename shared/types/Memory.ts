@@ -13,6 +13,10 @@ export interface IMemoryImage {
     width: number;
     height: number;
   };
+  // Extensible properties for future user control
+  isMain?: boolean; // For backward compatibility
+  float?: 'left' | 'right'; // For future user control of text wrapping direction
+  size?: 'small' | 'medium' | 'large'; // For future user control of image size
 }
 
 export interface IMemory {
@@ -21,7 +25,8 @@ export interface IMemory {
   content: string;
   summary?: string; // AI-generated summary for context aggregation
   date: Date;
-  images: IMemoryImage[];
+  mainImage?: IMemoryImage; // Main image for MemoryCard display
+  images: IMemoryImage[]; // Secondary images (ordered list)
   tags: string[];
   author: string | any; // User ID (ObjectId or string)
   likes: (string | any)[]; // Array of User IDs (ObjectId or string)

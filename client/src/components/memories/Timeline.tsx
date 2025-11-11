@@ -48,7 +48,9 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
     const start = timelinePoints[0].getTime();
     const end = timelinePoints[timelinePoints.length - 1].getTime();
     const memoryTime = date.getTime();
-    return ((memoryTime - start) / (end - start)) * 100;
+    // Clamp between 0 and 100 to prevent overflow
+    const percentage = ((memoryTime - start) / (end - start)) * 100;
+    return Math.max(0, Math.min(100, percentage));
   };
 
   // Generate rainbow color based on chronological position (subdued/muted)
@@ -89,21 +91,21 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
   };
 
   return (
-    <div className="relative w-full h-32 bg-slate-100 border border-slate-200">
+    <div className="relative w-full h-32 bg-slate-100 border border-slate-200 overflow-visible">
       {/* Timeline line */}
-      <div className="absolute inset-0 flex items-center">
+      <div className="absolute inset-0 flex items-center px-2 overflow-hidden">
         <div className="w-full h-1 bg-slate-300" />
       </div>
 
       {/* Timeline points */}
-      <div className="absolute inset-0 flex items-center">
+      <div className="absolute inset-0 flex items-center px-2 overflow-hidden">
         {timelinePoints.map((date, _index) => (
           <div
             key={date.toISOString()}
-            className="relative flex-1 flex flex-col items-center"
+            className="relative flex-1 flex flex-col items-center min-w-0"
           >
-            <div className="w-1 h-6 bg-slate-400" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-2">
+            <div className="w-1 h-6 bg-slate-400 flex-shrink-0" />
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-2 truncate w-full text-center">
               {format(date, 'MMM d')}
             </span>
           </div>
@@ -122,7 +124,7 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
           <div
             key={memory._id}
             className="absolute top-1/2 -translate-y-1/2 group"
-            style={{ left: `${percentage}%` }}
+            style={{ left: `clamp(8px, ${percentage}%, calc(100% - 8px))` }}
           >
             <div
               onClick={() => onSelect(memories.findIndex(m => m._id === memory._id))}
@@ -142,15 +144,15 @@ export function Timeline({ memories, currentIndex, onSelect }: TimelineProps) {
             
             {/* Hover preview - sharp, minimal */}
             {hoveredMemory?._id === memory._id && (
-              <div className="fixed bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 bg-white border-2 border-slate-900 p-4 z-50">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 bg-white border-2 border-slate-900 p-4 z-[100]" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                 <h3 className="text-sm font-semibold text-slate-900 mb-1 truncate tracking-tight">{memory.title}</h3>
                 <time className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-3">
                   {format(new Date(memory.date), 'MMM d, yyyy')}
                 </time>
-                {memory.images.length > 0 && (
+                {(memory.mainImage || (memory.images && memory.images.length > 0)) && (
                   <div className="border-2 border-slate-200">
                     <MemoryImage
-                      src={memory.images[0].url}
+                      src={memory.mainImage?.url || memory.images[0]?.url || ''}
                       alt={memory.title}
                       className="w-full h-20 object-cover"
                     />

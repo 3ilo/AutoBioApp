@@ -7,6 +7,18 @@ const memorySchema = new mongoose.Schema<IMemory>(
     content: { type: String, required: true },
     summary: { type: String, trim: true }, // AI-generated summary for context aggregation
     date: { type: Date, required: true },
+    mainImage: {
+      url: { type: String, required: false },
+      position: {
+        x: { type: Number, required: false },
+        y: { type: Number, required: false },
+        width: { type: Number, required: false },
+        height: { type: Number, required: false }
+      },
+      isMain: { type: Boolean, required: false },
+      float: { type: String, enum: ['left', 'right'], required: false },
+      size: { type: String, enum: ['small', 'medium', 'large'], required: false }
+    },
     images: [{
       url: { type: String, required: true },
       position: {
@@ -14,7 +26,10 @@ const memorySchema = new mongoose.Schema<IMemory>(
         y: { type: Number, required: true },
         width: { type: Number, required: true },
         height: { type: Number, required: true }
-      }
+      },
+      isMain: { type: Boolean, required: false },
+      float: { type: String, enum: ['left', 'right'], required: false },
+      size: { type: String, enum: ['small', 'medium', 'large'], required: false }
     }],
     tags: [{ type: String }],
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
