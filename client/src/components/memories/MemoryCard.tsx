@@ -108,15 +108,7 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
 
 
   const cardContent = (
-    <div className="relative">
-      {/* Subdued rainbow gradient accent border on left */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1"
-        style={{
-          background: 'linear-gradient(to bottom, #c85064, #c88250, #c8aa64, #64b48c, #648cc8, #7878c8, #9678c8, #c8648c)'
-        }}
-      />
-      
+    <div>
       <div className="pl-8 pr-8 pt-8 pb-8">
         <div className="mb-6 border-b border-slate-200 pb-4">
           {/* Title row - full width on mobile */}
@@ -245,11 +237,18 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
   return (
     <>
       <div
-        className={`bg-white border border-slate-200 transition-all duration-200 w-full ${
+        className={`relative bg-white border border-slate-200 transition-all duration-200 w-full ${
           isActive ? 'border-slate-900' : 'opacity-90'
         } ${shouldLink ? 'cursor-pointer hover:border-slate-400' : ''}`}
         onClick={shouldLink ? () => {} : undefined}
       >
+        {/* Subdued rainbow gradient accent border on left - positioned relative to card */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1"
+          style={{
+            background: 'linear-gradient(to bottom, #c85064, #c88250, #c8aa64, #64b48c, #648cc8, #7878c8, #9678c8, #c8648c)'
+          }}
+        />
         {shouldLink ? (
           <Link to={getMemoryLink(memory._id)} className="block">
             {cardContent}
