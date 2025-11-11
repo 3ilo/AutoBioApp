@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
+import { Underline } from '../components/editor/Underline';
 import { Toolbar } from '../components/editor/Toolbar';
 import { memoriesApi, imageGenerationApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
@@ -90,7 +91,11 @@ export function Contribute() {
           keepMarks: true,
           keepAttributes: false,
         },
+        heading: {
+          levels: [1, 2, 3],
+        },
       }),
+      Underline,
       Image.configure({
         allowBase64: true,
         HTMLAttributes: {
@@ -102,6 +107,7 @@ export function Contribute() {
     editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none',
+        'data-placeholder': 'Start writing your memory...',
       },
       handleClick: (_view, _pos, _event) => {
         return false;
@@ -286,7 +292,7 @@ export function Contribute() {
               <div ref={editorRef} className="relative">
                 <EditorContent 
                   editor={editor} 
-                  className="min-h-[300px] p-6 prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none [&_*]:!text-slate-900 [&_p]:!my-2 [&_p.is-editor-empty:first-child::before]:!text-slate-400 [&_p.is-editor-empty:first-child::before]:!float-left [&_p.is-editor-empty:first-child::before]:!content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child::before]:!pointer-events-none [&_.ProseMirror]:!min-h-[300px] [&_.ProseMirror]:!cursor-text" 
+                  className="min-h-[300px] p-6 prose-sm sm:prose lg:prose-lg xl:prose-xl mx-auto focus:outline-none [&_*]:!text-slate-900 [&_p]:!my-2 [&_ul]:!my-2 [&_ol]:!my-2 [&_li]:!my-1 [&_p.is-editor-empty:first-child::before]:!text-slate-400 [&_p.is-editor-empty:first-child::before]:!float-left [&_p.is-editor-empty:first-child::before]:!content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child::before]:!pointer-events-none [&_.ProseMirror]:!min-h-[300px] [&_.ProseMirror]:!cursor-text" 
                 />
                 {images.filter(img => img.isConfirmed).map((image) => (
                   <div
