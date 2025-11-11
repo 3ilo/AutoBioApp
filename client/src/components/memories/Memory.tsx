@@ -6,7 +6,6 @@ import { useMemo, useState, useEffect } from 'react';
 
 interface MemoryProps {
   memory: IMemory;
-  isEditing?: boolean;
 }
 
 /**
@@ -15,7 +14,7 @@ interface MemoryProps {
  * - Two-column layout on wide screens
  * - Images injected into content at strategic points
  */
-export function Memory({ memory, isEditing = false }: MemoryProps) {
+export function Memory({ memory }: MemoryProps) {
   const [contentNodes, setContentNodes] = useState<React.ReactNode[]>([]);
 
   // Collect all images (main + secondary)

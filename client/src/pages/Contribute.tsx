@@ -513,7 +513,6 @@ export function Contribute() {
                   comments: [],
                   isPublic,
                 }}
-                isEditing={true}
               />
             </div>
           </div>
