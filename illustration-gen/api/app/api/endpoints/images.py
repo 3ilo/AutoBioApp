@@ -6,7 +6,8 @@ from app.schemas.image import (
     ImageResponse,
     S3ImageResponse,
     TrainLoRAInput,
-    TrainLoRAResponse
+    TrainLoRAResponse,
+    TrainingStatusResponse
 )
 from app.services.illustration_service import IllustrationService
 from app.services.subject_customization_service import SubjectCustomizationService
@@ -72,9 +73,9 @@ async def train_lora(
     service: SubjectCustomizationService = Depends(get_subject_customization_service),
     _: bool = Depends(get_auth_dependency)
 ):
-    """Train a LoRA model using Dreambooth with provided training images"""
+    """Start a LoRA training job asynchronously. Returns immediately with job_id."""
     try:
-        result = await service.train_lora(
+        job_id = service.start_training_job(
             user_id=train_input.user_id,
             training_images_s3_path=train_input.training_images_s3_path,
             lora_name=train_input.lora_name,
@@ -83,6 +84,41 @@ async def train_lora(
             lora_rank=train_input.lora_rank,
             lora_alpha=train_input.lora_alpha
         )
-        return TrainLoRAResponse(**result)
+        
+        # Get initial status
+        status = service.get_training_status(job_id)
+        if not status:
+            raise HTTPException(status_code=500, detail="Failed to create training job")
+        
+        return TrainLoRAResponse(
+            job_id=job_id,
+            status=status["status"],
+            lora_id=status.get("lora_id")
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/train-lora/{job_id}", response_model=TrainingStatusResponse)
+async def get_training_status(
+    job_id: str,
+    service: SubjectCustomizationService = Depends(get_subject_customization_service),
+    _: bool = Depends(get_auth_dependency)
+):
+    """Get the status of a LoRA training job"""
+    try:
+        status = service.get_training_status(job_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Training job not found")
+        
+        return TrainingStatusResponse(
+            job_id=job_id,
+            status=status["status"],
+            lora_id=status.get("lora_id"),
+            lora_s3_uri=status.get("lora_s3_uri"),
+            error_message=status.get("error_message")
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

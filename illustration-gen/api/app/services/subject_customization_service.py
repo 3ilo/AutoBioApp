@@ -3,6 +3,7 @@ import os
 import logging
 import subprocess
 import shutil
+import threading
 from typing import Optional, Dict, Any
 from app.utils.s3_utils import s3_client
 from app.utils.training_utils import (
@@ -23,6 +24,209 @@ class SubjectCustomizationService:
     
     def __init__(self):
         self.training_config = training_config
+        # In-memory job status storage (job_id -> status dict)
+        # For MVP: Use dict. Can upgrade to Redis later for production
+        self._job_status: Dict[str, Dict[str, Any]] = {}
+        self._job_lock = threading.Lock()
+    
+    def start_training_job(
+        self,
+        user_id: str,
+        training_images_s3_path: str,
+        lora_name: Optional[str] = None,
+        learning_rate: Optional[float] = None,
+        num_train_epochs: Optional[int] = None,
+        lora_rank: Optional[int] = None,
+        lora_alpha: Optional[int] = None,
+        **kwargs
+    ) -> str:
+        """
+        Start a LoRA training job asynchronously.
+        Returns immediately with job_id.
+        
+        Args:
+            user_id: Owner of the LoRA
+            training_images_s3_path: S3 path/prefix containing training images
+            lora_name: Optional human-readable name
+            learning_rate: Optional learning rate override
+            num_train_epochs: Optional epochs override
+            lora_rank: Optional LoRA rank override
+            lora_alpha: Optional LoRA alpha override
+            **kwargs: Additional training parameters
+        
+        Returns:
+            job_id: Unique identifier for this training job
+        """
+        job_id = str(uuid.uuid4())
+        lora_id = str(uuid.uuid4())
+        
+        # Initialize job status
+        with self._job_lock:
+            self._job_status[job_id] = {
+                "status": "pending",
+                "lora_id": lora_id,
+                "user_id": user_id,
+                "lora_s3_uri": None,
+                "error_message": None,
+            }
+        
+        # Start training in background thread
+        def train_in_background():
+            try:
+                # Update status to training
+                with self._job_lock:
+                    self._job_status[job_id]["status"] = "training"
+                
+                # Run training synchronously (this will block the thread)
+                # Use asyncio.run to execute async training in sync context
+                import asyncio
+                result = asyncio.run(self._train_lora_sync(
+                    lora_id=lora_id,
+                    user_id=user_id,
+                    training_images_s3_path=training_images_s3_path,
+                    lora_name=lora_name,
+                    learning_rate=learning_rate,
+                    num_train_epochs=num_train_epochs,
+                    lora_rank=lora_rank,
+                    lora_alpha=lora_alpha,
+                    **kwargs
+                ))
+                
+                # Update status to completed
+                with self._job_lock:
+                    self._job_status[job_id]["status"] = "completed"
+                    self._job_status[job_id]["lora_s3_uri"] = result["lora_s3_uri"]
+                
+                logger.info("Training job {} completed successfully".format(job_id))
+                
+            except Exception as e:
+                error_message = str(e)
+                logger.error("Training job {} failed: {}".format(job_id, error_message))
+                
+                # Update status to failed
+                with self._job_lock:
+                    self._job_status[job_id]["status"] = "failed"
+                    self._job_status[job_id]["error_message"] = error_message
+        
+        # Start background thread
+        thread = threading.Thread(target=train_in_background, daemon=True)
+        thread.start()
+        
+        logger.info("Started training job {} for user {}".format(job_id, user_id))
+        return job_id
+    
+    def get_training_status(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the status of a training job.
+        
+        Args:
+            job_id: Job identifier
+        
+        Returns:
+            Dict with status, lora_id, lora_s3_uri (if completed), error_message (if failed)
+            Returns None if job not found
+        """
+        with self._job_lock:
+            return self._job_status.get(job_id)
+    
+    async def _train_lora_sync(
+        self,
+        lora_id: str,
+        user_id: str,
+        training_images_s3_path: str,
+        lora_name: Optional[str] = None,
+        learning_rate: Optional[float] = None,
+        num_train_epochs: Optional[int] = None,
+        lora_rank: Optional[int] = None,
+        lora_alpha: Optional[int] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Training implementation (called from background thread).
+        Uses async/await for training operations.
+        
+        Returns:
+            Dict with lora_id, lora_s3_uri, user_id, status
+        """
+        temp_dirs = []
+        temp_files = []
+        
+        try:
+            logger.info("Starting LoRA training for user: {}, lora_id: {}".format(user_id, lora_id))
+            
+            # Download training images from S3
+            logger.info("Downloading training images from: {}".format(training_images_s3_path))
+            image_paths = s3_client.download_images_from_s3_path(training_images_s3_path)
+            
+            if not image_paths:
+                raise ValueError("No training images found in S3 path: {}".format(training_images_s3_path))
+            
+            temp_dirs.append(os.path.dirname(image_paths[0]) if image_paths else None)
+            
+            # Validate images
+            valid_images = validate_images(image_paths)
+            
+            if len(valid_images) < 1:
+                raise ValueError("Need at least 1 valid training image, found {}".format(len(valid_images)))
+            
+            # Create output directory
+            output_dir = create_training_output_dir(lora_id)
+            temp_dirs.append(output_dir)
+            
+            # Prepare dataset
+            dataset_dir = prepare_training_dataset(valid_images, output_dir)
+            
+            # Get training parameters
+            lr = learning_rate or self.training_config.learning_rate
+            epochs = num_train_epochs or self.training_config.num_train_epochs
+            rank = lora_rank or self.training_config.lora_rank
+            alpha = lora_alpha or self.training_config.lora_alpha
+            instance_prompt = get_instance_prompt()
+            
+            # Run training
+            logger.info("Starting LoRA training with {} images".format(len(valid_images)))
+            lora_path = await self._run_training(
+                dataset_dir=dataset_dir,
+                output_dir=output_dir,
+                instance_prompt=instance_prompt,
+                learning_rate=lr,
+                num_train_epochs=epochs,
+                lora_rank=rank,
+                lora_alpha=alpha,
+                **kwargs
+            )
+            
+            if not lora_path or not os.path.exists(lora_path):
+                raise Exception("Training failed: LoRA file not generated")
+            
+            # Upload LoRA to S3
+            logger.info("Uploading LoRA to S3")
+            lora_s3_uri = s3_client.upload_lora(lora_path, lora_id)
+            
+            if not lora_s3_uri:
+                raise Exception("Failed to upload LoRA to S3")
+            
+            logger.info("Successfully trained and uploaded LoRA: {}".format(lora_id))
+            
+            return {
+                "lora_id": lora_id,
+                "lora_s3_uri": lora_s3_uri,
+                "user_id": user_id,
+                "status": "completed"
+            }
+            
+        except Exception as e:
+            logger.error("LoRA training failed: {}".format(str(e)))
+            raise Exception("LoRA training failed: {}".format(str(e)))
+        
+        finally:
+            # Cleanup temp files and directories
+            for temp_dir in temp_dirs:
+                if temp_dir and os.path.exists(temp_dir):
+                    cleanup_temp_files(temp_dir)
+            for temp_file in temp_files:
+                if temp_file and os.path.exists(temp_file):
+                    cleanup_temp_files(temp_file)
     
     async def train_lora(
         self,
@@ -37,21 +241,37 @@ class SubjectCustomizationService:
     ) -> Dict[str, Any]:
         """
         Train a LoRA model using Dreambooth with provided training images.
-        
-        Args:
-            user_id: Owner of the LoRA
-            training_images_s3_path: S3 path/prefix containing training images
-            lora_name: Optional human-readable name
-            learning_rate: Optional learning rate override
-            num_train_epochs: Optional epochs override
-            lora_rank: Optional LoRA rank override
-            lora_alpha: Optional LoRA alpha override
-            **kwargs: Additional training parameters
-        
-        Returns:
-            Dict with lora_id, lora_s3_uri, user_id, status
+        DEPRECATED: Use start_training_job() for async training.
+        Kept for backward compatibility.
         """
         lora_id = str(uuid.uuid4())
+        return await self._train_lora_async(
+            lora_id=lora_id,
+            user_id=user_id,
+            training_images_s3_path=training_images_s3_path,
+            lora_name=lora_name,
+            learning_rate=learning_rate,
+            num_train_epochs=num_train_epochs,
+            lora_rank=lora_rank,
+            lora_alpha=lora_alpha,
+            **kwargs
+        )
+    
+    async def _train_lora_async(
+        self,
+        lora_id: str,
+        user_id: str,
+        training_images_s3_path: str,
+        lora_name: Optional[str] = None,
+        learning_rate: Optional[float] = None,
+        num_train_epochs: Optional[int] = None,
+        lora_rank: Optional[int] = None,
+        lora_alpha: Optional[int] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Async training implementation (legacy method).
+        """
         temp_dirs = []
         temp_files = []
         

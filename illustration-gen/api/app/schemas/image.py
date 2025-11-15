@@ -63,7 +63,15 @@ class TrainLoRAInput(BaseModel):
 
 
 class TrainLoRAResponse(BaseModel):
-    lora_id: str
-    lora_s3_uri: str
-    user_id: str
+    job_id: str
     status: str
+    lora_id: Optional[str] = None
+    lora_s3_uri: Optional[str] = None
+
+
+class TrainingStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    lora_id: Optional[str] = None
+    lora_s3_uri: Optional[str] = None
+    error_message: Optional[str] = None

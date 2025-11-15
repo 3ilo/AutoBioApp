@@ -6,6 +6,7 @@ import { bedrockSummarizationService } from '../services/summarizationService';
 import { contextBasedPromptEnhancementService } from '../services/promptEnhancementService';
 import { bedrockMemorySummaryService } from '../services/memorySummaryService';
 import { illustrationService } from '../services/illustrationService';
+import { loraService } from '../services/loraService';
 import { illustrationStubService } from '../services/stubs/illustrationStubService';
 import { summarizationStubService } from '../services/stubs/summarizationStubService';
 import { memorySummaryStubService } from '../services/stubs/memorySummaryStubService';
@@ -212,9 +213,21 @@ export async function generateImage(req: Request, res: Response) {
 
       // Use illustration service
       try {
-        logger.info('Generating memory illustration', { userId });
-        imageURI = await illustrationService.generateMemoryIllustration(userId, prompt+" highest quality, monochrome, professional sketch, personal, nostalgic, clean", {ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean"});
-        logger.info('Memory illustration generated successfully', { userId, s3Uri: imageURI });
+        // Get most recent LoRA for user
+        const mostRecentLoRA = await loraService.getMostRecentLoRA(userId);
+        const loraId = mostRecentLoRA?.lora_id;
+
+        logger.info('Generating memory illustration', { userId, loraId });
+        imageURI = await illustrationService.generateMemoryIllustration(
+          userId,
+          prompt + ' highest quality, monochrome, professional sketch, personal, nostalgic, clean',
+          {
+            ipAdapterScale: 0.4,
+            stylePrompt: prompt + ' highest quality, monochrome, professional sketch, personal, nostalgic, clean',
+            loraId,
+          }
+        );
+        logger.info('Memory illustration generated successfully', { userId, s3Uri: imageURI, loraId });
       } catch (error) {
         logger.error('Illustration service failed', { 
           userId, 
@@ -316,9 +329,15 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
 
       // Use illustration service
       try {
-        logger.info('Generating subject illustration', { userId });
-        imageUrl = await illustrationService.generateSubjectIllustration(userId);
-        logger.info('Subject illustration generated successfully', { userId, url: imageUrl });
+        // Get most recent LoRA for user
+        const mostRecentLoRA = await loraService.getMostRecentLoRA(userId);
+        const loraId = mostRecentLoRA?.lora_id;
+
+        logger.info('Generating subject illustration', { userId, loraId });
+        imageUrl = await illustrationService.generateSubjectIllustration(userId, {
+          loraId,
+        });
+        logger.info('Subject illustration generated successfully', { userId, url: imageUrl, loraId });
       } catch (error) {
         logger.error('Subject illustration service failed', { 
           userId, 
