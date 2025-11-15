@@ -43,9 +43,19 @@ class IllustrationService:
     
     async def generate_memory_illustration(self, user_id: str, prompt: str, num_inference_steps: int = None, 
                                          ip_adapter_scale: float = None, negative_prompt: str = None, 
-                                         style_prompt: str = None):
+                                         style_prompt: str = None, lora_id: str = None):
         """Generate a memory illustration using user's avatar as IP-Adapter input"""
         try:
+            # Load LoRA if provided
+            adapter_name = None
+            if lora_id:
+                adapter_name = f"lora_{lora_id}"
+                if not self.pipeline.is_lora_loaded(lora_id):
+                    logger.info("Loading LoRA {} for memory illustration".format(lora_id))
+                    if not self.pipeline.load_lora(lora_id, adapter_name):
+                        logger.warning("Failed to load LoRA {}, continuing without it".format(lora_id))
+                else:
+                    logger.debug("LoRA {} already loaded".format(lora_id))
             # Download user's avatar from S3
             avatar_key = s3_client.get_avatar_key(user_id)
             logger.info("Downloading avatar from S3: {}".format(avatar_key))
@@ -62,7 +72,7 @@ class IllustrationService:
                 None, 
                 lambda: memory_generation_inference(
                     self.pipeline.pipeline, prompt, num_inference_steps, avatar_local_path, 
-                    ip_adapter_scale, negative_prompt, style_prompt
+                    ip_adapter_scale, negative_prompt, style_prompt, adapter_name
                 )
             )
             
@@ -77,6 +87,12 @@ class IllustrationService:
                 raise Exception("Failed to upload generated illustration to S3")
             
             logger.info("Generated memory illustration for user: {}".format(user_id))
+            
+            # Note: We keep LoRA loaded for potential reuse (can be unloaded if needed)
+            # Uncomment below to unload after generation:
+            # if lora_id:
+            #     self.pipeline.unload_lora(f"lora_{lora_id}")
+            
             return {"data": [{"s3_uri": s3_uri}]}
             
         except Exception as e:
@@ -85,9 +101,19 @@ class IllustrationService:
     
     async def generate_subject_illustration(self, user_id: str, num_inference_steps: int = None, 
                                           ip_adapter_scale: float = None, negative_prompt: str = None, 
-                                          style_prompt: str = None):
+                                          style_prompt: str = None, lora_id: str = None):
         """Generate a subject illustration using user's uploaded photo and special prompt"""
         try:
+            # Load LoRA if provided
+            adapter_name = None
+            if lora_id:
+                adapter_name = f"lora_{lora_id}"
+                if not self.pipeline.is_lora_loaded(lora_id):
+                    logger.info("Loading LoRA {} for subject illustration".format(lora_id))
+                    if not self.pipeline.load_lora(lora_id, adapter_name):
+                        logger.warning("Failed to load LoRA {}, continuing without it".format(lora_id))
+                else:
+                    logger.debug("LoRA {} already loaded".format(lora_id))
             # Download user's subject image from S3
             subject_key = s3_client.get_subject_key(user_id)
             logger.info("Downloading subject image from S3: {}".format(subject_key))
@@ -112,7 +138,7 @@ class IllustrationService:
                 None, 
                 lambda: subject_generation_inference(
                     self.pipeline.pipeline, num_inference_steps, subject_local_path, 
-                    ip_adapter_scale, negative_prompt, style_prompt
+                    ip_adapter_scale, negative_prompt, style_prompt, adapter_name
                 )
             )
             
@@ -127,6 +153,12 @@ class IllustrationService:
                 raise Exception("Failed to upload generated illustration to S3")
             
             logger.info("Generated subject illustration for user: {}".format(user_id))
+            
+            # Note: We keep LoRA loaded for potential reuse (can be unloaded if needed)
+            # Uncomment below to unload after generation:
+            # if lora_id:
+            #     self.pipeline.unload_lora(f"lora_{lora_id}")
+            
             return {"data": [{"s3_uri": s3_uri}]}
             
         except Exception as e:

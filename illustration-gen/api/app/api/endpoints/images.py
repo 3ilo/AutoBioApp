@@ -4,9 +4,12 @@ from app.schemas.image import (
     GenerateMemoryIllustrationInput,
     GenerateSubjectIllustrationInput,
     ImageResponse,
-    S3ImageResponse
+    S3ImageResponse,
+    TrainLoRAInput,
+    TrainLoRAResponse
 )
 from app.services.illustration_service import IllustrationService
+from app.services.subject_customization_service import SubjectCustomizationService
 from app.middleware.auth import get_auth_dependency
 
 router = APIRouter()
@@ -15,6 +18,11 @@ router = APIRouter()
 def get_illustration_service() -> IllustrationService:
     """Dependency to get illustration service instance"""
     return IllustrationService()
+
+
+def get_subject_customization_service() -> SubjectCustomizationService:
+    """Dependency to get subject customization service instance"""
+    return SubjectCustomizationService()
 
 
 @router.post("/memory", response_model=S3ImageResponse)
@@ -31,7 +39,8 @@ async def generate_memory_illustration(
             memory_input.num_inference_steps,
             memory_input.ip_adapter_scale,
             memory_input.negative_prompt,
-            memory_input.style_prompt
+            memory_input.style_prompt,
+            memory_input.lora_id
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -50,7 +59,30 @@ async def generate_subject_illustration(
             subject_input.num_inference_steps,
             subject_input.ip_adapter_scale,
             subject_input.negative_prompt,
-            subject_input.style_prompt
+            subject_input.style_prompt,
+            subject_input.lora_id
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/train-lora", response_model=TrainLoRAResponse)
+async def train_lora(
+    train_input: TrainLoRAInput,
+    service: SubjectCustomizationService = Depends(get_subject_customization_service),
+    _: bool = Depends(get_auth_dependency)
+):
+    """Train a LoRA model using Dreambooth with provided training images"""
+    try:
+        result = await service.train_lora(
+            user_id=train_input.user_id,
+            training_images_s3_path=train_input.training_images_s3_path,
+            lora_name=train_input.lora_name,
+            learning_rate=train_input.learning_rate,
+            num_train_epochs=train_input.num_train_epochs,
+            lora_rank=train_input.lora_rank,
+            lora_alpha=train_input.lora_alpha
+        )
+        return TrainLoRAResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

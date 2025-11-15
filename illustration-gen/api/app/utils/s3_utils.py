@@ -5,7 +5,7 @@ import tempfile
 import os
 import time
 import io
-from typing import Optional
+from typing import Optional, List, Tuple
 from botocore.exceptions import ClientError, NoCredentialsError
 from app.core.config import settings
 
@@ -204,6 +204,137 @@ class S3Client:
             illustration_type, 
             unique_id
         )
+    
+    def get_lora_key(self, lora_id: str) -> str:
+        """Generate S3 key for LoRA weights"""
+        return "{}{}/lora.safetensors".format(settings.s3_lora_prefix, lora_id)
+    
+    def upload_lora(self, local_path: str, lora_id: str) -> Optional[str]:
+        """Upload LoRA weights to S3 and return S3 URI"""
+        try:
+            lora_key = self.get_lora_key(lora_id)
+            self.s3_client.upload_file(local_path, settings.s3_bucket_name, lora_key)
+            
+            s3_uri = "s3://{}/{}".format(settings.s3_bucket_name, lora_key)
+            logger.info("Uploaded LoRA to S3: {}".format(s3_uri))
+            return s3_uri
+            
+        except ClientError as e:
+            logger.error("Failed to upload LoRA to S3: {}".format(str(e)))
+            return None
+        except Exception as e:
+            logger.error("Unexpected error uploading LoRA: {}".format(str(e)))
+            return None
+    
+    def download_lora(self, lora_id: str) -> Optional[str]:
+        """Download LoRA weights from S3 with local caching"""
+        try:
+            lora_key = self.get_lora_key(lora_id)
+            
+            # Create local cache directory
+            cache_dir = os.path.join(tempfile.gettempdir(), "lora_cache")
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+            
+            # Use lora_id as filename for caching
+            local_path = os.path.join(cache_dir, "{}.safetensors".format(lora_id))
+            
+            # Check if already cached
+            if os.path.exists(local_path):
+                logger.info("LoRA already cached locally: {}".format(local_path))
+                return local_path
+            
+            # Download from S3
+            self.s3_client.download_file(settings.s3_bucket_name, lora_key, local_path)
+            logger.info("Downloaded LoRA from S3: {}".format(lora_key))
+            return local_path
+            
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                logger.error("LoRA not found in S3: {}".format(lora_id))
+            else:
+                logger.error("Failed to download LoRA from S3: {}".format(str(e)))
+            return None
+        except Exception as e:
+            logger.error("Unexpected error downloading LoRA: {}".format(str(e)))
+            return None
+    
+    def _parse_s3_path(self, s3_path_or_prefix: str) -> Tuple[str, str]:
+        """Parse S3 path or prefix into bucket and key/prefix"""
+        if s3_path_or_prefix.startswith('s3://'):
+            # Full S3 URI
+            path = s3_path_or_prefix[5:]  # Remove 's3://'
+            parts = path.split('/', 1)
+            bucket = parts[0]
+            key = parts[1] if len(parts) > 1 else ""
+        else:
+            # Just a prefix/key
+            bucket = settings.s3_bucket_name
+            key = s3_path_or_prefix
+        
+        return bucket, key
+    
+    def list_images_in_s3_path(self, s3_path_or_prefix: str) -> List[str]:
+        """List all image files in S3 path/prefix"""
+        try:
+            bucket, prefix = self._parse_s3_path(s3_path_or_prefix)
+            
+            # Image extensions to filter
+            image_extensions = {'.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG'}
+            
+            # List objects with prefix
+            paginator = self.s3_client.get_paginator('list_objects_v2')
+            image_keys = []
+            
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        key = obj['Key']
+                        # Check if it's an image file
+                        if any(key.lower().endswith(ext.lower()) for ext in image_extensions):
+                            image_keys.append(key)
+            
+            logger.info("Found {} images in S3 path: {}".format(len(image_keys), s3_path_or_prefix))
+            return image_keys
+            
+        except ClientError as e:
+            logger.error("Failed to list images in S3 path: {}".format(str(e)))
+            return []
+        except Exception as e:
+            logger.error("Unexpected error listing images: {}".format(str(e)))
+            return []
+    
+    def download_images_from_s3_path(self, s3_path_or_prefix: str) -> List[str]:
+        """Download all images from S3 path/prefix to local temp directory"""
+        try:
+            image_keys = self.list_images_in_s3_path(s3_path_or_prefix)
+            
+            if not image_keys:
+                logger.warning("No images found in S3 path: {}".format(s3_path_or_prefix))
+                return []
+            
+            bucket, _ = self._parse_s3_path(s3_path_or_prefix)
+            
+            # Create temp directory for downloaded images
+            temp_dir = tempfile.mkdtemp(prefix="training_images_")
+            local_paths = []
+            
+            for key in image_keys:
+                # Create local filename
+                filename = os.path.basename(key)
+                local_path = os.path.join(temp_dir, filename)
+                
+                # Download image
+                self.s3_client.download_file(bucket, key, local_path)
+                local_paths.append(local_path)
+                logger.debug("Downloaded image: {} -> {}".format(key, local_path))
+            
+            logger.info("Downloaded {} images to {}".format(len(local_paths), temp_dir))
+            return local_paths
+            
+        except Exception as e:
+            logger.error("Failed to download images from S3 path: {}".format(str(e)))
+            return []
 
 
 # Global S3 client instance

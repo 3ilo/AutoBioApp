@@ -35,7 +35,7 @@ def prompt_builder(content_prompt: str, style_prompt: str, age: int = -1) -> str
 
 def subject_generation_inference(pipeline, num_inference_steps: int = None, reference_image_url: str = None, 
                                 ip_adapter_scale: float = None, negative_prompt: str = None, 
-                                style_prompt: str = None):
+                                style_prompt: str = None, adapter_name: str = None):
     # Use config defaults if not provided
     if num_inference_steps is None:
         num_inference_steps = settings.default_num_inference_steps
@@ -46,12 +46,22 @@ def subject_generation_inference(pipeline, num_inference_steps: int = None, refe
     if style_prompt is None:
         style_prompt = settings.default_subject_style_prompt
     
-    return inference(pipeline, style_prompt, num_inference_steps, reference_image_url, 
-                    ip_adapter_scale, negative_prompt)
+    # If using LoRA, include instance token in prompt
+    from app.core.training_config import training_config
+    if adapter_name:
+        # Add instance token to prompt for LoRA
+        instance_token = training_config.instance_token
+        prompt_with_token = f"{instance_token} {style_prompt}"
+    else:
+        prompt_with_token = style_prompt
+    
+    return inference(pipeline, prompt_with_token, num_inference_steps, reference_image_url, 
+                    ip_adapter_scale, negative_prompt, None, adapter_name)
 
 def memory_generation_inference(pipeline, prompt: str, num_inference_steps: int = None, 
                                reference_image_url: str = None, ip_adapter_scale: float = None, 
-                               negative_prompt: str = None, style_prompt: str = None):
+                               negative_prompt: str = None, style_prompt: str = None,
+                               adapter_name: str = None):
     # Use config defaults if not provided
     if num_inference_steps is None:
         num_inference_steps = settings.default_num_inference_steps
@@ -62,13 +72,21 @@ def memory_generation_inference(pipeline, prompt: str, num_inference_steps: int 
     if style_prompt is None:
         style_prompt = settings.default_memory_style_prompt
     
-    augmented_prompt = prompt_builder(prompt, style_prompt)
-    augmented_prompt = prompt
+    # If using LoRA, include instance token in prompt
+    from app.core.training_config import training_config
+    if adapter_name:
+        # Add instance token to prompt for LoRA
+        instance_token = training_config.instance_token
+        augmented_prompt = f"{instance_token} {prompt}"
+    else:
+        augmented_prompt = prompt
+    
     return inference(pipeline, augmented_prompt, num_inference_steps, reference_image_url, 
-                    ip_adapter_scale, negative_prompt, style_prompt)
+                    ip_adapter_scale, negative_prompt, style_prompt, adapter_name)
 
 def inference(pipeline, prompt: str, num_inference_steps: int = None, reference_image_url: str = None, 
-              ip_adapter_scale: float = None, negative_prompt: str = None, style_prompt: str = ""):
+              ip_adapter_scale: float = None, negative_prompt: str = None, style_prompt: str = "",
+              adapter_name: str = None):
     """Run inference on the pipeline"""
     print("prompt", prompt)
     print("num_inference_steps", num_inference_steps)
@@ -85,6 +103,18 @@ def inference(pipeline, prompt: str, num_inference_steps: int = None, reference_
     if negative_prompt is None:
         negative_prompt = settings.default_negative_prompt
 
+    # Prepare pipeline call kwargs
+    pipeline_kwargs = {
+        "prompt": prompt,
+        "negative_prompt": negative_prompt,
+        "num_inference_steps": num_inference_steps
+    }
+    
+    # Add LoRA adapter if specified
+    if adapter_name:
+        pipeline_kwargs["cross_attention_kwargs"] = {"scale": 1.0}
+        # Note: adapter_name is handled by diffusers when LoRA is loaded
+    
     if settings.enable_ip_adapter and reference_image_url:
         # Use the provided reference image
         ip_adapter_image = load_image(reference_image_url)
@@ -93,19 +123,12 @@ def inference(pipeline, prompt: str, num_inference_steps: int = None, reference_
         if ip_adapter_scale != settings.default_ip_adapter_scale:
             pipeline.set_ip_adapter_scale(ip_adapter_scale)
         
-        return pipeline(
-            prompt=prompt,
-            prompt_2=style_prompt,
-            negative_prompt=negative_prompt,
-            ip_adapter_image=ip_adapter_image,
-            num_inference_steps=num_inference_steps
-        ).images[0]
+        pipeline_kwargs["prompt_2"] = style_prompt
+        pipeline_kwargs["ip_adapter_image"] = ip_adapter_image
+        
+        return pipeline(**pipeline_kwargs).images[0]
     else:
-        return pipeline(
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            num_inference_steps=num_inference_steps
-        ).images[0]
+        return pipeline(**pipeline_kwargs).images[0]
 
 
 def save_image(image) -> str:

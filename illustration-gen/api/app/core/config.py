@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     s3_avatar_prefix: str = "avatars/"
     s3_subject_prefix: str = "subjects/"
     s3_generated_prefix: str = "generated/"
+    s3_lora_prefix: str = "loras/"
     
     model_config = {
         "env_file": ".env",
