@@ -1,12 +1,17 @@
 import logger from '../../utils/logger';
 import { s3Client } from '../../utils/s3Client';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  IIllustrationService, 
+  BaseMemoryIllustrationOptions,
+  BaseSubjectIllustrationOptions
+} from '../interfaces/IIllustrationService';
 
 /**
  * Stub service for illustration generation in dev mode
  * Returns mock S3 URIs without actually calling the illustration service
  */
-export class IllustrationStubService {
+export class IllustrationStubService implements IIllustrationService {
   /**
    * Generate a stub memory illustration
    * Returns a mock S3 URI that can be used for testing
@@ -15,12 +20,7 @@ export class IllustrationStubService {
   async generateMemoryIllustration(
     userId: string,
     prompt: string,
-    options: {
-      numInferenceSteps?: number;
-      ipAdapterScale?: number;
-      negativePrompt?: string;
-      stylePrompt?: string;
-    } = {}
+    options: BaseMemoryIllustrationOptions = {}
   ): Promise<string> {
     // Stub service - randomly select one of 3 stub images
     // This simulates different image generations for testing
@@ -36,12 +36,7 @@ export class IllustrationStubService {
    */
   async generateSubjectIllustration(
     userId: string,
-    options: {
-      numInferenceSteps?: number;
-      ipAdapterScale?: number;
-      negativePrompt?: string;
-      stylePrompt?: string;
-    } = {}
+    options: BaseSubjectIllustrationOptions = {}
   ): Promise<string> {
     // Generate a mock S3 URI
     const bucket = process.env.AWS_S3_BUCKET || 'autobio-staging';

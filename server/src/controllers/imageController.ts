@@ -5,23 +5,18 @@ import logger from '../utils/logger';
 import { bedrockSummarizationService } from '../services/summarizationService';
 import { contextBasedPromptEnhancementService } from '../services/promptEnhancementService';
 import { bedrockMemorySummaryService } from '../services/memorySummaryService';
-import { illustrationService } from '../services/illustrationService';
 import { loraService } from '../services/loraService';
-import { illustrationStubService } from '../services/stubs/illustrationStubService';
 import { summarizationStubService } from '../services/stubs/summarizationStubService';
 import { memorySummaryStubService } from '../services/stubs/memorySummaryStubService';
 import { promptEnhancementStubService } from '../services/stubs/promptEnhancementStubService';
-import { generateImageBedrock, uploadToS3, generateFakeImageUrl } from '../services/bedrockImageService';
+import { generateImageBedrock, uploadToS3 } from '../services/bedrockImageService';
+import { getIllustrationService, getConfiguredProvider } from '../services/illustrationServiceFactory';
 import { User } from '../models/User';
 import { Memory } from '../models/Memory';
 import { s3Client } from '../utils/s3Client';
 import '../utils/auth'; // Import to ensure Request type extension is loaded
-import { log } from 'console';
 
 // Environment variables
-const STAGING_BUCKET = process.env.AWS_STAGING_BUCKET || 'autobio-staging';
-const ILLUSTRATION_SERVICE_URL = process.env.ILLUSTRATION_SERVICE_URL || 'http://localhost:8000';
-const USE_ILLUSTRATION_SERVICE = process.env.USE_ILLUSTRATION_SERVICE === 'true'; // Only true if explicitly enabled
 const USE_BEDROCK_FALLBACK = process.env.USE_BEDROCK_FALLBACK === 'true'; // Only true if explicitly enabled
 const USE_STUB = process.env.USE_STUB === 'true'; 
 
@@ -31,6 +26,19 @@ interface GenerateImageRequest {
   content: string;
   date: Date;
   userId?: string; // Optional for backward compatibility
+  // Provider-specific options (will be passed through based on configured provider)
+  options?: {
+    // SDXL options
+    numInferenceSteps?: number;
+    ipAdapterScale?: number;
+    negativePrompt?: string;
+    stylePrompt?: string;
+    loraId?: string;
+    // OpenAI options
+    model?: string;
+    size?: string;
+    quality?: 'low' | 'high';
+  };
 }
 
 // Initialize services (use stubs if USE_STUB is enabled)
@@ -143,7 +151,8 @@ async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): 
 // Helper function to check if illustration service is available
 async function isIllustrationServiceAvailable(): Promise<boolean> {
   try {
-    return await illustrationService.checkHealth();
+    const service = getIllustrationService();
+    return await service.checkHealth();
   } catch (error) {
     logger.warn('Illustration service health check failed', { error: (error as Error).message });
     return false;
@@ -152,7 +161,7 @@ async function isIllustrationServiceAvailable(): Promise<boolean> {
 
 export async function generateImage(req: Request, res: Response) {
   try {
-    const { title, content, date, userId } = req.body as GenerateImageRequest;
+    const { title, content, date, userId, options: requestOptions } = req.body as GenerateImageRequest;
     
     if (!title || !content || !date) {
       return res.status(400).json({
@@ -168,96 +177,111 @@ export async function generateImage(req: Request, res: Response) {
       });
     }
     
-    let prompt: string;
-    prompt = await craftEnhancedPrompt({ title, content, date }, userId);
- 
+    const provider = getConfiguredProvider();
+    const illustrationService = getIllustrationService();
+
+    logger.info('Generating memory illustration', { userId, provider, title, options: requestOptions });
+
+    // Check if illustration service is available (skip for stub)
+    if (provider !== 'stub' && !(await isIllustrationServiceAvailable())) {
+      logger.error('Illustration service unavailable', { userId, provider });
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
     let imageURI: string;
 
-    // Use stub service if enabled (dev mode)
-    if (USE_STUB) {
-      logger.debug('[STUB][SENSITIVE] Generating memory illustration', { userId, title });
-      try {
-        imageURI = await illustrationStubService.generateMemoryIllustration(
-          userId,
-          prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean",
-          { ipAdapterScale: 0.4, stylePrompt: prompt + " highest quality, monochrome, professional sketch, personal, nostalgic, clean" }
-        );
-      } catch (error) {
-        logger.error('Stub illustration service failed', { 
-          userId, 
-          error: (error as Error).message 
-        });
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image generation failed',
-        });
-      }
-    } else {
-      // Check if illustration service is enabled
-      if (!USE_ILLUSTRATION_SERVICE) {
-        logger.warn('Illustration service disabled', { userId });
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image generation service is not available',
-        });
-      }
+    try {
+      // Get most recent LoRA for user (only applicable for SDXL provider)
+      const mostRecentLoRA = provider === 'sdxl' ? await loraService.getMostRecentLoRA(userId) : null;
+      const loraId = requestOptions?.loraId || mostRecentLoRA?.lora_id;
 
-      // Check if illustration service is available
-      if (!(await isIllustrationServiceAvailable())) {
-        logger.error('Illustration service unavailable', { userId });
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image generation service is not available',
-        });
-      }
+      // Build options object, merging request options with defaults
+      const options: any = {
+        ...requestOptions,
+      };
 
-      // Use illustration service
-      try {
-        // Get most recent LoRA for user
-        const mostRecentLoRA = await loraService.getMostRecentLoRA(userId);
-        const loraId = mostRecentLoRA?.lora_id;
-
-        logger.info('Generating memory illustration', { userId, loraId });
+      // Provider-specific prompt handling
+      if (provider === 'sdxl') {
+        // SDXL: Craft enhanced prompt with memory summarization and context
+        const prompt = await craftEnhancedPrompt({ title, content, date }, userId);
+        const styleEnhancedPrompt = prompt;
+        
+        options.stylePrompt = requestOptions?.stylePrompt || styleEnhancedPrompt;
+        options.ipAdapterScale = requestOptions?.ipAdapterScale ?? 0.4;
+        if (loraId) {
+          options.loraId = loraId;
+        }
+        
         imageURI = await illustrationService.generateMemoryIllustration(
           userId,
-          prompt + ' highest quality, monochrome, professional sketch, personal, nostalgic, clean',
-          {
-            ipAdapterScale: 0.4,
-            stylePrompt: prompt + ' highest quality, monochrome, professional sketch, personal, nostalgic, clean',
-            loraId,
-          }
+          styleEnhancedPrompt,
+          options
         );
-        logger.info('Memory illustration generated successfully', { userId, s3Uri: imageURI, loraId });
-      } catch (error) {
-        logger.error('Illustration service failed', { 
-          userId, 
-          error: (error as Error).message 
-        });
+      } else if (provider === 'openai') {
+        // OpenAI: Pass raw memory data and let OpenAI handle all prompt composition
+        // OpenAI service will fetch recent memories and build structured prompts internally
+        options.memoryTitle = title;
+        options.memoryContent = content; // Raw, unenhanced content
+        options.memoryDate = date;
         
-        // Only fall back to Bedrock if explicitly enabled
-        if (USE_BEDROCK_FALLBACK) {
-          logger.warn('Falling back to deprecated Bedrock service', { userId });
-          try {
-            const imageBuffer = await generateImageBedrock(prompt);
-            const imageKey = `staging/${uuidv4()}.jpg`;
-            imageURI = await uploadToS3(imageBuffer, imageKey);
-            logger.info('Bedrock fallback succeeded', { userId, s3Uri: imageURI });
-          } catch (bedrockError) {
-            logger.error('Bedrock fallback failed', { 
-              userId, 
-              error: (bedrockError as Error).message 
-            });
-            return res.status(500).json({
-              status: 'fail',
-              message: 'Image generation failed',
-            });
-          }
-        } else {
+        // For OpenAI, we pass a placeholder prompt since it will be rebuilt
+        // The actual prompt building happens inside OpenAI service
+        imageURI = await illustrationService.generateMemoryIllustration(
+          userId,
+          content, // Pass raw content as placeholder
+          options
+        );
+      } else {
+        // Stub or other providers: use basic prompt
+
+        imageURI = await illustrationService.generateMemoryIllustration(
+          userId,
+          content,
+          options
+        );
+      }
+      
+      logger.info('Memory illustration generated successfully', { 
+        userId, 
+        provider, 
+        s3Uri: imageURI, 
+        loraId 
+      });
+    } catch (error) {
+      logger.error('Illustration service failed', { 
+        userId, 
+        provider,
+        error: (error as Error).message 
+      });
+      
+      // Only fall back to Bedrock if explicitly enabled and not using stub
+      if (USE_BEDROCK_FALLBACK && provider !== 'stub') {
+        logger.warn('Falling back to deprecated Bedrock service', { userId });
+        try {
+          // Craft prompt for Bedrock fallback
+          const fallbackPrompt = await craftEnhancedPrompt({ title, content, date }, userId);
+          const imageBuffer = await generateImageBedrock(fallbackPrompt);
+          const imageKey = `staging/${uuidv4()}.jpg`;
+          imageURI = await uploadToS3(imageBuffer, imageKey);
+          logger.info('Bedrock fallback succeeded', { userId, s3Uri: imageURI });
+        } catch (bedrockError) {
+          logger.error('Bedrock fallback failed', { 
+            userId, 
+            error: (bedrockError as Error).message 
+          });
           return res.status(500).json({
             status: 'fail',
             message: 'Image generation failed',
           });
         }
+      } else {
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Image generation failed',
+        });
       }
     }
 
@@ -282,7 +306,7 @@ export async function generateImage(req: Request, res: Response) {
 
 export async function generateSubjectIllustration(req: Request, res: Response) {
   try {
-    const { userId } = req.body;
+    const { userId, options: requestOptions } = req.body;
     
     if (!userId) {
       return res.status(400).json({
@@ -291,63 +315,55 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
       });
     }
     
+    const provider = getConfiguredProvider();
+    const illustrationService = getIllustrationService();
+
+    logger.info('Generating subject illustration', { userId, provider, options: requestOptions });
+
+    // Check if illustration service is available (skip for stub)
+    if (provider !== 'stub' && !(await isIllustrationServiceAvailable())) {
+      logger.error('Illustration service unavailable for subject illustration', { userId, provider });
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation service is not available',
+      });
+    }
+
     let imageUrl: string;
 
-    // Use stub service if enabled (dev mode)
-    if (USE_STUB) {
-      logger.debug('[STUB] Generating subject illustration', { userId });
-      try {
-        imageUrl = await illustrationStubService.generateSubjectIllustration(userId);
-      } catch (error) {
-        logger.error('Stub subject illustration service failed', { 
-          userId, 
-          error: (error as Error).message 
-        });
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Failed to generate subject illustration',
-        });
-      }
-    } else {
-      // Check if illustration service is enabled
-      if (!USE_ILLUSTRATION_SERVICE) {
-        logger.warn('Illustration service disabled for subject illustration', { userId });
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image generation service is not available',
-        });
+    try {
+      // Get most recent LoRA for user (only applicable for SDXL provider)
+      const mostRecentLoRA = provider === 'sdxl' ? await loraService.getMostRecentLoRA(userId) : null;
+      const loraId = requestOptions?.loraId || mostRecentLoRA?.lora_id;
+
+      // Build options object, merging request options with defaults
+      const options: any = {
+        ...requestOptions,
+      };
+
+      // Provider-specific defaults
+      if (provider === 'sdxl' && loraId) {
+        options.loraId = loraId;
       }
 
-      // Check if illustration service is available
-      if (!(await isIllustrationServiceAvailable())) {
-        logger.error('Illustration service unavailable for subject illustration', { userId });
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image generation service is not available',
-        });
-      }
-
-      // Use illustration service
-      try {
-        // Get most recent LoRA for user
-        const mostRecentLoRA = await loraService.getMostRecentLoRA(userId);
-        const loraId = mostRecentLoRA?.lora_id;
-
-        logger.info('Generating subject illustration', { userId, loraId });
-        imageUrl = await illustrationService.generateSubjectIllustration(userId, {
-          loraId,
-        });
-        logger.info('Subject illustration generated successfully', { userId, url: imageUrl, loraId });
-      } catch (error) {
-        logger.error('Subject illustration service failed', { 
-          userId, 
-          error: (error as Error).message 
-        });
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Failed to generate subject illustration',
-        });
-      }
+      imageUrl = await illustrationService.generateSubjectIllustration(userId, options);
+      
+      logger.info('Subject illustration generated successfully', { 
+        userId, 
+        provider, 
+        url: imageUrl, 
+        loraId 
+      });
+    } catch (error) {
+      logger.error('Subject illustration service failed', { 
+        userId, 
+        provider,
+        error: (error as Error).message 
+      });
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Failed to generate subject illustration',
+      });
     }
 
     const response: ApiResponse<{ url: string }> = {

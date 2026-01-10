@@ -1,6 +1,13 @@
 import axios, { AxiosResponse } from 'axios';
 import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';
+import { 
+  IIllustrationService, 
+  BaseMemoryIllustrationOptions,
+  BaseSubjectIllustrationOptions,
+  SDXLMemoryIllustrationOptions,
+  SDXLSubjectIllustrationOptions
+} from './interfaces/IIllustrationService';
 
 // Environment variables
 const ILLUSTRATION_SERVICE_URL = process.env.ILLUSTRATION_SERVICE_URL || 'http://localhost:8000';
@@ -62,7 +69,7 @@ interface TrainingStatusResponse {
   error_message?: string;
 }
 
-export class IllustrationService {
+export class IllustrationService implements IIllustrationService {
   private baseUrl: string;
   private authToken?: string;
 
@@ -128,28 +135,23 @@ export class IllustrationService {
   async generateMemoryIllustration(
     userId: string,
     prompt: string,
-    options: {
-      numInferenceSteps?: number;
-      ipAdapterScale?: number;
-      negativePrompt?: string;
-      stylePrompt?: string;
-      loraId?: string;
-    } = {}
+    options: BaseMemoryIllustrationOptions = {}
   ): Promise<string> {
+    const sdxlOptions = options as SDXLMemoryIllustrationOptions;
     const request: GenerateMemoryIllustrationRequest = {
       user_id: userId,
       prompt,
-      num_inference_steps: options.numInferenceSteps || 50,
-      ip_adapter_scale: options.ipAdapterScale || 0.33,
-      negative_prompt: options.negativePrompt || 'error, glitch, mistake',
-      style_prompt: options.stylePrompt || 'highest quality, monochrome, professional sketch, personal, nostalgic, clean',
+      num_inference_steps: sdxlOptions.numInferenceSteps || 50,
+      ip_adapter_scale: sdxlOptions.ipAdapterScale || 0.33,
+      negative_prompt: sdxlOptions.negativePrompt || 'error, glitch, mistake',
+      style_prompt: sdxlOptions.stylePrompt || 'highest quality, monochrome, professional sketch, personal, nostalgic, clean',
     };
 
-    if (options.loraId) {
-      request.lora_id = options.loraId;
+    if (sdxlOptions.loraId) {
+      request.lora_id = sdxlOptions.loraId;
     }
 
-    logger.debug('Generating memory illustration', { userId, promptLength: prompt.length, loraId: options.loraId });
+    logger.debug('Generating memory illustration', { userId, promptLength: prompt.length, loraId: sdxlOptions.loraId });
     const response = await this.makeRequest<IllustrationResponse>(
       '/v1/images/memory',
       request
@@ -160,7 +162,7 @@ export class IllustrationService {
     }
 
     const s3Uri = response.data[0].s3_uri;
-    logger.info('Memory illustration generated', { userId, s3Uri, loraId: options.loraId });
+    logger.info('Memory illustration generated', { userId, s3Uri, loraId: sdxlOptions.loraId });
     return s3Uri;
   }
 
@@ -169,27 +171,22 @@ export class IllustrationService {
    */
   async generateSubjectIllustration(
     userId: string,
-    options: {
-      numInferenceSteps?: number;
-      ipAdapterScale?: number;
-      negativePrompt?: string;
-      stylePrompt?: string;
-      loraId?: string;
-    } = {}
+    options: BaseSubjectIllustrationOptions = {}
   ): Promise<string> {
+    const sdxlOptions = options as SDXLSubjectIllustrationOptions;
     const request: GenerateSubjectIllustrationRequest = {
       user_id: userId,
-      num_inference_steps: options.numInferenceSteps || 50,
-      ip_adapter_scale: options.ipAdapterScale || 0.33,
-      negative_prompt: options.negativePrompt || 'error, glitch, mistake',
-      style_prompt: options.stylePrompt || 'highest quality, professional sketch, monochrome',
+      num_inference_steps: sdxlOptions.numInferenceSteps || 50,
+      ip_adapter_scale: sdxlOptions.ipAdapterScale || 0.33,
+      negative_prompt: sdxlOptions.negativePrompt || 'error, glitch, mistake',
+      style_prompt: sdxlOptions.stylePrompt || 'highest quality, professional sketch, monochrome',
     };
 
-    if (options.loraId) {
-      request.lora_id = options.loraId;
+    if (sdxlOptions.loraId) {
+      request.lora_id = sdxlOptions.loraId;
     }
 
-    logger.debug('Generating subject illustration', { userId, loraId: options.loraId });
+    logger.debug('Generating subject illustration', { userId, loraId: sdxlOptions.loraId });
     const response = await this.makeRequest<IllustrationResponse>(
       '/v1/images/subject',
       request
@@ -200,7 +197,7 @@ export class IllustrationService {
     }
 
     const s3Uri = response.data[0].s3_uri;
-    logger.info('Subject illustration generated', { userId, s3Uri, loraId: options.loraId });
+    logger.info('Subject illustration generated', { userId, s3Uri, loraId: sdxlOptions.loraId });
     
     // Convert S3 URI to pre-signed URL for viewing
     const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
