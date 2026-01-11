@@ -13,8 +13,11 @@ export type IllustrationProvider = 'sdxl' | 'openai' | 'stub';
  * Get the configured illustration provider from environment
  */
 export function getConfiguredProvider(): IllustrationProvider {
+  // Check individual stub flag first, then master USE_STUB flag
+  const useStubIllustration = process.env.USE_STUB_ILLUSTRATION === 'true';
   const useStub = process.env.USE_STUB === 'true';
-  if (useStub) {
+  
+  if (useStubIllustration || useStub) {
     return 'stub';
   }
 
@@ -32,7 +35,7 @@ export function getConfiguredProvider(): IllustrationProvider {
  * Factory function to get the appropriate illustration service based on configuration.
  * 
  * Priority:
- * 1. USE_STUB=true -> StubService (for development/testing)
+ * 1. USE_STUB_ILLUSTRATION=true or USE_STUB=true -> StubService (for development/testing)
  * 2. ILLUSTRATION_PROVIDER=openai -> OpenAIIllustrationService
  * 3. Default -> IllustrationService (SDXL)
  * 
@@ -87,7 +90,7 @@ export async function isProviderHealthy(provider?: IllustrationProvider): Promis
  */
 export async function getProviderStatus(): Promise<{
   configured: IllustrationProvider;
-  providers: Record<IllustrationProvider, { available: boolean; healthy: boolean }>;
+  providers: Record<IllustrationProvider, { available: boolean; healthy: boolean, enabled: boolean }>;
 }> {
   const configured = getConfiguredProvider();
   
@@ -100,14 +103,20 @@ export async function getProviderStatus(): Promise<{
   return {
     configured,
     providers: {
-      stub: { available: true, healthy: stubHealthy },
+      stub: { 
+        available: true, 
+        healthy: stubHealthy,
+        enabled: process.env.USE_STUB_ILLUSTRATION === 'true' || process.env.USE_STUB === 'true'
+      },
       openai: { 
         available: !!process.env.OPENAI_API_KEY, 
-        healthy: openaiHealthy 
+        healthy: openaiHealthy,
+        enabled: configured === 'openai'
       },
       sdxl: { 
         available: !!process.env.ILLUSTRATION_SERVICE_URL, 
-        healthy: sdxlHealthy 
+        healthy: sdxlHealthy,
+        enabled: configured === 'sdxl'
       },
     },
   };

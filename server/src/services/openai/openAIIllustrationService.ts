@@ -11,7 +11,6 @@ import {
 } from '../interfaces/IIllustrationService';
 import { promptBuilder, PromptInput } from './promptBuilder';
 import { User } from '../../models/User';
-import { Memory } from '../../models/Memory';
 import logger from '../../utils/logger';
 import { getAwsClientConfig } from '../../utils/env';
 import { bedrockMemorySummaryService } from '../memorySummaryService';
@@ -126,66 +125,21 @@ export class OpenAIIllustrationService implements IIllustrationService {
         distilledMemoryContent = rawMemoryContent;
       }
       
-      // Fetch recent memories for context (OpenAI handles its own prompt composition)
-      let recentMemoriesSummary: string | undefined;
-      try {
-        const recentMemories = await Memory.find({ author: userId })
-          .sort({ date: -1 })
-          .limit(5)
-          .lean();
-
-        // Generate missing summaries on-demand
-        const memoriesWithSummaries = await Promise.all(
-          recentMemories.map(async (memory) => {
-            if (!memory.summary) {
-              logger.info('Generating memory summary', { memoryId: memory._id });
-              try {
-                const summary = await bedrockMemorySummaryService.generateMemorySummary(
-                  memory,
-                  user.toObject() as any,
-                  { summaryLength: 'brief', includeUserContext: true }
-                );
-                
-                // Update memory with generated summary
-                await Memory.findByIdAndUpdate(memory._id, { summary });
-                return { ...memory, summary };
-              } catch (error) {
-                logger.error('Failed to generate memory summary', { 
-                  memoryId: memory._id, 
-                  error: (error as Error).message 
-                });
-                return { 
-                  ...memory, 
-                  summary: `Memory about ${memory.title} from ${new Date(memory.date).toLocaleDateString()}` 
-                };
-              }
-            }
-            return memory;
-          })
-        );
-
-        // Generate summary of recent memories for context
-        if (memoriesWithSummaries.length > 0) {
-          recentMemoriesSummary = await bedrockSummarizationService.summarizeMemories(
-            memoriesWithSummaries,
-            user.toObject() as any,
-            { maxMemories: 5, summaryLength: 'paragraph' },
-            distilledMemoryContent,
-            memoryTitle
-          );
-        }
-      } catch (error) {
-        logger.warn('Failed to fetch recent memories for OpenAI prompt context', {
-          userId,
-          error: (error as Error).message
-        });
-        // Continue without recent memories summary
-      }
+      // Fetch and summarize recent memories using the summarization service
+      // This summary will be used in the SUBJECT field for context about the subject's recent activities
+      const recentMemoriesSummary = await bedrockSummarizationService.fetchAndSummarizeRecentMemories(
+        userId,
+        user.toObject() as any,
+        distilledMemoryContent,
+        memoryTitle,
+        { limit: 5, summaryLength: 'paragraph' }
+      );
 
       logger.info('Recent memories summary', { recentMemoriesSummary });
       
       // Build structured prompt with distilled memory content
       // The memory content is now a single scene description, not raw memory text
+      // Recent memory summary will be used in the SUBJECT field
       const promptInput: PromptInput = {
         memory: {
           title: memoryTitle,
@@ -193,10 +147,10 @@ export class OpenAIIllustrationService implements IIllustrationService {
           date: memoryDate,
         },
         user: user.toObject() as any,
-        memorySummary: recentMemoriesSummary, // Context from recent memories
+        memorySummary: recentMemoriesSummary, // Context from recent memories (used in SUBJECT field)
       };
 
-      // Build structured prompt
+      // Build structured prompt (each template can have its own version via env vars)
       const structuredPrompt = await promptBuilder.buildStructuredPrompt(promptInput);
       const formattedPrompt = promptBuilder.formatPromptForAPI(structuredPrompt);
 
@@ -255,8 +209,8 @@ export class OpenAIIllustrationService implements IIllustrationService {
       // Fetch reference image (user's uploaded photo from subjects/ prefix)
       const referenceImageBase64 = await this.fetchSubjectImage(userId);
 
-      // Build a subject-focused prompt
-      const subjectPrompt = this.buildSubjectPrompt(user.toObject());
+      // Build a subject-focused prompt using template
+      const subjectPrompt = promptBuilder.buildSubjectPrompt(user.toObject() as any);
 
       // Generate image using OpenAI API
       const imageBase64 = await this.callOpenAIImageAPI(
@@ -490,36 +444,6 @@ export class OpenAIIllustrationService implements IIllustrationService {
     return getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
   }
 
-  /**
-   * Build a prompt specifically for subject/portrait illustrations
-   */
-  private buildSubjectPrompt(user: any): string {
-    const name = `${user.firstName} ${user.lastName}`.trim();
-    
-    return `
-[SUBJECT]
-Create a professional illustrated portrait of ${name}. Use the provided reference image to accurately capture ${user.firstName}'s facial features, expression, and likeness.
-
-[IDENTITY CONSTRAINTS]
-- Maintain exact facial features from reference image
-- ${user.gender ? `Gender: ${user.gender}` : ''}
-- ${user.age ? `Age: approximately ${user.age} years old` : ''}
-- ${user.culturalBackground ? `Ethnicity/background: ${user.culturalBackground}` : ''}
-
-[STYLE CONSTRAINTS]
-- Style: Professional sketch-art style illustration with clean linework
-- Color palette: Monochrome
-- Quality: Minimal line work that includes the main form and expression without fully rendering textures or fine detail.
-- Background: White
-- Mood: Warm, neutral, professional
-
-[COMPOSITION]
-- Framing: Head and shoulders portrait, centered
-- Perspective: Eye level, slight three-quarter view for dimension
-- Expression: Natural, warm, friendly
-- Lighting: Soft, even lighting from front-left
-`.trim();
-  }
 }
 
 // Export singleton instance

@@ -3,6 +3,9 @@ import { IUser } from '../../../../shared/types/User';
 import { IMemory } from '../../../../shared/types/Memory';
 import logger from '../../utils/logger';
 import { getAwsClientConfig } from '../../utils/env';
+import Handlebars from 'handlebars';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Input data for building an illustration prompt
@@ -32,41 +35,82 @@ export interface StructuredPrompt {
   composition: string;
 }
 
-// Default style constraints for AutoBio illustrations
-const DEFAULT_STYLE_CONSTRAINTS = `
-- Style: Professional hand-drawn illustration with clean linework
-- Color palette: Monochrome
-- Quality: Minimal line work that includes the main details without fully rendering textures or fine detail.
-- Aesthetic: Personal, nostalgic, autobiographical memoir style
-`.trim();
 
 /**
  * Builds structured prompts for OpenAI gpt-image-1.5 image generation.
  * Uses LLM to intelligently generate SCENE and COMPOSITION based on memory content.
+ * Uses template files for prompt structure, supporting different versions.
  */
 export class PromptBuilder {
   private bedrockClient: BedrockRuntimeClient;
   private readonly MODEL_ID = process.env.BEDROCK_SUMMARY_MODEL_ID || 'amazon.nova-micro-v1:0';
   private readonly BEDROCK_REGION = process.env.BEDROCK_CLIENT_REGION || 'us-west-2';
+  private readonly TEMPLATES_DIR = path.join(__dirname, 'templates');
+  private templateCache: Map<string, HandlebarsTemplateDelegate> = new Map();
+  private readonly DEFAULT_VERSION = 'v1';
 
   constructor() {
     this.bedrockClient = new BedrockRuntimeClient(getAwsClientConfig(this.BEDROCK_REGION));
   }
 
   /**
+   * Load a template from file, with caching
+   * Supports per-template versioning (e.g., subject-v1.txt, format-v2.txt)
+   * @param templateName - Base name of the template (e.g., 'subject', 'format')
+   * @param version - Optional version override (defaults to 'v1')
+   */
+  private loadTemplate(templateName: string, version?: string): HandlebarsTemplateDelegate {
+    const templateVersion = version || this.DEFAULT_VERSION;
+    const cacheKey = `${templateName}-${templateVersion}`;
+    
+    if (this.templateCache.has(cacheKey)) {
+      return this.templateCache.get(cacheKey)!;
+    }
+
+    // Try versioned template first (e.g., subject-v1.txt)
+    let templatePath = path.join(this.TEMPLATES_DIR, `${templateName}-${templateVersion}.txt`);
+    
+    // Fallback to default version if versioned template doesn't exist
+    if (!fs.existsSync(templatePath)) {
+      templatePath = path.join(this.TEMPLATES_DIR, `${templateName}-${this.DEFAULT_VERSION}.txt`);
+    }
+    
+    try {
+      const templateContent = fs.readFileSync(templatePath, 'utf-8');
+      const template = Handlebars.compile(templateContent);
+      this.templateCache.set(cacheKey, template);
+      return template;
+    } catch (error) {
+      logger.error('Failed to load template', { templateName, version: templateVersion, error: (error as Error).message });
+      throw new Error(`Template not found: ${templatePath}`);
+    }
+  }
+
+  /**
+   * Get template version from environment variable or config
+   * Format: TEMPLATE_NAME_VERSION (e.g., SUBJECT_VERSION=v2, FORMAT_VERSION=v1)
+   */
+  private getTemplateVersion(templateName: string): string | undefined {
+    const envKey = `${templateName.toUpperCase().replace(/-/g, '_')}_VERSION`;
+    return process.env[envKey];
+  }
+
+  /**
    * Build the complete structured prompt for image generation
+   * Each template can have its own version (per-template versioning)
+   * @param input - Prompt input data
    */
   async buildStructuredPrompt(input: PromptInput): Promise<StructuredPrompt> {
     const { user, memory, memorySummary } = input;
 
-    // Build static fields from user data
-    const subject = this.buildSubjectField(user);
+    // Build static fields from user data using templates (each with its own version)
+    const subject = this.buildSubjectField(user, memorySummary);
     const identityConstraints = this.buildIdentityConstraintsField(user);
     const styleConstraints = this.buildStyleConstraintsField(user);
 
-    // Generate dynamic fields using LLM
+    // Generate dynamic fields using LLM with templates (each with its own version)
     const [scene, composition] = await Promise.all([
-      this.generateSceneField(memory, user, memorySummary),
+      this.generateSceneField(memory, user),
       this.generateCompositionField(memory, user),
     ]);
 
@@ -84,93 +128,73 @@ export class PromptBuilder {
 
   /**
    * Format the structured prompt as a single string for the API
+   * @param structuredPrompt - The structured prompt data
    */
   formatPromptForAPI(structuredPrompt: StructuredPrompt): string {
-    return `
-[SUBJECT]
-${structuredPrompt.subject}
-
-[IDENTITY CONSTRAINTS]
-${structuredPrompt.identityConstraints}
-
-[STYLE CONSTRAINTS]
-${structuredPrompt.styleConstraints}
-
-[SCENE]
-${structuredPrompt.scene}
-
-[COMPOSITION]
-${structuredPrompt.composition}
-`.trim();
+    const version = this.getTemplateVersion('format');
+    const template = this.loadTemplate('format', version);
+    return template(structuredPrompt).trim();
   }
 
   /**
    * Build the SUBJECT field describing who the subject is
+   * Recent memory summary is included here for context about the subject's recent activities
    */
-  private buildSubjectField(user: IUser): string {
-    const name = `${user.firstName} ${user.lastName}`.trim();
-    const genderDesc = user.gender ? ` ${user.gender}` : '';
-    const ageDesc = user.age ? ` aged ${user.age}` : '';
-    
-    return `The subject is${genderDesc}${ageDesc} named ${name}. Use the provided reference image to accurately preserve ${user.firstName}'s identity and facial features throughout the illustration.`;
+  private buildSubjectField(user: IUser, recentMemoriesContext?: string): string {
+    const version = this.getTemplateVersion('subject');
+    const template = this.loadTemplate('subject', version);
+    return template({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      gender: user.gender,
+      age: user.age,
+      recentMemoriesContext: recentMemoriesContext,
+    }).trim();
   }
 
   /**
    * Build the IDENTITY CONSTRAINTS field with physical invariants
    */
   private buildIdentityConstraintsField(user: IUser): string {
-    const constraints: string[] = [];
-
-    // Add name as constant identifier
-    constraints.push(`- Name: ${user.firstName} ${user.lastName}`);
-
-    // Add age-related constraints
+    const version = this.getTemplateVersion('identity-constraints');
+    const template = this.loadTemplate('identity-constraints', version);
+    
+    let ageDescription = '';
     if (user.age) {
       if (user.age < 18) {
-        constraints.push(`- Age appearance: Young person, approximately ${user.age} years old`);
+        ageDescription = `Young person, approximately ${user.age} years old`;
       } else if (user.age < 30) {
-        constraints.push(`- Age appearance: Young adult, approximately ${user.age} years old`);
+        ageDescription = `Young adult, approximately ${user.age} years old`;
       } else if (user.age < 50) {
-        constraints.push(`- Age appearance: Adult, approximately ${user.age} years old`);
+        ageDescription = `Adult, approximately ${user.age} years old`;
       } else {
-        constraints.push(`- Age appearance: Mature adult, approximately ${user.age} years old`);
+        ageDescription = `Mature adult, approximately ${user.age} years old`;
       }
     }
 
-    // Add gender if specified
-    if (user.gender) {
-      constraints.push(`- Gender presentation: ${user.gender}`);
-    }
+    const hasConstraints = !!(user.age || user.gender || user.culturalBackground || user.occupation);
 
-    // Add cultural background if specified
-    if (user.culturalBackground) {
-      constraints.push(`- Cultural/ethnic appearance: ${user.culturalBackground}`);
-    }
-
-    // Add occupation context for wardrobe hints
-    if (user.occupation) {
-      constraints.push(`- Professional context: ${user.occupation} (may influence attire in relevant scenes)`);
-    }
-
-    // Fallback if minimal info
-    if (constraints.length === 1) {
-      constraints.push('- Maintain consistent facial features and body type from reference image');
-    }
-
-    return constraints.join('\n');
+    return template({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      age: user.age,
+      ageDescription: ageDescription,
+      gender: user.gender,
+      culturalBackground: user.culturalBackground,
+      occupation: user.occupation,
+      hasConstraints: hasConstraints,
+    }).trim();
   }
 
   /**
    * Build the STYLE CONSTRAINTS field
    */
   private buildStyleConstraintsField(user: IUser): string {
-    const baseStyle = DEFAULT_STYLE_CONSTRAINTS;
-    
-    if (user.preferredStyle) {
-      return `${baseStyle}\n- User preference: Incorporate ${user.preferredStyle} elements`;
-    }
-    
-    return baseStyle;
+    const version = this.getTemplateVersion('style-constraints');
+    const template = this.loadTemplate('style-constraints', version);
+    return template({
+      preferredStyle: user.preferredStyle,
+    }).trim();
   }
 
   /**
@@ -178,30 +202,24 @@ ${structuredPrompt.composition}
    */
   private async generateSceneField(
     memory: { title: string; content: string; date: Date; tags?: string[] },
-    user: IUser,
-    memorySummary?: string
+    user: IUser
   ): Promise<string> {
     try {
-      const systemPrompt = `You are an expert at describing visual scenes for illustrations. 
-Given a personal memory, describe the scene in 2-3 sentences focusing on:
-- The setting/environment
-- Key objects and elements present
-- Lighting and atmosphere
-- Time of day/season if relevant
+      const systemVersion = this.getTemplateVersion('scene-system');
+      const userVersion = this.getTemplateVersion('scene-user');
+      const systemTemplate = this.loadTemplate('scene-system', systemVersion);
+      const userTemplate = this.loadTemplate('scene-user', userVersion);
 
-Be specific and visual. Do not describe actions or emotions - focus on the physical scene.
-Output ONLY the scene description, no preamble or explanation.`;
+      const systemPrompt = systemTemplate({});
+      const userMessage = userTemplate({
+        title: memory.title,
+        content: memory.content,
+        formattedDate: this.formatDate(memory.date),
+        tags: memory.tags?.join(', '),
+        userLocation: user.location,
+      });
 
-      const userMessage = `Memory Title: ${memory.title}
-Memory Content: ${memory.content}
-Date: ${this.formatDate(memory.date)}
-${memory.tags?.length ? `Tags: ${memory.tags.join(', ')}` : ''}
-${user.location ? `User's typical location: ${user.location}` : ''}
-${memorySummary ? `Additional context from recent memories: ${memorySummary}` : ''}
-
-Describe the visual scene for this memory:`;
-
-logger.info('userMessage', { userMessage });
+      logger.info('userMessage', { userMessage });
 
       const scene = await this.callLLM(systemPrompt, userMessage);
       return scene;
@@ -220,19 +238,16 @@ logger.info('userMessage', { userMessage });
     user: IUser
   ): Promise<string> {
     try {
-      const systemPrompt = `You are an expert at describing visual composition for illustrations.
-Given a personal memory, describe the ideal composition in 2-3 sentences focusing on:
-- Where to position the subject (center, rule of thirds, etc.)
-- Perspective/camera angle (eye level, slightly above, etc.)
-- Framing (close-up, medium shot, wide shot)
-- Depth and layering of elements
+      const systemVersion = this.getTemplateVersion('composition-system');
+      const userVersion = this.getTemplateVersion('composition-user');
+      const systemTemplate = this.loadTemplate('composition-system', systemVersion);
+      const userTemplate = this.loadTemplate('composition-user', userVersion);
 
-Be specific about visual arrangement. Output ONLY the composition description, no preamble.`;
-
-      const userMessage = `Memory Title: ${memory.title}
-Memory Content: ${memory.content}
-
-Describe the ideal composition for illustrating this memory:`;
+      const systemPrompt = systemTemplate({});
+      const userMessage = userTemplate({
+        title: memory.title,
+        content: memory.content,
+      });
 
       const composition = await this.callLLM(systemPrompt, userMessage);
       return composition;
@@ -269,6 +284,23 @@ Describe the ideal composition for illustrating this memory:`;
       .join(' ') || '';
 
     return text.trim();
+  }
+
+  /**
+   * Build a complete prompt for subject/portrait illustrations
+   * Uses template-based approach with per-template versioning
+   * @param user - The user to create a portrait of
+   */
+  buildSubjectPrompt(user: IUser): string {
+    const version = this.getTemplateVersion('subject-prompt');
+    const template = this.loadTemplate('subject-prompt', version);
+    return template({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      gender: user.gender,
+      age: user.age,
+      culturalBackground: user.culturalBackground,
+    }).trim();
   }
 
   /**

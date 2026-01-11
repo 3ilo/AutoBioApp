@@ -18,7 +18,14 @@ import '../utils/auth'; // Import to ensure Request type extension is loaded
 
 // Environment variables
 const USE_BEDROCK_FALLBACK = process.env.USE_BEDROCK_FALLBACK === 'true'; // Only true if explicitly enabled
-const USE_STUB = process.env.USE_STUB === 'true'; 
+
+// Granular stub flags for each service
+// Allows independent control over which services are stubbed
+const USE_STUB_SUMMARIZATION = process.env.USE_STUB_SUMMARIZATION === 'true';
+const USE_STUB_PROMPT_ENHANCEMENT = process.env.USE_STUB_PROMPT_ENHANCEMENT === 'true';
+const USE_STUB_MEMORY_SUMMARY = process.env.USE_STUB_MEMORY_SUMMARY === 'true';
+// Legacy: USE_STUB still works as a master switch for backward compatibility
+const USE_STUB = process.env.USE_STUB === 'true';
 
 // Types
 interface GenerateImageRequest {
@@ -41,14 +48,14 @@ interface GenerateImageRequest {
   };
 }
 
-// Initialize services (use stubs if USE_STUB is enabled)
-const summarizationService = USE_STUB 
+// Initialize services (use stubs if individual flags or master USE_STUB is enabled)
+const summarizationService = (USE_STUB || USE_STUB_SUMMARIZATION)
   ? summarizationStubService 
   : bedrockSummarizationService;
-const promptEnhancementService = USE_STUB
+const promptEnhancementService = (USE_STUB || USE_STUB_PROMPT_ENHANCEMENT)
   ? promptEnhancementStubService
   : contextBasedPromptEnhancementService;
-const memorySummaryService = USE_STUB
+const memorySummaryService = (USE_STUB || USE_STUB_MEMORY_SUMMARY)
   ? memorySummaryStubService
   : bedrockMemorySummaryService;
 

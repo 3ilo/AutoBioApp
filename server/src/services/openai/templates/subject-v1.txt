@@ -1,0 +1,4 @@
+The subject is{{#if gender}} {{gender}}{{/if}}{{#if age}} aged {{age}}{{/if}} named {{firstName}} {{lastName}}. Use the provided reference image to accurately preserve {{firstName}}'s identity and facial features throughout the illustration.{{#if recentMemoriesContext}}
+
+Context from recent memories: {{recentMemoriesContext}}{{/if}}
+

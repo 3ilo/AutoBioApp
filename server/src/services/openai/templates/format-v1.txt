@@ -1,0 +1,15 @@
+[SUBJECT]
+{{subject}}
+
+[IDENTITY CONSTRAINTS]
+{{identityConstraints}}
+
+[STYLE CONSTRAINTS]
+{{styleConstraints}}
+
+[SCENE]
+{{scene}}
+
+[COMPOSITION]
+{{composition}}
+

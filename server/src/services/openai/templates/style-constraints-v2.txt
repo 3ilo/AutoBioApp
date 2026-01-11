@@ -1,0 +1,6 @@
+- Style: Professional hand-drawn illustration with clean linework
+- Color palette: Monochrome
+- Quality: High quality, professional.
+- Aesthetic: Personal, nostalgic, autobiographical memoir style{{#if preferredStyle}}
+- User preference: Incorporate {{preferredStyle}} elements{{/if}}
+

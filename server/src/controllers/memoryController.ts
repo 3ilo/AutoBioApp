@@ -7,11 +7,13 @@ import { memorySummaryStubService } from '../services/stubs/memorySummaryStubSer
 import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';
 
-// Environment variable
-const USE_STUB = process.env.USE_STUB === 'true'; 
+// Granular stub flags for memory summary service
+// Legacy: USE_STUB still works as a master switch for backward compatibility
+const USE_STUB = process.env.USE_STUB === 'true';
+const USE_STUB_MEMORY_SUMMARY = process.env.USE_STUB_MEMORY_SUMMARY === 'true';
 
-// Initialize memory summary service (use stub if USE_STUB is enabled)
-const memorySummaryService = USE_STUB
+// Initialize memory summary service (use stub if individual flag or master USE_STUB is enabled)
+const memorySummaryService = (USE_STUB || USE_STUB_MEMORY_SUMMARY)
   ? memorySummaryStubService
   : bedrockMemorySummaryService;
 

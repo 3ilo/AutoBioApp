@@ -1,0 +1,7 @@
+- Name: {{firstName}} {{lastName}}
+{{#if age}}- Age appearance: {{ageDescription}}{{/if}}
+{{#if gender}}- Gender presentation: {{gender}}{{/if}}
+{{#if culturalBackground}}- Cultural/ethnic appearance: {{culturalBackground}}{{/if}}
+{{#if occupation}}- Professional context: {{occupation}} (may influence attire in relevant scenes){{/if}}
+{{#unless hasConstraints}}- Maintain consistent facial features and body type from reference image{{/unless}}
+

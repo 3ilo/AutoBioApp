@@ -1,8 +1,10 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { IMemory } from '../../../shared/types/Memory';
 import { IUser } from '../../../shared/types/User';
+import { Memory } from '../models/Memory';
 import logger from '../utils/logger';
 import { getAwsClientConfig } from '../utils/env';
+import { bedrockMemorySummaryService } from './memorySummaryService';
 
 // Configuration interface for summarization
 export interface SummarizationConfig {
@@ -19,6 +21,20 @@ export interface SummarizationService {
     currentMemoryPrompt: string,
     currentMemoryTitle: string
   ): Promise<string>;
+  /**
+   * Fetch recent memories for a user, generate summaries if needed, and aggregate them
+   * This encapsulates the logic for managing recent memory aggregation and summarization
+   */
+  fetchAndSummarizeRecentMemories(
+    userId: string,
+    user: IUser,
+    currentMemoryContent: string,
+    currentMemoryTitle: string,
+    options?: {
+      limit?: number;
+      summaryLength?: 'sentence' | 'paragraph' | 'detailed';
+    }
+  ): Promise<string | undefined>;
 }
 
 // Bedrock implementation of summarization service
@@ -228,6 +244,81 @@ Please distill the current memory into a simple description following the I {VER
     const currentMemoryHash = `${currentMemoryTitle}:${currentMemoryPrompt}`.replace(/\s+/g, '_').substring(0, 50);
     
     return `summary:${userId}:${memoryIds}:${configHash}:${currentMemoryHash}`;
+  }
+
+  /**
+   * Fetch recent memories, generate summaries if needed, and aggregate them
+   */
+  async fetchAndSummarizeRecentMemories(
+    userId: string,
+    user: IUser,
+    currentMemoryContent: string,
+    currentMemoryTitle: string,
+    options: {
+      limit?: number;
+      summaryLength?: 'sentence' | 'paragraph' | 'detailed';
+    } = {}
+  ): Promise<string | undefined> {
+    const limit = options.limit || 5;
+    const summaryLength = options.summaryLength || 'paragraph';
+
+    try {
+      const recentMemories = await Memory.find({ author: userId })
+        .sort({ date: -1 })
+        .limit(limit)
+        .lean();
+
+      if (recentMemories.length === 0) {
+        return undefined;
+      }
+
+      // Generate missing summaries on-demand
+      const memoriesWithSummaries = await Promise.all(
+        recentMemories.map(async (memory: IMemory) => {
+          if (!memory.summary) {
+            logger.info('Generating memory summary', { memoryId: memory._id });
+            try {
+              const summary = await bedrockMemorySummaryService.generateMemorySummary(
+                memory,
+                user,
+                { summaryLength: 'brief', includeUserContext: true }
+              );
+              
+              // Update memory with generated summary
+              await Memory.findByIdAndUpdate(memory._id, { summary });
+              return { ...memory, summary };
+            } catch (error) {
+              logger.error('Failed to generate memory summary', { 
+                memoryId: memory._id, 
+                error: (error as Error).message 
+              });
+              return { 
+                ...memory, 
+                summary: `Memory about ${memory.title} from ${new Date(memory.date).toLocaleDateString()}` 
+              };
+            }
+          }
+          return memory;
+        })
+      );
+
+      // Generate aggregated summary of recent memories
+      const aggregatedSummary = await this.summarizeMemories(
+        memoriesWithSummaries,
+        user,
+        { maxMemories: limit, summaryLength },
+        currentMemoryContent,
+        currentMemoryTitle
+      );
+
+      return aggregatedSummary;
+    } catch (error) {
+      logger.warn('Failed to fetch and summarize recent memories', {
+        userId,
+        error: (error as Error).message
+      });
+      return undefined;
+    }
   }
 }
 

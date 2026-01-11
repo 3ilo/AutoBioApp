@@ -1,0 +1,8 @@
+Memory Title: {{title}}
+Memory Content: {{content}}
+Date: {{formattedDate}}
+{{#if tags}}Tags: {{tags}}{{/if}}
+{{#if userLocation}}User's typical location: {{userLocation}}{{/if}}
+
+Describe the visual scene for this memory:
+

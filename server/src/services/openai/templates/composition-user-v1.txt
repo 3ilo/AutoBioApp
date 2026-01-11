@@ -1,0 +1,5 @@
+Memory Title: {{title}}
+Memory Content: {{content}}
+
+Describe the ideal composition for illustrating this memory:
+

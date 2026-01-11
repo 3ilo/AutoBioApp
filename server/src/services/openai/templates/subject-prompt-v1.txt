@@ -1,0 +1,22 @@
+[SUBJECT]
+Create a professional illustrated portrait of {{firstName}} {{lastName}}. Use the provided reference image to accurately capture {{firstName}}'s facial features, expression, and likeness.
+
+[IDENTITY CONSTRAINTS]
+- Maintain exact facial features from reference image{{#if gender}}
+- Gender: {{gender}}{{/if}}{{#if age}}
+- Age: approximately {{age}} years old{{/if}}{{#if culturalBackground}}
+- Ethnicity/background: {{culturalBackground}}{{/if}}
+
+[STYLE CONSTRAINTS]
+- Style: Professional sketch-art style illustration with clean linework
+- Color palette: Monochrome
+- Quality: Minimal line work that includes the main form and expression without fully rendering textures or fine detail.
+- Background: White
+- Mood: Warm, neutral, professional
+
+[COMPOSITION]
+- Framing: Head and shoulders portrait, centered
+- Perspective: Eye level, slight three-quarter view for dimension
+- Expression: Natural, warm, friendly
+- Lighting: Soft, even lighting from front-left
+
