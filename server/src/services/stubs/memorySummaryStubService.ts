@@ -1,7 +1,7 @@
 import logger from '../../utils/logger';
 import { IMemory } from '../../../../shared/types/Memory';
 import { IUser } from '../../../../shared/types/User';
-import { MemorySummaryService, MemorySummaryConfig } from '../memorySummaryService';
+import { MemorySummaryService, MemorySummaryConfig } from '../memorySummarizers/memorySummaryService';
 
 /**
  * Stub service for individual memory summaries in dev/stub mode

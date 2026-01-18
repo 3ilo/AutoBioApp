@@ -1,8 +1,9 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { IMemory } from '../../../shared/types/Memory';
-import { IUser } from '../../../shared/types/User';
-import logger from '../utils/logger';
-import { getAwsClientConfig } from '../utils/env';
+import { IMemory } from '../../../../shared/types/Memory';
+import { IUser } from '../../../../shared/types/User';
+import logger from '../../utils/logger';
+import { getAwsClientConfig } from '../../utils/env';
+import { calculateBedrockCost, formatCost } from '../../utils/costCalculator';
 
 // Configuration for individual memory summaries
 export interface MemorySummaryConfig {
@@ -68,6 +69,35 @@ export class BedrockMemorySummaryService implements MemorySummaryService {
       
       if (!response.output) {
         throw new Error('No response body from Bedrock');
+      }
+
+      // Log token usage and cost from Bedrock response
+      const usage = response.usage;
+      if (usage) {
+        const cost = calculateBedrockCost({
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          totalTokens: usage.totalTokens,
+          cacheReadInputTokens: usage.cacheReadInputTokens,
+          cacheWriteInputTokens: usage.cacheWriteInputTokens,
+        });
+        
+        logger.info('Bedrock API call - Memory Summary Generation', {
+          service: 'BedrockMemorySummaryService',
+          modelId: this.SUMMARY_MODEL_ID,
+          memoryId: memory._id,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          totalTokens: usage.totalTokens,
+          cacheReadInputTokens: usage.cacheReadInputTokens,
+          cacheWriteInputTokens: usage.cacheWriteInputTokens,
+          cost: {
+            inputCost: formatCost(cost.inputCost),
+            outputCost: formatCost(cost.outputCost),
+            totalCost: formatCost(cost.totalCost),
+            ...(cost.cacheSavings !== undefined && { cacheSavings: formatCost(cost.cacheSavings) }),
+          },
+        });
       }
 
       const summary = response?.output?.message?.content?.flatMap((content) =>

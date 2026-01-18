@@ -6,6 +6,12 @@ export interface BaseMemoryIllustrationOptions {
   negativePrompt?: string;
   /** Style prompt for consistent aesthetics */
   stylePrompt?: string;
+  /** Memory title for context-aware prompt building */
+  memoryTitle?: string;
+  /** Memory content (raw, unenhanced) for context-aware prompt building */
+  memoryContent?: string;
+  /** Memory date for context-aware prompt building */
+  memoryDate?: Date | string;
 }
 
 /**
@@ -22,6 +28,8 @@ export interface BaseSubjectIllustrationOptions {
  * SDXL-specific options for memory illustrations
  */
 export interface SDXLMemoryIllustrationOptions extends BaseMemoryIllustrationOptions {
+  /** Discriminator to identify SDXL options */
+  provider: 'sdxl';
   /** Number of inference steps */
   numInferenceSteps?: number;
   /** IP adapter scale for subject consistency */
@@ -34,6 +42,8 @@ export interface SDXLMemoryIllustrationOptions extends BaseMemoryIllustrationOpt
  * SDXL-specific options for subject illustrations
  */
 export interface SDXLSubjectIllustrationOptions extends BaseSubjectIllustrationOptions {
+    /** Discriminator to identify OpenAI options */
+    provider: 'sdxl';
   /** Number of inference steps */
   numInferenceSteps?: number;
   /** IP adapter scale for subject consistency */
@@ -46,24 +56,22 @@ export interface SDXLSubjectIllustrationOptions extends BaseSubjectIllustrationO
  * OpenAI-specific options for memory illustrations
  */
 export interface OpenAIMemoryIllustrationOptions extends BaseMemoryIllustrationOptions {
+  /** Discriminator to identify OpenAI options */
+  provider: 'openai';
   /** OpenAI model to use (default: gpt-image-1.5) */
   model?: string;
   /** Image size (default: 1024x1024) */
   size?: string;
   /** Image quality: 'low' | 'high' (default: 'low') */
   quality?: 'low' | 'high';
-  /** Memory title for context-aware prompt building */
-  memoryTitle?: string;
-  /** Memory content (raw, unenhanced) for context-aware prompt building */
-  memoryContent?: string;
-  /** Memory date for context-aware prompt building */
-  memoryDate?: Date | string;
 }
 
 /**
  * OpenAI-specific options for subject illustrations
  */
 export interface OpenAISubjectIllustrationOptions extends BaseSubjectIllustrationOptions {
+  /** Discriminator to identify OpenAI options */
+  provider: 'openai';
   /** OpenAI model to use (default: gpt-image-1.5) */
   model?: string;
   /** Image size (default: 1024x1024) */
@@ -87,9 +95,8 @@ export type SubjectIllustrationOptions = SDXLSubjectIllustrationOptions | OpenAI
 /**
  * Abstract interface for illustration generation services.
  * Implementations include:
- * - SDXLIllustrationService: Self-hosted SDXL with IP-Adapter
- * - OpenAIIllustrationService: OpenAI gpt-image-1.5
- * - IllustrationStubService: Dev/test stub
+ * - IllustrationOrchestratorService: Orchestrates the full pipeline (recommended)
+ * - IllustrationService: SDXL service for LoRA training (legacy, still used for training)
  * 
  * Note: Concrete implementations should extend this interface with provider-specific option types.
  */
@@ -106,7 +113,7 @@ export interface IIllustrationService {
   generateMemoryIllustration(
     userId: string,
     prompt: string,
-    options?: BaseMemoryIllustrationOptions
+    options?: OpenAIMemoryIllustrationOptions | SDXLMemoryIllustrationOptions
   ): Promise<string>;
 
   /**

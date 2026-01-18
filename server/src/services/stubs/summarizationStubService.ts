@@ -1,13 +1,13 @@
 import logger from '../../utils/logger';
 import { IMemory } from '../../../../shared/types/Memory';
 import { IUser } from '../../../../shared/types/User';
-import { SummarizationService, SummarizationConfig } from '../summarizationService';
+import { ContextSummarizationService, SummarizationConfig } from '../contextSummarizers/summarizationService';
 
 /**
- * Stub service for memory summarization in dev/stub mode
+ * Stub service for context summarization in dev/stub mode
  * Returns mock summaries without actually calling AWS Bedrock
  */
-export class SummarizationStubService implements SummarizationService {
+export class ContextSummarizationStubService implements ContextSummarizationService {
   async summarizeMemories(
     memories: IMemory[],
     user: IUser,
@@ -41,5 +41,5 @@ export class SummarizationStubService implements SummarizationService {
 }
 
 // Export singleton instance
-export const summarizationStubService = new SummarizationStubService();
+export const contextSummarizationStubService = new ContextSummarizationStubService();
 

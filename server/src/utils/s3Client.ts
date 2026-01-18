@@ -149,6 +149,39 @@ class S3ClientSingleton {
   }
 
   /**
+   * Get an object from S3 and return as base64 string
+   */
+  public async getObjectAsBase64(bucket: string, key: string): Promise<string> {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      });
+
+      const response = await this.s3Client.send(command);
+      
+      if (!response.Body) {
+        throw new Error(`No body returned from S3 for key: ${key}`);
+      }
+
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+      
+      return buffer.toString('base64');
+    } catch (error: any) {
+      if (error.name === 'NoSuchKey') {
+        logger.debug('Object not found in S3', { bucket, key });
+        throw new Error(`S3 object not found: ${key}`);
+      }
+      logger.error('Failed to fetch object from S3', { bucket, key, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
    * Get the S3 key for a user's subject image
    */
   public getSubjectKey(userId: string): string {

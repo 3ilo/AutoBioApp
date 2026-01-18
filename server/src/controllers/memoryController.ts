@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Memory } from '../models/Memory';
 import { User } from '../models/User';
 import { AppError } from '../utils/errorHandler';
-import { bedrockMemorySummaryService } from '../services/memorySummaryService';
+import { bedrockMemorySummaryService } from '../services/memorySummarizers/memorySummaryService';
 import { memorySummaryStubService } from '../services/stubs/memorySummaryStubService';
 import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';

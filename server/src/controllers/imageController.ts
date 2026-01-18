@@ -2,27 +2,19 @@ import { Request, Response } from 'express';
 import { ApiResponse } from '../../../shared/types/ApiResponse';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
-import { bedrockSummarizationService } from '../services/summarizationService';
-import { contextBasedPromptEnhancementService } from '../services/promptEnhancementService';
-import { bedrockMemorySummaryService } from '../services/memorySummaryService';
+import { bedrockContextSummarizationService } from '../services/contextSummarizers/summarizationService';
+import { bedrockMemorySummaryService } from '../services/memorySummarizers/memorySummaryService';
 import { loraService } from '../services/loraService';
-import { summarizationStubService } from '../services/stubs/summarizationStubService';
+import { contextSummarizationStubService } from '../services/stubs/summarizationStubService';
 import { memorySummaryStubService } from '../services/stubs/memorySummaryStubService';
-import { promptEnhancementStubService } from '../services/stubs/promptEnhancementStubService';
-import { generateImageBedrock, uploadToS3 } from '../services/bedrockImageService';
 import { getIllustrationService, getConfiguredProvider } from '../services/illustrationServiceFactory';
-import { User } from '../models/User';
-import { Memory } from '../models/Memory';
+import { OpenAIMemoryIllustrationOptions, SDXLMemoryIllustrationOptions } from '../services/interfaces/IIllustrationService';
 import { s3Client } from '../utils/s3Client';
 import '../utils/auth'; // Import to ensure Request type extension is loaded
-
-// Environment variables
-const USE_BEDROCK_FALLBACK = process.env.USE_BEDROCK_FALLBACK === 'true'; // Only true if explicitly enabled
 
 // Granular stub flags for each service
 // Allows independent control over which services are stubbed
 const USE_STUB_SUMMARIZATION = process.env.USE_STUB_SUMMARIZATION === 'true';
-const USE_STUB_PROMPT_ENHANCEMENT = process.env.USE_STUB_PROMPT_ENHANCEMENT === 'true';
 const USE_STUB_MEMORY_SUMMARY = process.env.USE_STUB_MEMORY_SUMMARY === 'true';
 // Legacy: USE_STUB still works as a master switch for backward compatibility
 const USE_STUB = process.env.USE_STUB === 'true';
@@ -49,111 +41,12 @@ interface GenerateImageRequest {
 }
 
 // Initialize services (use stubs if individual flags or master USE_STUB is enabled)
-const summarizationService = (USE_STUB || USE_STUB_SUMMARIZATION)
-  ? summarizationStubService 
-  : bedrockSummarizationService;
-const promptEnhancementService = (USE_STUB || USE_STUB_PROMPT_ENHANCEMENT)
-  ? promptEnhancementStubService
-  : contextBasedPromptEnhancementService;
+const contextSummarizationService = (USE_STUB || USE_STUB_SUMMARIZATION)
+  ? contextSummarizationStubService 
+  : bedrockContextSummarizationService;
 const memorySummaryService = (USE_STUB || USE_STUB_MEMORY_SUMMARY)
   ? memorySummaryStubService
   : bedrockMemorySummaryService;
-
-// Helper function to craft the basic prompt (fallback)
-function craftBasicPrompt(data: GenerateImageRequest): string {
-  const date = new Date(data.date);
-  const formattedDate = date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  return `Create a whimsical illustration for a memory titled "${data.title}" from ${formattedDate}. 
-The memory content is: "${data.content}"
-
-Style requirements:
-- Whimsical illustration style
-- Soft, warm color palette
-- Storybook aesthetic with subtle textures
-- Use watercolor-like effects for depth
-- Include subtle details that reflect the memory's content
-- Keep the composition balanced and harmonious
-
-The image should feel like a cherished page from a personal autobiography, capturing the essence of the memory while maintaining simple but stylish quality.`;
-}
-
-// Helper function to craft enhanced prompt with user context
-async function craftEnhancedPrompt(data: GenerateImageRequest, userId: string): Promise<string> {
-  try {
-    // Get user data
-    const user = await User.findById(userId);
-    if (!user) {
-      logger.warn('User not found for prompt enhancement, using basic prompt', { userId });
-      return craftBasicPrompt(data);
-    }
-
-    // Get recent memories
-    const recentMemories = await Memory.find({ author: userId })
-      .sort({ date: -1 })
-      .limit(5)
-      .lean();
-
-    // Generate missing summaries on-demand
-    const memoriesWithSummaries = await Promise.all(
-      recentMemories.map(async (memory) => {
-        if (!memory.summary) {
-          try {
-            const summary = await memorySummaryService.generateMemorySummary(
-              memory,
-              user.toObject() as any,
-              { summaryLength: 'brief', includeUserContext: true }
-            );
-            
-            // Update memory with generated summary
-            await Memory.findByIdAndUpdate(memory._id, { summary });
-            return { ...memory, summary };
-          } catch (error) {
-            logger.error('Failed to generate memory summary', { 
-              memoryId: memory._id, 
-              error: (error as Error).message 
-            });
-            // Use fallback summary
-            return { 
-              ...memory, 
-              summary: `Memory about ${memory.title} from ${new Date(memory.date).toLocaleDateString()}` 
-            };
-          }
-        }
-        return memory;
-      })
-    );
-
-    // Generate memory summary using pre-generated summaries
-    const memorySummary = await summarizationService.summarizeMemories(
-      memoriesWithSummaries,
-      user.toObject() as any,
-      { maxMemories: 5, summaryLength: 'paragraph' },
-      data.content,
-      data.title
-    );
-
-    // Create enhanced prompt
-    const enhancedPrompt = await promptEnhancementService.createEnhancedPrompt(
-      { title: data.title, content: data.content, date: data.date },
-      user.toObject() as any,
-      memorySummary
-    );
-
-    return enhancedPrompt;
-  } catch (error) {
-    logger.error('Failed to create enhanced prompt, using basic prompt', { 
-      userId, 
-      error: (error as Error).message 
-    });
-    // Fallback to basic prompt
-    return craftBasicPrompt(data);
-  }
-}
 
 // Helper function to check if illustration service is available
 async function isIllustrationServiceAvailable(): Promise<boolean> {
@@ -210,44 +103,49 @@ export async function generateImage(req: Request, res: Response) {
         ...requestOptions,
       };
 
-      // Provider-specific prompt handling
+      // Provider-specific prompt handling with discriminated union types
       if (provider === 'sdxl') {
-        // SDXL: Craft enhanced prompt with memory summarization and context
-        const prompt = await craftEnhancedPrompt({ title, content, date }, userId);
-        const styleEnhancedPrompt = prompt;
-        
-        options.stylePrompt = requestOptions?.stylePrompt || styleEnhancedPrompt;
-        options.ipAdapterScale = requestOptions?.ipAdapterScale ?? 0.4;
-        if (loraId) {
-          options.loraId = loraId;
-        }
+        const sdxlOptions: SDXLMemoryIllustrationOptions = {
+          provider: 'sdxl',
+          memoryTitle: title,
+          memoryContent: content,
+          memoryDate: date,
+          stylePrompt: requestOptions?.stylePrompt,
+          negativePrompt: requestOptions?.negativePrompt,
+          ipAdapterScale: requestOptions?.ipAdapterScale ?? 0.4,
+          numInferenceSteps: requestOptions?.numInferenceSteps,
+          ...(loraId && { loraId }),
+        };
         
         imageURI = await illustrationService.generateMemoryIllustration(
           userId,
-          styleEnhancedPrompt,
-          options
+          content, // Pass raw content, orchestrator will build prompt
+          sdxlOptions
         );
       } else if (provider === 'openai') {
-        // OpenAI: Pass raw memory data and let OpenAI handle all prompt composition
-        // OpenAI service will fetch recent memories and build structured prompts internally
-        options.memoryTitle = title;
-        options.memoryContent = content; // Raw, unenhanced content
-        options.memoryDate = date;
+        const openAIOptions: OpenAIMemoryIllustrationOptions = {
+          provider: 'openai',
+          memoryTitle: title,
+          memoryContent: content, // Raw, unenhanced content
+          memoryDate: date,
+          model: requestOptions?.model,
+          size: requestOptions?.size,
+          quality: requestOptions?.quality,
+          stylePrompt: requestOptions?.stylePrompt,
+          negativePrompt: requestOptions?.negativePrompt,
+        };
         
-        // For OpenAI, we pass a placeholder prompt since it will be rebuilt
-        // The actual prompt building happens inside OpenAI service
         imageURI = await illustrationService.generateMemoryIllustration(
           userId,
-          content, // Pass raw content as placeholder
-          options
+          content, // Pass raw content, orchestrator will build prompt
+          openAIOptions
         );
       } else {
-        // Stub or other providers: use basic prompt
-
+        // Stub: use basic options
         imageURI = await illustrationService.generateMemoryIllustration(
           userId,
           content,
-          options
+          undefined
         );
       }
       
@@ -264,32 +162,10 @@ export async function generateImage(req: Request, res: Response) {
         error: (error as Error).message 
       });
       
-      // Only fall back to Bedrock if explicitly enabled and not using stub
-      if (USE_BEDROCK_FALLBACK && provider !== 'stub') {
-        logger.warn('Falling back to deprecated Bedrock service', { userId });
-        try {
-          // Craft prompt for Bedrock fallback
-          const fallbackPrompt = await craftEnhancedPrompt({ title, content, date }, userId);
-          const imageBuffer = await generateImageBedrock(fallbackPrompt);
-          const imageKey = `staging/${uuidv4()}.jpg`;
-          imageURI = await uploadToS3(imageBuffer, imageKey);
-          logger.info('Bedrock fallback succeeded', { userId, s3Uri: imageURI });
-        } catch (bedrockError) {
-          logger.error('Bedrock fallback failed', { 
-            userId, 
-            error: (bedrockError as Error).message 
-          });
-          return res.status(500).json({
-            status: 'fail',
-            message: 'Image generation failed',
-          });
-        }
-      } else {
-        return res.status(500).json({
-          status: 'fail',
-          message: 'Image generation failed',
-        });
-      }
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Image generation failed',
+      });
     }
 
     const response: ApiResponse<{ url: string }> = {

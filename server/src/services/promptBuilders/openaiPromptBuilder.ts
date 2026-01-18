@@ -6,6 +6,8 @@ import { getAwsClientConfig } from '../../utils/env';
 import Handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { IPromptBuilder, MemoryPromptInput } from '../interfaces/IPromptBuilder';
+import { calculateBedrockCost, formatCost } from '../../utils/costCalculator';
 
 /**
  * Input data for building an illustration prompt
@@ -41,7 +43,7 @@ export interface StructuredPrompt {
  * Uses LLM to intelligently generate SCENE and COMPOSITION based on memory content.
  * Uses template files for prompt structure, supporting different versions.
  */
-export class PromptBuilder {
+export class OpenAIPromptBuilder implements IPromptBuilder {
   private bedrockClient: BedrockRuntimeClient;
   private readonly MODEL_ID = process.env.BEDROCK_SUMMARY_MODEL_ID || 'amazon.nova-micro-v1:0';
   private readonly BEDROCK_REGION = process.env.BEDROCK_CLIENT_REGION || 'us-west-2';
@@ -113,9 +115,6 @@ export class PromptBuilder {
       this.generateSceneField(memory, user),
       this.generateCompositionField(memory, user),
     ]);
-
-    logger.info('scene', { scene });
-    logger.info('composition', { composition });
 
     return {
       subject,
@@ -219,8 +218,6 @@ export class PromptBuilder {
         userLocation: user.location,
       });
 
-      logger.info('userMessage', { userMessage });
-
       const scene = await this.callLLM(systemPrompt, userMessage);
       return scene;
     } catch (error) {
@@ -279,11 +276,55 @@ export class PromptBuilder {
 
     const response = await this.bedrockClient.send(command);
     
+    // Log token usage and cost from Bedrock response
+    const usage = response.usage;
+    if (usage) {
+      const cost = calculateBedrockCost({
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        cacheReadInputTokens: usage.cacheReadInputTokens,
+        cacheWriteInputTokens: usage.cacheWriteInputTokens,
+      });
+      
+      logger.info('Bedrock API call - Prompt Building', {
+        service: 'OpenAIPromptBuilder',
+        modelId: this.MODEL_ID,
+        operation: 'callLLM',
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        cacheReadInputTokens: usage.cacheReadInputTokens,
+        cacheWriteInputTokens: usage.cacheWriteInputTokens,
+        cost: {
+          inputCost: formatCost(cost.inputCost),
+          outputCost: formatCost(cost.outputCost),
+          totalCost: formatCost(cost.totalCost),
+          ...(cost.cacheSavings !== undefined && { cacheSavings: formatCost(cost.cacheSavings) }),
+        },
+      });
+    }
+    
     const text = response?.output?.message?.content
       ?.flatMap((content) => (content.text ? [content.text] : []))
       .join(' ') || '';
 
     return text.trim();
+  }
+
+  /**
+   * Build a memory prompt using structured prompt format
+   * Implements IPromptBuilder interface
+   */
+  async buildMemoryPrompt(input: MemoryPromptInput): Promise<string> {
+    const promptInput: PromptInput = {
+      memory: input.memory,
+      user: input.user,
+      memorySummary: input.recentMemoriesContext,
+    };
+
+    const structuredPrompt = await this.buildStructuredPrompt(promptInput);
+    return this.formatPromptForAPI(structuredPrompt);
   }
 
   /**
@@ -316,5 +357,5 @@ export class PromptBuilder {
 }
 
 // Export singleton instance
-export const promptBuilder = new PromptBuilder();
+export const openAIPromptBuilder = new OpenAIPromptBuilder();
 

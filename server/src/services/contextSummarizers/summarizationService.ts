@@ -1,10 +1,11 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { IMemory } from '../../../shared/types/Memory';
-import { IUser } from '../../../shared/types/User';
-import { Memory } from '../models/Memory';
-import logger from '../utils/logger';
-import { getAwsClientConfig } from '../utils/env';
-import { bedrockMemorySummaryService } from './memorySummaryService';
+import { IMemory } from '../../../../shared/types/Memory';
+import { IUser } from '../../../../shared/types/User';
+import { Memory } from '../../models/Memory';
+import logger from '../../utils/logger';
+import { getAwsClientConfig } from '../../utils/env';
+import { bedrockMemorySummaryService } from '../memorySummarizers/memorySummaryService';
+import { calculateBedrockCost, formatCost } from '../../utils/costCalculator';
 
 // Configuration interface for summarization
 export interface SummarizationConfig {
@@ -12,8 +13,8 @@ export interface SummarizationConfig {
   summaryLength: 'sentence' | 'paragraph' | 'detailed';
 }
 
-// Interface for summarization service
-export interface SummarizationService {
+// Interface for context summarization service
+export interface ContextSummarizationService {
   summarizeMemories(
     memories: IMemory[],
     user: IUser,
@@ -37,8 +38,8 @@ export interface SummarizationService {
   ): Promise<string | undefined>;
 }
 
-// Bedrock implementation of summarization service
-export class BedrockSummarizationService implements SummarizationService {
+// Bedrock implementation of context summarization service
+export class BedrockContextSummarizationService implements ContextSummarizationService {
   private bedrockClient: BedrockRuntimeClient;
   private cache: Map<string, { summary: string; timestamp: number }>;
   private readonly CACHE_TTL = 3600000; // 1 hour in milliseconds
@@ -133,6 +134,36 @@ export class BedrockSummarizationService implements SummarizationService {
     
     if (!response.output) {
       throw new Error('No response body from Bedrock');
+    }
+
+    // Log token usage and cost from Bedrock response
+    const usage = response.usage;
+    if (usage) {
+      const cost = calculateBedrockCost({
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        cacheReadInputTokens: usage.cacheReadInputTokens,
+        cacheWriteInputTokens: usage.cacheWriteInputTokens,
+      });
+      
+      logger.info('Bedrock API call - Context Summarization', {
+        service: 'BedrockContextSummarizationService',
+        modelId: this.SUMMARY_MODEL_ID,
+        userId: user._id,
+        memoryCount: memories.length,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        cacheReadInputTokens: usage.cacheReadInputTokens,
+        cacheWriteInputTokens: usage.cacheWriteInputTokens,
+        cost: {
+          inputCost: formatCost(cost.inputCost),
+          outputCost: formatCost(cost.outputCost),
+          totalCost: formatCost(cost.totalCost),
+          ...(cost.cacheSavings !== undefined && { cacheSavings: formatCost(cost.cacheSavings) }),
+        },
+      });
     }
 
     const summary = response?.output?.message?.content?.flatMap((content) =>
@@ -323,4 +354,4 @@ Please distill the current memory into a simple description following the I {VER
 }
 
 // Export singleton instance
-export const bedrockSummarizationService = new BedrockSummarizationService();
+export const bedrockContextSummarizationService = new BedrockContextSummarizationService();

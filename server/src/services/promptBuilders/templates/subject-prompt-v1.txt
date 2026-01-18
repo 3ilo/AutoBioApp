@@ -13,6 +13,7 @@ Create a professional illustrated portrait of {{firstName}} {{lastName}}. Use th
 - Quality: Minimal line work that includes the main form and expression without fully rendering textures or fine detail.
 - Background: White
 - Mood: Warm, neutral, professional
+- Clothing: Must be illustrated as a blank generic white t-shirt with no patterns, logos, or designs
 
 [COMPOSITION]
 - Framing: Head and shoulders portrait, centered
