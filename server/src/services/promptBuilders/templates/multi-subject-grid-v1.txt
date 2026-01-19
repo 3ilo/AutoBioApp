@@ -1,0 +1,9 @@
+[MULTIPLE SUBJECTS - GRID REFERENCE]
+{{gridDescription}}
+
+Subject details:
+{{#each subjects}}
+- {{name}}{{#if relationship}} ({{relationship}}){{/if}}{{#if isPrimary}} (primary subject){{/if}}{{#if deAgingInstruction}} - {{deAgingInstruction}}{{/if}}
+{{/each}}
+
+IMPORTANT: Use the grid positions to identify each person and accurately preserve their facial features and identity in the illustrated scene.

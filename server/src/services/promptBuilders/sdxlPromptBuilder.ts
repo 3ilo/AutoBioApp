@@ -1,6 +1,6 @@
 import { IUser } from '../../../../shared/types/User';
 import { IMemory } from '../../../../shared/types/Memory';
-import { IPromptBuilder, MemoryPromptInput } from '../interfaces/IPromptBuilder';
+import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput } from '../interfaces/IPromptBuilder';
 
 /**
  * Input data for building an SDXL illustration prompt
@@ -75,6 +75,37 @@ USER_CONTEXT: ${userContext}
 The image should match the style: ${styleSection}.
 
 IMPORTANT: Clothing must be illustrated as a blank generic white t-shirt with no patterns, logos, or designs.`;
+  }
+
+  /**
+   * Build a prompt for multi-subject grid-based illustrations (SDXL version)
+   */
+  buildMultiSubjectGridPrompt(input: MultiSubjectGridPromptInput): string {
+    const parts: string[] = [];
+    
+    parts.push('[MULTIPLE SUBJECTS - GRID REFERENCE]');
+    parts.push(input.gridDescription);
+    parts.push('');
+    parts.push('Subject details:');
+    
+    for (const subject of input.subjects) {
+      let line = `- ${subject.name}`;
+      if (subject.relationship) {
+        line += ` (${subject.relationship})`;
+      }
+      if (subject.isPrimary) {
+        line += ' (primary subject)';
+      }
+      if (subject.deAgingInstruction) {
+        line += ` - ${subject.deAgingInstruction}`;
+      }
+      parts.push(line);
+    }
+    
+    parts.push('');
+    parts.push('IMPORTANT: Use the grid positions to identify each person and accurately preserve their facial features and identity in the illustrated scene.');
+    
+    return parts.join('\n');
   }
 
   /**

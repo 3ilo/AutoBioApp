@@ -1,14 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useEditor, EditorContent, JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
+import Mention from '@tiptap/extension-mention';
 import { Underline } from '../components/editor/Underline';
 import { Toolbar } from '../components/editor/Toolbar';
-import { memoriesApi, imageGenerationApi } from '../services/api';
+import { createMentionSuggestionConfig } from '../components/editor/mentionSuggestionConfig';
+import { memoriesApi, imageGenerationApi, characterApi } from '../services/api';
 import { useApi } from '../hooks/useApi';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMemoryImage, IMemory } from '../../../shared/types/Memory';
+import { ICharacter, ITaggedCharacter } from '../types/character';
 import { useAuthStore } from '../stores/authStore';
 import { MemoryImage } from '../components/memories/MemoryImage';
 import { Memory } from '../components/memories/Memory';
@@ -39,6 +42,29 @@ export function Contribute() {
   const [images, setImages] = useState<MemoryImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<MemoryImage | null>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null); // For selecting confirmed images
+  const [characters, setCharacters] = useState<ICharacter[]>([]);
+
+  // Load characters for @mention functionality
+  useEffect(() => {
+    const loadCharacters = async () => {
+      try {
+        const response = await characterApi.getAll();
+        setCharacters(response.data.characters);
+        logger.debug('Characters loaded for mention', { count: response.data.characters.length });
+      } catch (error) {
+        logger.error('Failed to load characters for mention', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    };
+    loadCharacters();
+  }, []);
+
+  // Create mention suggestion config with characters
+  const mentionSuggestionConfig = useMemo(
+    () => createMentionSuggestionConfig({ characters }),
+    [characters]
+  );
 
   // Initialize images with presigned URLs when editing
   useEffect(() => {
@@ -136,6 +162,12 @@ export function Contribute() {
           class: 'max-w-full h-auto border-2 border-slate-200',
         },
       }),
+      Mention.configure({
+        HTMLAttributes: {
+          class: 'mention bg-indigo-100 text-indigo-700 px-1 rounded font-medium',
+        },
+        suggestion: mentionSuggestionConfig,
+      }),
     ],
     content: editingMemory?.content || '',
     editorProps: {
@@ -147,7 +179,7 @@ export function Contribute() {
         return false;
       },
     },
-  });
+  }, [mentionSuggestionConfig]);
 
   // Function to get random position within editor bounds
   const getRandomPosition = () => {
@@ -170,11 +202,17 @@ export function Contribute() {
     
     setIsGeneratingImage(true);
     try {
+      // Extract tagged character IDs from current editor content
+      const editorJson = editor.getJSON();
+      const taggedChars = extractTaggedCharacters(editorJson);
+      const taggedCharacterIds = taggedChars.map(tc => tc.characterId);
+
       const response = await imageGenerationApi.generate({
         title,
         content: editor.getText(),
         date: new Date(date),
         userId: user?._id, // Include user ID for enhanced prompts
+        taggedCharacterIds: taggedCharacterIds.length > 0 ? taggedCharacterIds : undefined,
       });
 
       // Convert S3 URI to pre-signed URL for display
@@ -255,6 +293,29 @@ export function Contribute() {
     setSelectedImageId(null);
   };
 
+  // Extract tagged characters from editor content
+  const extractTaggedCharacters = (content: JSONContent): ITaggedCharacter[] => {
+    const mentions: ITaggedCharacter[] = [];
+    
+    const traverse = (node: JSONContent) => {
+      if (node.type === 'mention' && node.attrs?.id && node.attrs?.label) {
+        // Avoid duplicates
+        if (!mentions.some(m => m.characterId === node.attrs.id)) {
+          mentions.push({
+            characterId: node.attrs.id,
+            displayName: node.attrs.label,
+          });
+        }
+      }
+      if (node.content) {
+        node.content.forEach(traverse);
+      }
+    };
+    
+    traverse(content);
+    return mentions;
+  };
+
   const handleSave = async () => {
     if (!editor || !title) return;
 
@@ -295,6 +356,10 @@ export function Contribute() {
         }
       }
 
+      // Extract tagged characters from editor content
+      const editorJson = editor.getJSON();
+      const taggedCharacters = extractTaggedCharacters(editorJson);
+
       const memoryData = {
         title,
         content: editor.getHTML(),
@@ -303,6 +368,7 @@ export function Contribute() {
         mainImage,
         images: secondaryImages,
         tags: [], // TODO: Add tag input
+        taggedCharacters,
       };
 
       if (isEditing && editingMemory?._id) {

@@ -38,7 +38,9 @@ export interface SDXLImageGenerationOptions extends BaseImageGenerationOptions {
 export interface ImageGenerationInput {
   /** The prompt describing what to generate */
   prompt: string;
-  /** Reference image in base64 format (for subject consistency) */
+  /** Reference image in base64 format (for subject consistency)
+   * For multi-person scenes, the orchestrator combines multiple images into
+   * a single grid image before passing to the generator */
   referenceImageBase64?: string;
   /** User ID for context (optional, may be used for logging or caching) */
   userId?: string;

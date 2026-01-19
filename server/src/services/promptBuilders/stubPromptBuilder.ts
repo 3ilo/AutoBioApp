@@ -1,4 +1,4 @@
-import { IPromptBuilder, MemoryPromptInput } from '../interfaces/IPromptBuilder';
+import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput } from '../interfaces/IPromptBuilder';
 import { IUser } from '../../../../shared/types/User';
 
 /**
@@ -12,6 +12,11 @@ export class StubPromptBuilder implements IPromptBuilder {
 
   buildSubjectPrompt(user: IUser): string {
     return `[STUB] Create a professional illustrated portrait of ${user.firstName} ${user.lastName}. Clothing must be a blank generic white t-shirt.`;
+  }
+
+  buildMultiSubjectGridPrompt(input: MultiSubjectGridPromptInput): string {
+    const subjectNames = input.subjects.map(s => s.name).join(', ');
+    return `[STUB] Multi-subject illustration with ${input.subjects.length} people: ${subjectNames}. ${input.gridDescription}`;
   }
 }
 

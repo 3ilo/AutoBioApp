@@ -6,7 +6,7 @@ import { getAwsClientConfig } from '../../utils/env';
 import Handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
-import { IPromptBuilder, MemoryPromptInput } from '../interfaces/IPromptBuilder';
+import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput } from '../interfaces/IPromptBuilder';
 import { calculateBedrockCost, formatCost } from '../../utils/costCalculator';
 
 /**
@@ -341,6 +341,27 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
       gender: user.gender,
       age: user.age,
       culturalBackground: user.culturalBackground,
+    }).trim();
+  }
+
+  /**
+   * Build a prompt for multi-subject grid-based illustrations
+   * Uses template-based approach with per-template versioning
+   * @param input - Grid layout description and subject data
+   */
+  buildMultiSubjectGridPrompt(input: MultiSubjectGridPromptInput): string {
+    const version = this.getTemplateVersion('multi-subject-grid');
+    const template = this.loadTemplate('multi-subject-grid', version);
+    
+    logger.info('PromptBuilder: Building multi-subject grid prompt from template', {
+      templateVersion: version || this.DEFAULT_VERSION,
+      gridDescriptionLength: input.gridDescription.length,
+      subjectCount: input.subjects.length,
+    });
+    
+    return template({
+      gridDescription: input.gridDescription,
+      subjects: input.subjects,
     }).trim();
   }
 

@@ -57,23 +57,32 @@ export class OpenAIImageGenerator implements IImageGenerator {
       model, 
       size, 
       quality,
-      promptLength: input.prompt.length 
+      promptLength: input.prompt.length,
     });
 
     try {
-      const imageBuffer = Buffer.from(input.referenceImageBase64, 'base64');
       const formData = new FormData();
       formData.append('model', model);
+      
+      // OpenAI's /v1/images/edits endpoint accepts ONE reference image
+      // For multi-person illustrations, the orchestrator stitches multiple images
+      // into a single grid before calling this generator
+      const imageBuffer = Buffer.from(input.referenceImageBase64, 'base64');
       formData.append('image', imageBuffer, {
         filename: 'reference.png',
         contentType: 'image/png',
       });
+      
       formData.append('prompt', input.prompt);
       formData.append('n', '1');
       formData.append('size', size);
       formData.append('quality', quality);
 
-      logger.debug('OpenAI API request params', { model, quality, size });
+      logger.debug('OpenAI API request params', { 
+        model, 
+        quality, 
+        size,
+      });
 
       const response = await axios.post<OpenAIImageResponse>(
         'https://api.openai.com/v1/images/edits',

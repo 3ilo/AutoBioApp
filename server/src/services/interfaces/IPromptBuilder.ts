@@ -15,6 +15,24 @@ export interface MemoryPromptInput {
 }
 
 /**
+ * Subject data for multi-subject grid prompts
+ */
+export interface MultiSubjectData {
+  name: string;
+  relationship?: string;
+  isPrimary?: boolean;
+  deAgingInstruction?: string;
+}
+
+/**
+ * Input for building multi-subject grid prompts
+ */
+export interface MultiSubjectGridPromptInput {
+  gridDescription: string;
+  subjects: MultiSubjectData[];
+}
+
+/**
  * Interface for prompt builders.
  * Different providers (OpenAI, SDXL) have different prompt building strategies.
  */
@@ -32,5 +50,12 @@ export interface IPromptBuilder {
    * @returns The built prompt string
    */
   buildSubjectPrompt(user: IUser): string;
+
+  /**
+   * Build a prompt for multi-subject grid-based illustrations
+   * @param input - Grid layout and subject data
+   * @returns The built prompt string
+   */
+  buildMultiSubjectGridPrompt(input: MultiSubjectGridPromptInput): string;
 }
 

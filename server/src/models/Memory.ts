@@ -32,6 +32,10 @@ const memorySchema = new mongoose.Schema<IMemory>(
       size: { type: String, enum: ['small', 'medium', 'large'], required: false }
     }],
     tags: [{ type: String }],
+    taggedCharacters: [{
+      characterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Character', required: true },
+      displayName: { type: String, required: true }
+    }],
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     comments: [{

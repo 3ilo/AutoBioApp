@@ -1,4 +1,6 @@
 
+import { ITaggedCharacter } from './Character';
+
 export interface IComment {
   user: string | any; // User ID (ObjectId or string)
   content: string;
@@ -28,6 +30,7 @@ export interface IMemory {
   mainImage?: IMemoryImage; // Main image for MemoryCard display
   images: IMemoryImage[]; // Secondary images (ordered list)
   tags: string[];
+  taggedCharacters?: ITaggedCharacter[]; // Characters mentioned in memory for multi-person illustration
   author: string | any; // User ID (ObjectId or string)
   likes: (string | any)[]; // Array of User IDs (ObjectId or string)
   comments: IComment[];

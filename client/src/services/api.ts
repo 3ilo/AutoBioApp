@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import { IMemory } from '@shared/types/Memory';
 import { IUser } from '@shared/types/User';
+import { ICharacter, CreateCharacterInput, UpdateCharacterInput } from '../types/character';
 import logger from '../utils/logger';
 
 const api = axios.create({
@@ -173,7 +174,13 @@ export const exploreApi = {
 
 // Image Generation endpoints
 export const imageGenerationApi = {
-  generate: async (data: { title: string; content: string; date: Date; userId?: string }) => {
+  generate: async (data: { 
+    title: string; 
+    content: string; 
+    date: Date; 
+    userId?: string;
+    taggedCharacterIds?: string[];
+  }) => {
     const response = await api.post<ApiResponse<{ url: string }>>('/images/generate', data);
     return response.data;
   },
@@ -222,6 +229,56 @@ export const imageGenerationApi = {
     const response = await api.post<ApiResponse<{ presignedUrl: string }>>('/images/presigned-view-url', {
       s3Uri,
     });
+    return response.data;
+  },
+};
+
+// Character endpoints
+export const characterApi = {
+  create: async (data: CreateCharacterInput) => {
+    const response = await api.post<ApiResponse<{ character: ICharacter }>>('/characters', data);
+    return response.data;
+  },
+
+  getAll: async () => {
+    const response = await api.get<ApiResponse<{ characters: ICharacter[] }>>('/characters');
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get<ApiResponse<{ character: ICharacter }>>(`/characters/${id}`);
+    return response.data;
+  },
+
+  update: async (id: string, data: UpdateCharacterInput) => {
+    const response = await api.patch<ApiResponse<{ character: ICharacter }>>(`/characters/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await api.delete<ApiResponse<null>>(`/characters/${id}`);
+    return response.data;
+  },
+
+  generatePresignedReferenceUploadUrl: async (characterId: string, contentType: string) => {
+    const response = await api.post<ApiResponse<{ uploadUrl: string; key: string }>>(
+      `/characters/${characterId}/presigned-reference-upload-url`,
+      { contentType }
+    );
+    return response.data;
+  },
+
+  updateReferenceImage: async (characterId: string) => {
+    const response = await api.post<ApiResponse<{ character: ICharacter }>>(
+      `/characters/${characterId}/reference-image`
+    );
+    return response.data;
+  },
+
+  generateAvatar: async (characterId: string) => {
+    const response = await api.post<ApiResponse<{ url: string; character: ICharacter }>>(
+      `/characters/${characterId}/generate-avatar`
+    );
     return response.data;
   },
 };

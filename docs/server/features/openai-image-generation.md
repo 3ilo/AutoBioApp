@@ -117,6 +117,26 @@ The OpenAI service fetches the user's canonical reference image from S3:
 3. Avatar is stored at `avatars/{userId}.png`
 4. All memory illustrations reference this avatar for subject consistency
 
+### Multi-Person Illustrations
+
+The system supports multi-person scenes by **stitching multiple reference images into a grid**:
+
+- **Grid composition**: Multiple reference images are combined into a single 1024×1024 image
+- **Position-based prompts**: Each person is identified by their grid position (e.g., "row 1, column 2")
+- **Character reference images**: Stored at `s3://{bucket}/characters/{userId}/{characterId}/reference.png`
+
+When characters are tagged in a memory:
+
+1. User's avatar is placed at position 1 in the grid (highest fidelity)
+2. Tagged character reference images are added to subsequent grid positions
+3. Images are stitched using the `sharp` library into a single combined image
+4. Prompts map grid positions to people: "position 1: John Smith, position 2: Jane Doe"
+5. Age-aware de-aging instructions are included when memory date is in the past
+
+This approach works around OpenAI's single-image limitation while preserving facial features for all subjects.
+
+See [Multi-Person Illustration](./multi-person-illustration.md) for detailed implementation.
+
 ## API Usage
 
 ### Generate Memory Illustration
@@ -129,7 +149,8 @@ Content-Type: application/json
   "title": "Morning Coffee Ritual",
   "content": "Started my day with a perfect cup of Ethiopian coffee...",
   "date": "2024-01-15",
-  "userId": "user123"
+  "userId": "user123",
+  "taggedCharacterIds": ["char1", "char2"]  // Optional: for multi-person illustrations
 }
 ```
 
@@ -171,6 +192,7 @@ The service includes fallback mechanisms:
 | Customization | Prompt-based | Fine-tuned models |
 | Latency | ~15-30s | ~15-30s |
 | Offline Support | No | Yes |
+| Multi-Person | Yes (multiple ref images) | Not currently supported |
 
 ## Switching Providers
 

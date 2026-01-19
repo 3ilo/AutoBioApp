@@ -25,6 +25,7 @@ interface GenerateImageRequest {
   content: string;
   date: Date;
   userId?: string; // Optional for backward compatibility
+  taggedCharacterIds?: string[]; // Character IDs mentioned in the memory
   // Provider-specific options (will be passed through based on configured provider)
   options?: {
     // SDXL options
@@ -61,7 +62,7 @@ async function isIllustrationServiceAvailable(): Promise<boolean> {
 
 export async function generateImage(req: Request, res: Response) {
   try {
-    const { title, content, date, userId, options: requestOptions } = req.body as GenerateImageRequest;
+    const { title, content, date, userId, taggedCharacterIds, options: requestOptions } = req.body as GenerateImageRequest;
     
     if (!title || !content || !date) {
       return res.status(400).json({
@@ -80,7 +81,7 @@ export async function generateImage(req: Request, res: Response) {
     const provider = getConfiguredProvider();
     const illustrationService = getIllustrationService();
 
-    logger.info('Generating memory illustration', { userId, provider, title, options: requestOptions });
+    logger.info('Generating memory illustration', { userId, provider, title, taggedCharacterIds, options: requestOptions });
 
     // Check if illustration service is available (skip for stub)
     if (provider !== 'stub' && !(await isIllustrationServiceAvailable())) {
@@ -133,6 +134,7 @@ export async function generateImage(req: Request, res: Response) {
           quality: requestOptions?.quality,
           stylePrompt: requestOptions?.stylePrompt,
           negativePrompt: requestOptions?.negativePrompt,
+          taggedCharacterIds: taggedCharacterIds,
         };
         
         imageURI = await illustrationService.generateMemoryIllustration(

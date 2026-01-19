@@ -11,6 +11,7 @@ const S3_SUBJECT_PREFIX = process.env.S3_SUBJECT_PREFIX || 'subjects/';
 const S3_AVATAR_PREFIX = process.env.S3_AVATAR_PREFIX || 'avatars/';
 const S3_GENERATED_PREFIX = process.env.S3_GENERATED_PREFIX || 'generated/';
 const S3_STUBS_PREFIX = process.env.S3_STUBS_PREFIX || 'stubs/';
+const S3_CHARACTER_PREFIX = process.env.S3_CHARACTER_PREFIX || 'characters/';
 
 // Singleton S3 client
 class S3ClientSingleton {
@@ -223,6 +224,95 @@ class S3ClientSingleton {
    */
   public getStubsPrefix(): string {
     return S3_STUBS_PREFIX;
+  }
+
+  /**
+   * Get the S3 character prefix
+   */
+  public getCharacterPrefix(): string {
+    return S3_CHARACTER_PREFIX;
+  }
+
+  /**
+   * Get the S3 key for a character's reference image
+   */
+  public getCharacterReferenceKey(userId: string, characterId: string): string {
+    return `${S3_CHARACTER_PREFIX}${userId}/${characterId}/reference.png`;
+  }
+
+  /**
+   * Get the S3 key for a character's avatar
+   */
+  public getCharacterAvatarKey(userId: string, characterId: string): string {
+    return `${S3_CHARACTER_PREFIX}${userId}/${characterId}/avatar.png`;
+  }
+
+  /**
+   * Generate a pre-signed URL for uploading a character reference image
+   */
+  public async generatePresignedCharacterReferenceUploadUrl(
+    userId: string,
+    characterId: string,
+    contentType: string
+  ): Promise<string> {
+    const key = this.getCharacterReferenceKey(userId, characterId);
+    
+    const command = new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    try {
+      const presignedUrl = await getSignedUrl(this.s3Client, command, { 
+        expiresIn: 3600 // 1 hour
+      });
+      
+      logger.debug('Generated presigned character reference upload URL', { userId, characterId, key });
+      return presignedUrl;
+    } catch (error) {
+      logger.error('Failed to generate presigned character reference upload URL', { 
+        userId,
+        characterId,
+        key, 
+        error: (error as Error).message 
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Generate a pre-signed URL for uploading a character avatar
+   */
+  public async generatePresignedCharacterAvatarUploadUrl(
+    userId: string,
+    characterId: string,
+    contentType: string
+  ): Promise<string> {
+    const key = this.getCharacterAvatarKey(userId, characterId);
+    
+    const command = new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    try {
+      const presignedUrl = await getSignedUrl(this.s3Client, command, { 
+        expiresIn: 3600 // 1 hour
+      });
+      
+      logger.debug('Generated presigned character avatar upload URL', { userId, characterId, key });
+      return presignedUrl;
+    } catch (error) {
+      logger.error('Failed to generate presigned character avatar upload URL', { 
+        userId,
+        characterId,
+        key, 
+        error: (error as Error).message 
+      });
+      throw error;
+    }
   }
 
   /**

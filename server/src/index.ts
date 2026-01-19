@@ -54,6 +54,7 @@ import memoryRoutes from './routes/memoryRoutes';
 import userRoutes from './routes/userRoutes';
 import imageRoutes from './routes/imageRoutes';
 import loraRoutes from './routes/loraRoutes';
+import characterRoutes from './routes/characterRoutes';
 import { handleError } from './utils/errorHandler';
 import { IS_SERVERLESS } from './utils/env';
 
@@ -91,6 +92,7 @@ app.use('/api/memories', memoryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/lora', loraRoutes);
+app.use('/api/characters', characterRoutes);
 
 // Error handling middleware
 app.use(handleError);

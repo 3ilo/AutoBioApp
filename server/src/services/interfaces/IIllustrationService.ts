@@ -12,6 +12,8 @@ export interface BaseMemoryIllustrationOptions {
   memoryContent?: string;
   /** Memory date for context-aware prompt building */
   memoryDate?: Date | string;
+  /** Tagged character IDs for multi-person illustration generation */
+  taggedCharacterIds?: string[];
 }
 
 /**
