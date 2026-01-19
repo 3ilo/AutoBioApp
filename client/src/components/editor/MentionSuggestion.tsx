@@ -77,7 +77,7 @@ export const MentionSuggestion = forwardRef<MentionSuggestionRef, MentionSuggest
             onClick={() => selectItem(index)}
             className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm ${
               index === selectedIndex
-                ? 'bg-indigo-50 text-indigo-700'
+                ? 'bg-indigo-50 text-indigo-900'
                 : 'text-slate-700 hover:bg-slate-50'
             }`}
           >

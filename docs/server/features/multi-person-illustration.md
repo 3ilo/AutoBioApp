@@ -224,7 +224,28 @@ import Mention from '@tiptap/extension-mention';
 
 Mention.configure({
   HTMLAttributes: {
-    class: 'mention bg-indigo-100 text-indigo-700 px-1 rounded font-medium',
+    class: 'mention',
+  },
+  renderLabel({ node }) {
+    // Display without @ prefix in the editor
+    return node.attrs.label;
+  },
+  renderText({ node }) {
+    // Display without @ prefix in plain text
+    return node.attrs.label;
+  },
+  renderHTML({ node }) {
+    // Customize HTML output to exclude @ symbol
+    return [
+      'span',
+      {
+        class: 'mention',
+        'data-type': 'mention',
+        'data-id': node.attrs.id,
+        'data-label': node.attrs.label,
+      },
+      node.attrs.label, // Just the name, no @
+    ];
   },
   suggestion: {
     items: ({ query }) => characters.filter(c => 
@@ -235,7 +256,7 @@ Mention.configure({
 });
 ```
 
-Mentions appear in the editor as styled spans with the character's name prefixed by @.
+Mentions appear in the editor and saved HTML as bold indigo text (without the @ prefix), making them visually distinctive in both the editor and rendered memory cards. The `renderHTML` function ensures the @ symbol is excluded from the saved HTML content.
 
 ## Limitations
 

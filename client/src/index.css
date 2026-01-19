@@ -329,3 +329,18 @@ body {
   min-width: 100vw;
   min-height: 100vh;
 }
+
+/* Character mention styles - indigo bold text */
+.mention {
+  font-weight: 700;
+  color: #4f46e5; /* indigo-600 */
+}
+
+/* Hide the @ symbol in mentions */
+.mention::before {
+  content: '';
+}
+
+.mention[data-id]::before {
+  content: '';
+}

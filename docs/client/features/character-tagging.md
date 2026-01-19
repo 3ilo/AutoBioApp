@@ -6,7 +6,7 @@ This document describes the character tagging feature in the client, which enabl
 
 Character tagging allows users to mention people (characters) in their memory text using the @ symbol. These mentions are:
 
-1. Highlighted in the editor with a distinctive style
+1. Displayed with bold indigo text (no background highlighting or @ prefix)
 2. Autocompleted from the user's character list
 3. Stored with the memory for use during illustration generation
 4. Used to include multiple people in generated illustrations
@@ -33,7 +33,28 @@ const editor = useEditor({
     // ... other extensions
     Mention.configure({
       HTMLAttributes: {
-        class: 'mention bg-indigo-100 text-indigo-700 px-1 rounded font-medium',
+        class: 'mention',
+      },
+      renderLabel({ node }) {
+        // Display without @ prefix in editor
+        return node.attrs.label;
+      },
+      renderText({ node }) {
+        // Display without @ prefix in plain text
+        return node.attrs.label;
+      },
+      renderHTML({ node }) {
+        // Customize HTML output to exclude @ symbol
+        return [
+          'span',
+          {
+            class: 'mention',
+            'data-type': 'mention',
+            'data-id': node.attrs.id,
+            'data-label': node.attrs.label,
+          },
+          node.attrs.label, // Just the name, no @
+        ];
       },
       suggestion: mentionSuggestionConfig,
     }),
@@ -128,20 +149,35 @@ const extractTaggedCharacters = (content: JSONContent): ITaggedCharacter[] => {
 ### Visual Styling
 
 Mentions appear with:
-- Indigo background (`bg-indigo-100`)
-- Indigo text (`text-indigo-700`)
-- Rounded corners
-- Font weight medium
+- Indigo text color (`#4f46e5` / indigo-600)
+- Bold font weight (`font-bold`)
+- No background or highlighting
+- No @ prefix in the display
 
 ```css
 .mention {
-  background-color: #e0e7ff;
-  color: #4338ca;
-  padding: 0 0.25rem;
-  border-radius: 0.25rem;
-  font-weight: 500;
+  font-weight: 700;
+  color: #4f46e5; /* indigo-600 */
 }
 ```
+
+The configuration uses three render functions to remove the @ prefix:
+- `renderLabel`: Controls how the mention displays in the editor
+- `renderText`: Controls how the mention appears in plain text extraction
+- `renderHTML`: Controls the HTML structure saved to the database
+
+Additionally, both `MemoryCard` and `Memory` components clean up @ symbols from existing saved content using a regex replacement:
+
+```typescript
+function cleanMentionSymbols(html: string): string {
+  return html.replace(
+    /(<span[^>]*class="[^"]*mention[^"]*"[^>]*>)@([^<]+)(<\/span>)/g,
+    '$1$2$3'
+  );
+}
+```
+
+This ensures mentions appear as just the character's name in bold indigo text, providing a clean and distinctive tagging experience that stands out in both the editor and rendered memory cards, regardless of when the memory was created.
 
 ## Data Flow
 

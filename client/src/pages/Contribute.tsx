@@ -164,7 +164,28 @@ export function Contribute() {
       }),
       Mention.configure({
         HTMLAttributes: {
-          class: 'mention bg-indigo-100 text-indigo-700 px-1 rounded font-medium',
+          class: 'mention',
+        },
+        renderLabel({ node }) {
+          // Remove the @ prefix in the editor, just show the name
+          return node.attrs.label;
+        },
+        renderText({ node }) {
+          // Remove the @ prefix in plain text extraction
+          return node.attrs.label;
+        },
+        renderHTML({ node }) {
+          // Customize the HTML output to exclude the @ symbol
+          return [
+            'span',
+            {
+              class: 'mention',
+              'data-type': 'mention',
+              'data-id': node.attrs.id,
+              'data-label': node.attrs.label,
+            },
+            node.attrs.label, // Just the name, no @
+          ];
         },
         suggestion: mentionSuggestionConfig,
       }),
@@ -299,11 +320,12 @@ export function Contribute() {
     
     const traverse = (node: JSONContent) => {
       if (node.type === 'mention' && node.attrs?.id && node.attrs?.label) {
+        const attrs = node.attrs; // Store attrs in a variable to satisfy TypeScript
         // Avoid duplicates
-        if (!mentions.some(m => m.characterId === node.attrs.id)) {
+        if (!mentions.some(m => m.characterId === attrs.id)) {
           mentions.push({
-            characterId: node.attrs.id,
-            displayName: node.attrs.label,
+            characterId: attrs.id,
+            displayName: attrs.label,
           });
         }
       }

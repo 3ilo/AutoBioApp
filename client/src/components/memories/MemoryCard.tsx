@@ -97,8 +97,11 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     }
   };
 
-  // Sanitize the HTML content
-  const sanitizedContent = DOMPurify.sanitize(memory.content);
+  // Sanitize the HTML content and remove @ symbols from mentions
+  const sanitizedContent = DOMPurify.sanitize(memory.content).replace(
+    /(<span[^>]*class="[^"]*mention[^"]*"[^>]*>)@([^<]+)(<\/span>)/g,
+    '$1$2$3'
+  );
 
   // Stop event propagation for buttons to prevent link navigation
   const handleButtonClick = (e: React.MouseEvent) => {

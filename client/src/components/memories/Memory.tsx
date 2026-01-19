@@ -9,6 +9,16 @@ interface MemoryProps {
 }
 
 /**
+ * Helper function to remove @ symbols from mention spans in HTML content
+ */
+function cleanMentionSymbols(html: string): string {
+  return html.replace(
+    /(<span[^>]*class="[^"]*mention[^"]*"[^>]*>)@([^<]+)(<\/span>)/g,
+    '$1$2$3'
+  );
+}
+
+/**
  * Detailed Memory component for edit/view mode
  * - Displays all images (main + secondary) with text wrapping
  * - Two-column layout on wide screens
@@ -32,7 +42,7 @@ export function Memory({ memory }: MemoryProps) {
   // Process content and inject images
   useEffect(() => {
     if (allImages.length === 0) {
-      const sanitized = DOMPurify.sanitize(memory.content);
+      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(memory.content));
       setContentNodes([<div key="content" dangerouslySetInnerHTML={{ __html: sanitized }} />]);
       return;
     }
@@ -47,7 +57,7 @@ export function Memory({ memory }: MemoryProps) {
     
     if (paragraphs.length === 0) {
       // No paragraphs, just sanitize and return
-      const sanitized = DOMPurify.sanitize(memory.content);
+      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(memory.content));
       setContentNodes([<div key="content" dangerouslySetInnerHTML={{ __html: sanitized }} />]);
       return;
     }
@@ -60,7 +70,7 @@ export function Memory({ memory }: MemoryProps) {
     paragraphs.forEach((paragraph, index) => {
       // Add paragraph
       const paragraphHtml = paragraph.outerHTML;
-      const sanitized = DOMPurify.sanitize(paragraphHtml);
+      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(paragraphHtml));
       nodes.push(
         <div 
           key={`para-${index}`} 
