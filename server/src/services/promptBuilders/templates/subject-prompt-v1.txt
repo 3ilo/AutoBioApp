@@ -10,13 +10,13 @@ Create a professional illustrated portrait of {{firstName}} {{lastName}}. Use th
 [STYLE CONSTRAINTS]
 - Style: Professional sketch-art style illustration with clean linework
 - Color palette: Monochrome
-- Quality: Minimal line work that includes the main form and expression without fully rendering textures or fine detail.
+- Quality: High quality professional sketch. Captures all characteristic details.
 - Background: White
-- Mood: Warm, neutral, professional
-- Clothing: Must be illustrated as a blank generic white t-shirt with no patterns, logos, or designs
+- Mood: neutral, professional, peaceful
+- Clothing: Any visible parts of shirt must be illustrated as a blank generic white t-shirt with no patterns, logos, designs, or other overwear
 
 [COMPOSITION]
-- Framing: Head and shoulders portrait, centered
+- Framing: Oriented around head with eyes in the center. Head and partial shoulders portrait, centered. 
 - Perspective: Eye level, slight three-quarter view for dimension
 - Expression: Natural, warm, friendly
 - Lighting: Soft, even lighting from front-left

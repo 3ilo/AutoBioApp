@@ -38,9 +38,9 @@ REGISTRATION_SECRET=local-registration-secret
 # Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:5173
 
-# AWS Configuration
-AWS_CLIENT_REGION=us-east-1
-AWS_STAGING_BUCKET=autobio-local-bucket
+# AWS Configuration - Single bucket, single region, path-based separation
+S3_CLIENT_REGION=us-east-1
+S3_BUCKET_NAME=autobio-local-bucket
 
 # Backend AWS Credentials (required for local development)
 BACKEND_AWS_KEY=your-backend-aws-access-key
@@ -64,9 +64,9 @@ REGISTRATION_SECRET=dev-registration-secret
 # Frontend URL (for CORS)
 FRONTEND_URL=https://milochase.com/AutoBioApp
 
-# AWS Configuration
-AWS_CLIENT_REGION=us-east-1
-AWS_STAGING_BUCKET=autobio-dev-bucket
+# AWS Configuration - Single bucket, single region, path-based separation
+S3_CLIENT_REGION=us-east-1
+S3_BUCKET_NAME=autobio-dev-bucket
 
 # Backend AWS Credentials (optional - only for local testing)
 # Not used in Lambda - Lambda uses IAM role
@@ -91,9 +91,9 @@ REGISTRATION_SECRET=production-registration-secret
 # Frontend URL (for CORS)
 FRONTEND_URL=https://milochase.com/AutoBioApp
 
-# AWS Configuration
-AWS_CLIENT_REGION=us-east-1
-AWS_STAGING_BUCKET=autobio-prod-bucket
+# AWS Configuration - Single bucket, single region, path-based separation
+S3_CLIENT_REGION=us-east-1
+S3_BUCKET_NAME=autobio-prod-bucket
 
 # Backend AWS Credentials (optional - only for local testing)
 # Not used in Lambda - Lambda uses IAM role

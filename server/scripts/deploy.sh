@@ -49,7 +49,7 @@ set +a
 # Verify required variables are set
 # Note: BACKEND_AWS_KEY and BACKEND_AWS_SECRET are only needed for local development
 # They are NOT required for deployment (Lambda uses IAM role)
-REQUIRED_VARS=("MONGODB_URI" "JWT_SECRET" "FRONTEND_URL" "AWS_STAGING_BUCKET")
+REQUIRED_VARS=("MONGODB_URI" "JWT_SECRET" "FRONTEND_URL" "S3_BUCKET_NAME")
 MISSING_VARS=()
 
 for var in "${REQUIRED_VARS[@]}"; do

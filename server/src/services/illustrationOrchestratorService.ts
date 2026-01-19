@@ -20,10 +20,6 @@ import { ContextSummarizationService } from './contextSummarizers/summarizationS
 import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';
 
-const S3_BUCKET = process.env.S3_BUCKET_NAME || 'auto-bio-illustrations';
-const S3_AVATAR_PREFIX = process.env.S3_AVATAR_PREFIX || 'avatars/';
-const S3_SUBJECTS_PREFIX = process.env.S3_SUBJECTS_PREFIX || 'subjects/';
-const S3_GENERATED_PREFIX = 'generated/';
 const DISABLE_RECENT_MEMORIES = process.env.DISABLE_RECENT_MEMORIES === 'true';
 
 /**
@@ -235,8 +231,9 @@ export class IllustrationOrchestratorService implements IIllustrationService {
 
   private async fetchReferenceImage(userId: string): Promise<string | undefined> {
     try {
-      const key = `${S3_AVATAR_PREFIX}${userId}.png`;
-      return await s3Client.getObjectAsBase64(S3_BUCKET, key);
+      const bucket = s3Client.getBucketName();
+      const key = s3Client.getAvatarKey(userId);
+      return await s3Client.getObjectAsBase64(bucket, key);
     } catch (error) {
       logger.warn('Failed to fetch reference image', { userId, error: (error as Error).message });
       return undefined;
@@ -245,10 +242,15 @@ export class IllustrationOrchestratorService implements IIllustrationService {
 
   private async fetchSubjectImage(userId: string): Promise<string | undefined> {
     try {
-      const key = `${S3_SUBJECTS_PREFIX}${userId}.png`;
-      return await s3Client.getObjectAsBase64(S3_BUCKET, key);
+      const bucket = s3Client.getBucketName();
+      const key = s3Client.getSubjectKey(userId);
+      return await s3Client.getObjectAsBase64(bucket, key);
     } catch (error) {
-      logger.warn('Failed to fetch subject image', { userId, error: (error as Error).message });
+      logger.warn('Failed to fetch subject image', { 
+        userId, 
+        key: s3Client.getSubjectKey(userId),
+        error: (error as Error).message 
+      });
       return undefined;
     }
   }
@@ -256,12 +258,14 @@ export class IllustrationOrchestratorService implements IIllustrationService {
   private async uploadImageToS3(userId: string, imageBase64: string, type: 'memory' | 'subject'): Promise<string> {
     const timestamp = Date.now();
     const uniqueId = uuidv4();
-    const key = `${S3_GENERATED_PREFIX}${type}/${userId}/${timestamp}-${uniqueId}.png`;
+    const bucket = s3Client.getBucketName();
+    const generatedPrefix = s3Client.getGeneratedPrefix();
+    const key = `${generatedPrefix}${type}/${userId}/${timestamp}-${uniqueId}.png`;
 
     const imageBuffer = Buffer.from(imageBase64, 'base64');
 
     const command = new PutObjectCommand({
-      Bucket: S3_BUCKET,
+      Bucket: bucket,
       Key: key,
       Body: imageBuffer,
       ContentType: 'image/png',
@@ -269,7 +273,7 @@ export class IllustrationOrchestratorService implements IIllustrationService {
 
     await s3Client.getClient().send(command);
     
-    return `s3://${S3_BUCKET}/${key}`;
+    return `s3://${bucket}/${key}`;
   }
 }
 

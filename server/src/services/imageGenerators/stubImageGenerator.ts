@@ -8,9 +8,6 @@ import {
 import { s3Client } from '../../utils/s3Client';
 import logger from '../../utils/logger';
 
-const S3_BUCKET = process.env.S3_BUCKET_NAME || 'auto-bio-illustrations';
-const S3_STUBS_PREFIX = 'stubs/';
-
 /**
  * Stub image generator for development/testing.
  * Returns a random image from the S3 stubs/ path.
@@ -25,11 +22,14 @@ export class StubImageGenerator implements IImageGenerator {
       promptLength: input.prompt.length 
     });
 
+    const bucket = s3Client.getBucketName();
+    const stubsPrefix = s3Client.getStubsPrefix();
+
     try {
       // List objects in the stubs/ prefix
       const listCommand = new ListObjectsV2Command({
-        Bucket: S3_BUCKET,
-        Prefix: S3_STUBS_PREFIX,
+        Bucket: bucket,
+        Prefix: stubsPrefix,
       });
 
       const listResponse = await s3Client.getClient().send(listCommand);
@@ -69,7 +69,7 @@ export class StubImageGenerator implements IImageGenerator {
       logger.debug('Stub image generator: Selected random image', { key: randomKey });
 
       // Fetch the image from S3
-      const imageBase64 = await s3Client.getObjectAsBase64(S3_BUCKET, randomKey);
+      const imageBase64 = await s3Client.getObjectAsBase64(bucket, randomKey);
 
       return {
         imageBase64,

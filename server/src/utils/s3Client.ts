@@ -6,9 +6,11 @@ import { getAwsClientConfig } from './env';
 
 // Environment variables
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'auto-bio-illustrations';
-const S3_CLIENT_REGION = process.env.S3_CLIENT_REGION || 'us-west-2';
+const S3_CLIENT_REGION = process.env.S3_CLIENT_REGION || 'us-east-1';
 const S3_SUBJECT_PREFIX = process.env.S3_SUBJECT_PREFIX || 'subjects/';
 const S3_AVATAR_PREFIX = process.env.S3_AVATAR_PREFIX || 'avatars/';
+const S3_GENERATED_PREFIX = process.env.S3_GENERATED_PREFIX || 'generated/';
+const S3_STUBS_PREFIX = process.env.S3_STUBS_PREFIX || 'stubs/';
 
 // Singleton S3 client
 class S3ClientSingleton {
@@ -200,6 +202,27 @@ class S3ClientSingleton {
    */
   public getBucketName(): string {
     return S3_BUCKET;
+  }
+
+  /**
+   * Get the S3 region
+   */
+  public getRegion(): string {
+    return S3_CLIENT_REGION;
+  }
+
+  /**
+   * Get the S3 generated prefix
+   */
+  public getGeneratedPrefix(): string {
+    return S3_GENERATED_PREFIX;
+  }
+
+  /**
+   * Get the S3 stubs prefix
+   */
+  public getStubsPrefix(): string {
+    return S3_STUBS_PREFIX;
   }
 
   /**

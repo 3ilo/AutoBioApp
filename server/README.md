@@ -74,8 +74,8 @@ JWT_EXPIRES_IN=7d
 # Note: Lambda uses IAM role - these are only for local dev
 BACKEND_AWS_KEY=your-backend-aws-access-key
 BACKEND_AWS_SECRET=your-backend-aws-secret-key
-AWS_CLIENT_REGION=us-east-1
-AWS_S3_BUCKET=your-s3-bucket
+S3_CLIENT_REGION=us-east-1
+S3_BUCKET_NAME=auto-bio-illustrations
 ```
 
 4. Start development server:
@@ -128,8 +128,8 @@ The server will be available at `http://localhost:3000`
 | `JWT_EXPIRES_IN` | JWT token expiration | No (default: 7d) |
 | `BACKEND_AWS_KEY` | Backend AWS access key (local dev only) | No (only for local dev) |
 | `BACKEND_AWS_SECRET` | Backend AWS secret key (local dev only) | No (only for local dev) |
-| `AWS_CLIENT_REGION` | AWS region | Yes |
-| `AWS_S3_BUCKET` | S3 bucket name | Yes |
+| `S3_CLIENT_REGION` | S3 region (defaults to us-east-1) | No |
+| `S3_BUCKET_NAME` | S3 bucket name | Yes |
 | `NODE_ENV` | Environment (development/production) | No |
 
 ## Testing

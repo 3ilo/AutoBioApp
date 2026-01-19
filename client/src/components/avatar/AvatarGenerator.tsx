@@ -258,7 +258,7 @@ export function AvatarGenerator({ onAvatarSelected, currentAvatar }: AvatarGener
             {avatarOptions.map((option) => (
               <div
                 key={option.id}
-                className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all aspect-square ${
                   option.isSelected
                     ? 'border-indigo-500 ring-2 ring-indigo-200'
                     : 'border-gray-200 hover:border-gray-300'
@@ -268,7 +268,7 @@ export function AvatarGenerator({ onAvatarSelected, currentAvatar }: AvatarGener
                 <img
                   src={option.url}
                   alt={`Avatar option ${option.id}`}
-                  className="w-full h-32 object-cover"
+                  className="w-full h-full object-contain bg-gray-50"
                 />
                 {option.isSelected && (
                   <div className="absolute inset-0 bg-indigo-500 bg-opacity-20 flex items-center justify-center">

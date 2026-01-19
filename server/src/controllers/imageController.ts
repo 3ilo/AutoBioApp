@@ -222,6 +222,7 @@ export async function generateSubjectIllustration(req: Request, res: Response) {
       // Build options object, merging request options with defaults
       const options: any = {
         ...requestOptions,
+        provider, 
       };
 
       // Provider-specific defaults
