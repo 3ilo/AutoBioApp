@@ -23,7 +23,6 @@ export function CharacterAvatarGenerator({ character, onAvatarGenerated }: Chara
   
   // Convert current avatar to pre-signed URL for display
   const currentAvatarUrl = usePresignedUrl(character.avatarS3Uri);
-  const currentReferenceUrl = usePresignedUrl(character.referenceImageS3Uri);
   const currentMultiAngleUrl = usePresignedUrl(character.multiAngleReferenceS3Uri);
   
   const [isUploading, setIsUploading] = useState(false);
