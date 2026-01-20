@@ -1,0 +1,9 @@
+Create a realistic professional portrait sketch of {{firstName}} {{lastName}}{{#if age}}, age {{age}}{{/if}}.
+
+REFERENCE: Use the provided reference image to accurately capture facial features and likeness.
+
+STYLE: Realistic sketch with natural human proportions and clean linework. Monochrome. NOT cartoon or anime style.
+
+COMPOSITION: Head and shoulders portrait, centered, white background.
+
+CLOTHING: Plain white t-shirt.

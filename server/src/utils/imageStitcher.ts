@@ -265,3 +265,91 @@ export function buildGridLayoutDescription(
   
   return description;
 }
+
+/**
+ * Extract the center panel from a horizontal multi-panel image
+ * Useful for extracting the front-facing avatar from a 3-angle array
+ * 
+ * @param imageBase64 - Base64-encoded image containing multiple horizontal panels
+ * @param totalPanels - Total number of panels in the horizontal layout (e.g., 3 for left/front/right)
+ * @returns Base64-encoded image of the center panel
+ */
+export async function extractCenterPanel(
+  imageBase64: string,
+  totalPanels: number = 3
+): Promise<string> {
+  logger.info('ImageStitcher: Starting center panel extraction', {
+    totalPanels,
+  });
+
+  if (totalPanels < 1) {
+    logger.error('ImageStitcher: Invalid panel count');
+    throw new Error('Total panels must be at least 1');
+  }
+
+  if (totalPanels === 1) {
+    logger.info('ImageStitcher: Single panel detected, returning as-is');
+    return imageBase64;
+  }
+
+  try {
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const image = sharp(buffer);
+    const metadata = await image.metadata();
+
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Unable to read image dimensions');
+    }
+
+    logger.info('ImageStitcher: Image metadata retrieved', {
+      width: metadata.width,
+      height: metadata.height,
+      format: metadata.format,
+    });
+
+    // Calculate panel width
+    const panelWidth = Math.floor(metadata.width / totalPanels);
+    const centerPanelIndex = Math.floor(totalPanels / 2);
+    const leftOffset = centerPanelIndex * panelWidth;
+
+    logger.info('ImageStitcher: Extracting center panel', {
+      panelWidth,
+      centerPanelIndex,
+      leftOffset,
+      extractRegion: {
+        left: leftOffset,
+        top: 0,
+        width: panelWidth,
+        height: metadata.height,
+      },
+    });
+
+    // Extract the center panel
+    const extractedBuffer = await image
+      .extract({
+        left: leftOffset,
+        top: 0,
+        width: panelWidth,
+        height: metadata.height,
+      })
+      .png()
+      .toBuffer();
+
+    const extractedBase64 = extractedBuffer.toString('base64');
+
+    logger.info('ImageStitcher: Center panel extracted successfully', {
+      originalSize: `${metadata.width}x${metadata.height}`,
+      extractedSize: `${panelWidth}x${metadata.height}`,
+      outputBufferSize: extractedBuffer.length,
+      outputBase64Length: extractedBase64.length,
+    });
+
+    return extractedBase64;
+  } catch (error) {
+    logger.error('ImageStitcher: Failed to extract center panel', {
+      error: (error as Error).message,
+      stack: (error as Error).stack,
+    });
+    throw new Error(`Failed to extract center panel: ${(error as Error).message}`);
+  }
+}

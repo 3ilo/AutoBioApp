@@ -1,6 +1,6 @@
 import { IUser } from '../../../../shared/types/User';
 import { IMemory } from '../../../../shared/types/Memory';
-import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput } from '../interfaces/IPromptBuilder';
+import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput, MultiAngleReferenceInput } from '../interfaces/IPromptBuilder';
 
 /**
  * Input data for building an SDXL illustration prompt
@@ -22,59 +22,121 @@ export interface SDXLPromptInput {
 /**
  * SDXL Prompt Builder
  * 
- * Builds enhanced prompts for SDXL image generation.
- * Similar structure to OpenAI prompt builder but with SDXL-specific formatting.
+ * Builds streamlined prompts for SDXL image generation.
+ * Focuses on essential information: reference images, age, and realistic style.
  */
 export class SDXLPromptBuilder implements IPromptBuilder {
   /**
-   * Build an enhanced prompt for SDXL memory illustration
+   * Build a streamlined prompt for SDXL memory illustration
    * Implements IPromptBuilder interface
    */
   buildMemoryPrompt(input: MemoryPromptInput): string {
     const { memory, user, recentMemoriesContext } = input;
-
-    // Build user context section
-    const userContext = this.buildUserContext(user);
     
-    // Build memory section
-    const memorySection = this.buildMemorySection(memory);
+    const age = user.age ? `, age ${user.age}` : '';
+    const userInfo = `${user.firstName} ${user.lastName}${age}`;
     
-    // Build recent memories context if available
-    const recentMemoriesSection = recentMemoriesContext 
-      ? `\n\nRECENT_MEMORIES: ${recentMemoriesContext}` 
+    const recentContext = recentMemoriesContext 
+      ? `\n\nRECENT CONTEXT: ${recentMemoriesContext}` 
       : '';
     
-    // Build style section
     const styleSection = this.buildStyleSection(user);
 
-    return `Create an illustration for a memory titled "${memory.title}" from ${this.formatDate(memory.date)}.
-Focus mainly on the details and subjects in CURRENT_MEMORY.
-Utilize the USER_CONTEXT data to provide the right physical characteristics of the subject.
-Utilize carefully the RECENT_MEMORIES **when applicable** to fill out context on the CURRENT_MEMORY but **do not over-use this metadata**.
-Your goal is to generate an image about the **current memory** with the correct physical characteristics without incorporating elements of past memories when they do not match the current memory.
+    return `Create an illustration for: "${memory.title}" (${this.formatDate(memory.date)})
 
-USER_CONTEXT: ${userContext}${recentMemoriesSection}
+SUBJECT: ${userInfo}
 
-CURRENT_MEMORY: ${memorySection}
+MEMORY: ${memory.content}${recentContext}
 
-The image should match the style: ${styleSection}.`;
+STYLE: ${styleSection}
+
+Use provided reference image to accurately capture subject's appearance.`;
   }
 
   /**
    * Build a prompt for SDXL subject illustration
    */
   buildSubjectPrompt(user: IUser): string {
+    const age = user.age ? `, age ${user.age}` : '';
+    
+    return `Create a realistic professional portrait sketch of ${user.firstName} ${user.lastName}${age}.
+
+REFERENCE: Use the provided reference image to accurately capture facial features and likeness.
+
+STYLE: Realistic sketch with natural human proportions and clean linework. Monochrome. NOT cartoon or anime style.
+
+COMPOSITION: Head and shoulders portrait, centered, white background.
+
+CLOTHING: Plain white t-shirt.`;
+  }
+
+  /**
+   * Build a prompt for SDXL multi-angle subject illustration (3-angle array)
+   * @deprecated Use buildSubjectAnglePrompt with specific angle instead
+   */
+  buildMultiAngleSubjectPrompt(user: IUser): string {
     const userContext = this.buildUserContext(user);
     const styleSection = this.buildStyleSection(user);
 
-    return `Create a professional illustrated portrait of ${user.firstName} ${user.lastName}.
-Use the provided reference image to accurately capture ${user.firstName}'s facial features, expression, and likeness.
+    return `Create a professional illustrated portrait array of ${user.firstName} ${user.lastName} showing three different angles in a horizontal 3-panel layout.
+Use the provided reference images to accurately capture ${user.firstName}'s facial features from multiple angles.
+
+Layout: Three equal-width panels (left profile, front-facing, right profile)
+- Left panel: Three-quarter view facing left
+- Center panel: Direct frontal view
+- Right panel: Three-quarter view facing right
 
 USER_CONTEXT: ${userContext}
 
 The image should match the style: ${styleSection}.
 
-IMPORTANT: Clothing must be illustrated as a blank generic white t-shirt with no patterns, logos, or designs.`;
+IMPORTANT: 
+- All three portraits must be of the same person with consistent features
+- Clothing must be illustrated as a blank generic white t-shirt with no patterns, logos, or designs
+- Maintain consistent illustration style across all three panels`;
+  }
+
+  /**
+   * Build a prompt for a specific angle of subject illustration (SDXL version)
+   */
+  buildSubjectAnglePrompt(user: IUser, angle: 'left' | 'front' | 'right'): string {
+    const age = user.age ? `, age ${user.age}` : '';
+    
+    const angleInstructions = {
+      left: 'Left three-quarter profile (face turned 45° to their right)',
+      front: 'Front-facing (looking directly at viewer)',
+      right: 'Right three-quarter profile (face turned 45° to their left)'
+    };
+
+    return `Create a realistic professional portrait sketch of ${user.firstName} ${user.lastName}${age}.
+
+ANGLE: ${angleInstructions[angle]}.
+
+REFERENCE: Use the provided reference image(s) to accurately capture facial features. 
+
+STYLE: Realistic sketch with natural human proportions and clean linework. Monochrome. NOT cartoon or anime style.
+
+COMPOSITION: Head and shoulders, centered, white background.
+
+CLOTHING: Plain white t-shirt.
+
+CRITICAL: preserve the major charactersitic and identity of the reference.`;
+  }
+
+  /**
+   * Build a prompt section for multi-angle reference in illustrations (SDXL version)
+   */
+  buildMultiAngleReferencePrompt(input: MultiAngleReferenceInput): string {
+    let prompt = `[MULTI-ANGLE REFERENCE]
+The reference image for ${input.name} is a 3-panel array showing three angles (left profile, front, right profile).
+Use the appropriate angle from the reference based on the scene composition.
+Maintain ${input.name}'s facial features and identity from the reference.`;
+
+    if (input.deAgingInstruction) {
+      prompt += `\n${input.deAgingInstruction}`;
+    }
+
+    return prompt;
   }
 
   /**
@@ -162,10 +224,10 @@ IMPORTANT: Clothing must be illustrated as a blank generic white t-shirt with no
    * Build style section string
    */
   private buildStyleSection(user: IUser): string {
-    const baseStyle = 'Professional hand-drawn illustration with clean linework, monochrome, minimal line work that includes the main details without fully rendering textures or fine detail, personal, nostalgic, autobiographical memoir style';
+    const baseStyle = 'Realistic professional sketch. Clean linework, natural human proportions. Monochrome. NOT cartoon or anime style';
     
     if (user.preferredStyle) {
-      return `${baseStyle}, incorporating ${user.preferredStyle} elements`;
+      return `${baseStyle}. Incorporate ${user.preferredStyle} elements`;
     }
     
     return baseStyle;

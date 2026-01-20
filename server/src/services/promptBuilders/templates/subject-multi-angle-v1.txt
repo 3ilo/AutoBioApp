@@ -1,0 +1,50 @@
+[SUBJECT]
+Create a professional illustrated portrait array of {{firstName}} {{lastName}} showing three different angles in a horizontal 3-panel layout. Use the provided reference images to accurately capture {{firstName}}'s facial features, expression, and likeness from multiple angles.
+
+[IDENTITY CONSTRAINTS]
+- Maintain exact facial features from reference images{{#if gender}}
+- Gender: {{gender}}{{/if}}{{#if age}}
+- Age: approximately {{age}} years old{{/if}}{{#if culturalBackground}}
+- Ethnicity/background: {{culturalBackground}}{{/if}}
+- CRITICAL: All three portraits must be of the same person with consistent features
+
+[STYLE CONSTRAINTS]
+- Style: Professional sketch-art style illustration with clean linework
+- Color palette: Monochrome
+- Quality: High quality professional sketch. Captures all characteristic details.
+- Background: White for all three panels
+- Mood: neutral, professional, peaceful
+- Clothing: Any visible parts of shirt must be illustrated as a blank generic white t-shirt with no patterns, logos, designs, or other overwear
+
+[COMPOSITION - 3-PANEL HORIZONTAL LAYOUT]
+- Layout: Three equal-width panels arranged horizontally (left, center, right)
+- Panel separation: Subtle vertical dividing lines between panels
+- Framing: Each panel shows head and partial shoulders portrait, centered within its panel
+- Expression: Natural, warm, friendly across all three panels
+
+LEFT PANEL (Left Profile):
+- Perspective: Three-quarter view facing left (showing left side of face)
+- Head orientation: Face turned approximately 45 degrees to the left
+- Eyes in center of panel, gaze directed left
+- Lighting: Soft, even lighting from front-left
+
+CENTER PANEL (Front-Facing):
+- Perspective: Direct frontal view
+- Head orientation: Face directly forward
+- Eyes in center of panel, gaze directed at viewer
+- Lighting: Soft, even lighting from front
+
+RIGHT PANEL (Right Profile):
+- Perspective: Three-quarter view facing right (showing right side of face)
+- Head orientation: Face turned approximately 45 degrees to the right
+- Eyes in center of panel, gaze directed right
+- Lighting: Soft, even lighting from front-right
+
+[TECHNICAL REQUIREMENTS]
+- All three panels must maintain consistent:
+  * Facial features and proportions
+  * Illustration style and line quality
+  * Scale and positioning within each panel
+  * Background color and tone
+  * Sketch quality and detail level
+- The three portraits should appear as if they are reference sheets of the same person from different angles

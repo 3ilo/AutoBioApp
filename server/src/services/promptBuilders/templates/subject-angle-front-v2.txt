@@ -1,0 +1,38 @@
+[SUBJECT]
+Create a realistic professional portrait sketch of {{firstName}} {{lastName}} from a FRONT-FACING angle. Use the provided reference image(s) to accurately capture {{firstName}}'s facial features with photorealistic precision.
+
+[IDENTITY CONSTRAINTS]
+- Maintain exact facial features from reference image with photorealistic accuracy{{#if gender}}
+- Gender: {{gender}}{{/if}}{{#if age}}
+- Age: approximately {{age}} years old{{/if}}{{#if culturalBackground}}
+- Ethnicity/background: {{culturalBackground}}{{/if}}
+- CRITICAL: Use realistic human anatomy and natural proportions - NOT cartoon, NOT anime, NOT stylized
+
+[STYLE CONSTRAINTS]
+- Style: Photorealistic professional sketch-art portrait with natural, precise linework
+- Rendering: Realistic sketch that captures authentic human features - avoid cartoon or anime aesthetics
+- Color palette: Monochrome (black and white) with natural tonal variations
+- Quality: CRITICAL - Photorealistic fidelity with exceptional anatomical detail. Authentic human proportions and features.
+- Line quality: Natural, confident linework that follows realistic facial structure and anatomy
+- Shading: Subtle, naturalistic shading that enhances three-dimensional form
+- Background: Pure white
+- Mood: Neutral, professional, authentic
+- Clothing: Any visible parts of shirt must be illustrated as a blank generic white t-shirt with no patterns, logos, designs, or other overwear
+
+[COMPOSITION]
+- Framing: Professional portrait composition - head and partial shoulders, centered
+- Angle: FRONT-FACING - subject looking directly at viewer with face fully forward
+- Perspective: Eye level, direct frontal view with symmetrical composition
+- Expression: Natural, warm, authentic human expression
+- Lighting: Soft, natural lighting from front that reveals realistic facial structure symmetrically
+- Proportions: Accurate human head-to-shoulder ratio, realistic facial feature placement in frontal view
+
+[REALISM EMPHASIS]
+- This is a realistic portrait sketch, NOT a cartoon or anime illustration
+- Maintain photorealistic proportions of eyes, nose, mouth, and facial structure in frontal view
+- Use natural human anatomy - realistic eye spacing, proper facial symmetry
+- Authentic skin texture and natural detail in linework
+- Accurate facial symmetry with natural human proportions
+- Avoid any stylization, exaggeration, or cartoon characteristics
+- Eyes should be naturally proportioned (not enlarged or anime-style)
+

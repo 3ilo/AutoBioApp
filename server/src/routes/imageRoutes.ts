@@ -4,7 +4,9 @@ import {
   generateSubjectIllustration, 
   generatePresignedUploadUrl,
   generatePresignedAvatarUploadUrl,
-  generatePresignedViewUrl
+  generatePresignedViewUrl,
+  updateUserReferenceImage,
+  generateMultiAngleUserAvatar
 } from '../controllers/imageController';
 import { protect } from '../utils/auth';
 
@@ -14,8 +16,10 @@ router.use(protect);
 
 router.post('/generate', generateImage);
 router.post('/subject', generateSubjectIllustration);
+router.post('/multi-angle-user-avatar', generateMultiAngleUserAvatar);
 router.post('/presigned-upload-url', generatePresignedUploadUrl);
 router.post('/presigned-avatar-upload-url', generatePresignedAvatarUploadUrl);
 router.post('/presigned-view-url', generatePresignedViewUrl);
+router.post('/update-user-reference', updateUserReferenceImage);
 
 export default router; 

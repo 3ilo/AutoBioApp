@@ -1,4 +1,4 @@
-import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput } from '../interfaces/IPromptBuilder';
+import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput, MultiAngleReferenceInput } from '../interfaces/IPromptBuilder';
 import { IUser } from '../../../../shared/types/User';
 
 /**
@@ -11,7 +11,19 @@ export class StubPromptBuilder implements IPromptBuilder {
   }
 
   buildSubjectPrompt(user: IUser): string {
-    return `[STUB] Create a professional illustrated portrait of ${user.firstName} ${user.lastName}. Clothing must be a blank generic white t-shirt.`;
+    return `[STUB] Create a realistic professional portrait sketch of ${user.firstName} ${user.lastName} with photorealistic precision. NOT cartoon, NOT anime. Clothing must be a blank generic white t-shirt.`;
+  }
+
+  buildMultiAngleSubjectPrompt(user: IUser): string {
+    return `[STUB] Create a realistic 3-angle portrait array of ${user.firstName} ${user.lastName} (left profile, front, right profile) with photorealistic precision. NOT cartoon, NOT anime. Clothing must be a blank generic white t-shirt.`;
+  }
+
+  buildSubjectAnglePrompt(user: IUser, angle: 'left' | 'front' | 'right'): string {
+    return `[STUB] Create a realistic ${angle} angle portrait of ${user.firstName} ${user.lastName} with photorealistic precision. NOT cartoon, NOT anime. Clothing must be a blank generic white t-shirt.`;
+  }
+
+  buildMultiAngleReferencePrompt(input: MultiAngleReferenceInput): string {
+    return `[STUB] Multi-angle reference for ${input.name}: 3-panel array (left/front/right).`;
   }
 
   buildMultiSubjectGridPrompt(input: MultiSubjectGridPromptInput): string {

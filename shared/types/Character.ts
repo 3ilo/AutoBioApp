@@ -11,8 +11,10 @@ export interface ICharacter {
   gender?: string; // For image generation context
   relationship?: string; // e.g., "mother", "friend", "spouse"
   culturalBackground?: string; // Cultural context for image generation
-  referenceImageS3Uri?: string; // Raw photo uploaded for generation
-  avatarS3Uri?: string; // Generated avatar image
+  referenceImageS3Uri?: string; // Raw photo uploaded for generation (legacy single image)
+  referenceImagesS3Uris?: string[]; // Multiple reference photos for multi-angle generation (up to 5)
+  multiAngleReferenceS3Uri?: string; // Generated 3-angle array (left profile, front, right profile)
+  avatarS3Uri?: string; // Generated avatar image (front-facing extracted from multi-angle)
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -33,6 +33,14 @@ export interface MultiSubjectGridPromptInput {
 }
 
 /**
+ * Input for building multi-angle reference description in illustrations
+ */
+export interface MultiAngleReferenceInput {
+  name: string;
+  deAgingInstruction?: string;
+}
+
+/**
  * Interface for prompt builders.
  * Different providers (OpenAI, SDXL) have different prompt building strategies.
  */
@@ -50,6 +58,29 @@ export interface IPromptBuilder {
    * @returns The built prompt string
    */
   buildSubjectPrompt(user: IUser): string;
+
+  /**
+   * Build a prompt for multi-angle subject illustration (3-angle array)
+   * @param user - User to create multi-angle portrait of
+   * @returns The built prompt string
+   * @deprecated Use buildSubjectAnglePrompt with specific angle instead
+   */
+  buildMultiAngleSubjectPrompt(user: IUser): string;
+
+  /**
+   * Build a prompt for a specific angle of subject illustration
+   * @param user - User to create portrait of
+   * @param angle - The angle to generate ('left', 'front', or 'right')
+   * @returns The built prompt string
+   */
+  buildSubjectAnglePrompt(user: IUser, angle: 'left' | 'front' | 'right'): string;
+
+  /**
+   * Build a prompt section for multi-angle reference in illustrations
+   * @param input - Multi-angle reference data
+   * @returns The built prompt string
+   */
+  buildMultiAngleReferencePrompt(input: MultiAngleReferenceInput): string;
 
   /**
    * Build a prompt for multi-subject grid-based illustrations

@@ -34,6 +34,7 @@ export function Profile() {
     culturalBackground: '',
     preferredStyle: '',
     avatar: '',
+    multiAngleReferenceS3Uri: '',
   });
 
   // Fetch user's memories
@@ -72,6 +73,7 @@ export function Profile() {
         culturalBackground: user.culturalBackground || '',
         preferredStyle: user.preferredStyle || '',
         avatar: user.avatar || '',
+        multiAngleReferenceS3Uri: user.multiAngleReferenceS3Uri || '',
       });
       // Also update the interests input field
       setInterestsInput(user.interests ? user.interests.join(', ') : '');
@@ -313,6 +315,7 @@ export function Profile() {
                   <AvatarGenerator
                     onAvatarSelected={(avatarUrl) => setProfileData({ ...profileData, avatar: avatarUrl })}
                     currentAvatar={profileData.avatar}
+                    currentMultiAngle={profileData.multiAngleReferenceS3Uri}
                   />
                 </div>
                 <div className="sm:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-200">

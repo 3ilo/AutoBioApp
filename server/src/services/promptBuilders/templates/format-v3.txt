@@ -1,0 +1,16 @@
+[SUBJECT]
+{{subject}}
+
+[IDENTITY]
+{{identityConstraints}}
+
+[STYLE]
+{{styleConstraints}}
+
+[SCENE]
+{{scene}}
+
+[COMPOSITION]
+{{composition}}
+
+Create a realistic illustration with natural human proportions. NOT cartoon or anime style.

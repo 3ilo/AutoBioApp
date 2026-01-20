@@ -1,0 +1,18 @@
+[SCENE]
+{{scene}}
+
+[COMPOSITION]
+{{composition}}
+
+[STYLE]
+{{styleConstraints}}
+
+CRITICAL INSTRUCTIONS:
+- Create a REALISTIC illustration with natural human proportions and authentic features
+- This is NOT a cartoon, NOT anime, NOT stylized - use photorealistic sketch principles
+- All human figures must have realistic anatomy, natural proportions, and authentic facial features
+- Avoid any cartoon characteristics: no oversized eyes, no exaggerated features, no anime style
+- Use naturalistic linework that follows real human anatomy and structure
+- Maintain authentic depth, perspective, and spatial relationships
+- Render with professional portrait-quality realism throughout
+

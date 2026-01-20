@@ -39,6 +39,14 @@ const userSchema = new mongoose.Schema<IUserDocument>(
       type: String,
       trim: true,
     },
+    referenceImagesS3Uris: {
+      type: [String],
+      default: [],
+    },
+    multiAngleReferenceS3Uri: {
+      type: String,
+      trim: true,
+    },
     bio: {
       type: String,
       trim: true,

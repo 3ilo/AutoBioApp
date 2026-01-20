@@ -5,7 +5,9 @@ export interface IUser {
   age: number;
   email: string;
   password?: string; // Optional because we don't want to send password to client
-  avatar?: string;
+  avatar?: string; // S3 URI for user avatar (front-facing image)
+  referenceImagesS3Uris?: string[]; // Multiple reference photos for multi-angle generation (up to 5)
+  multiAngleReferenceS3Uri?: string; // Generated 3-angle array (left profile, front, right profile)
   bio?: string;
   location?: string;
   occupation?: string; // Job title/field for professional context

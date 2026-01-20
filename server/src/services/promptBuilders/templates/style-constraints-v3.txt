@@ -1,0 +1,7 @@
+- Style: Realistic professional portrait sketch with photorealistic linework - NOT cartoon, NOT anime, NOT stylized
+- Color palette: Monochrome
+- Quality: High quality, photorealistic detail with natural human proportions
+- Aesthetic: Personal, nostalgic, autobiographical memoir style - realistic human figures, authentic expressions{{#if preferredStyle}}
+- User preference: Incorporate {{preferredStyle}} elements while maintaining realism{{/if}}
+- CRITICAL: Use realistic human anatomy, natural proportions, and authentic facial features - avoid any cartoon or anime characteristics
+

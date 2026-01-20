@@ -8,7 +8,8 @@ import { loraService } from '../services/loraService';
 import { contextSummarizationStubService } from '../services/stubs/summarizationStubService';
 import { memorySummaryStubService } from '../services/stubs/memorySummaryStubService';
 import { getIllustrationService, getConfiguredProvider } from '../services/illustrationServiceFactory';
-import { OpenAIMemoryIllustrationOptions, SDXLMemoryIllustrationOptions } from '../services/interfaces/IIllustrationService';
+import { OpenAIMemoryIllustrationOptions, SDXLMemoryIllustrationOptions, OpenAISubjectIllustrationOptions, SDXLSubjectIllustrationOptions } from '../services/interfaces/IIllustrationService';
+import { IllustrationOrchestratorService } from '../services/illustrationOrchestratorService';
 import { s3Client } from '../utils/s3Client';
 import '../utils/auth'; // Import to ensure Request type extension is loaded
 
@@ -281,7 +282,7 @@ export async function generatePresignedUploadUrl(req: Request, res: Response) {
     }
 
     const userId = req.user._id;
-    const { contentType } = req.body;
+    const { contentType, index } = req.body;
     
     if (!contentType || !contentType.startsWith('image/')) {
       return res.status(400).json({
@@ -290,14 +291,27 @@ export async function generatePresignedUploadUrl(req: Request, res: Response) {
       });
     }
 
-    // Generate pre-signed URL for reference image upload
-    const presignedUrl = await s3Client.generatePresignedUploadUrl(userId, contentType);
+    // Validate index if provided
+    if (index !== undefined) {
+      const indexNum = parseInt(index, 10);
+      if (isNaN(indexNum) || indexNum < 0 || indexNum >= 5) {
+        return res.status(400).json({
+          status: 'fail',
+          message: 'Index must be between 0 and 4',
+        });
+      }
+    }
 
-    const response: ApiResponse<{ uploadUrl: string; key: string }> = {
+    // Generate pre-signed URL for reference image upload
+    const indexNum = index !== undefined ? parseInt(index, 10) : undefined;
+    const presignedUrl = await s3Client.generatePresignedUploadUrl(userId, contentType, indexNum);
+
+    const response: ApiResponse<{ uploadUrl: string; key: string; index?: number }> = {
       status: 'success',
       data: { 
         uploadUrl: presignedUrl,
-        key: s3Client.getSubjectKey(userId)
+        key: s3Client.getSubjectKey(userId, indexNum),
+        ...(indexNum !== undefined && { index: indexNum }),
       },
       message: 'Pre-signed upload URL generated successfully',
     };
@@ -398,6 +412,135 @@ export async function generatePresignedViewUrl(req: Request, res: Response) {
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate presigned view URL',
+    });
+  }
+}
+
+export async function updateUserReferenceImage(req: Request, res: Response) {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+
+    const userId = req.user._id.toString();
+    const { index } = req.body;
+
+    // This endpoint is just to confirm the upload was successful
+    // The actual reference image URIs are handled in User model via separate logic
+    logger.info('User reference image upload confirmed', { userId, index });
+
+    const response: ApiResponse<{ success: boolean }> = {
+      status: 'success',
+      data: { success: true },
+      message: 'Reference image upload confirmed',
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Failed to update user reference image', { 
+      userId: req.user?._id, 
+      error: (error as Error).message 
+    });
+    res.status(500).json({
+      status: 'fail',
+      message: 'Failed to update reference image',
+    });
+  }
+}
+
+export async function generateMultiAngleUserAvatar(req: Request, res: Response) {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+
+    const userId = req.user._id.toString();
+    const provider = getConfiguredProvider();
+    const illustrationService = getIllustrationService();
+
+    logger.info('Generating multi-angle user avatar', { userId, provider });
+
+    // Check if the service is the orchestrator (which has generateMultiAngleUserAvatar)
+    if (!(illustrationService instanceof IllustrationOrchestratorService)) {
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Multi-angle avatar generation is not supported by the current illustration service',
+      });
+    }
+
+    // Fetch reference images from S3 (try multiple indexed references first)
+    const referenceImagesBase64: string[] = [];
+    const bucket = s3Client.getBucketName();
+
+    // Try to load indexed references (0-4)
+    for (let i = 0; i < 5; i++) {
+      try {
+        const key = s3Client.getSubjectKey(userId, i);
+        const imageBase64 = await s3Client.getObjectAsBase64(bucket, key);
+        referenceImagesBase64.push(imageBase64);
+        logger.info(`Loaded user reference image ${i}`, { userId, index: i });
+      } catch (error) {
+        // No more indexed images, break
+        logger.debug(`No more indexed reference images at index ${i}`, { userId });
+        break;
+      }
+    }
+
+    // If no indexed images found, try legacy single image
+    if (referenceImagesBase64.length === 0) {
+      try {
+        const key = s3Client.getSubjectKey(userId);
+        const imageBase64 = await s3Client.getObjectAsBase64(bucket, key);
+        referenceImagesBase64.push(imageBase64);
+        logger.info('Loaded legacy single user reference image', { userId });
+      } catch (error) {
+        logger.error('No reference images found for user', { userId });
+        return res.status(400).json({
+          status: 'fail',
+          message: 'No reference images uploaded. Please upload at least one reference photo first.',
+        });
+      }
+    }
+
+    logger.info('Loaded reference images for multi-angle generation', {
+      userId,
+      imageCount: referenceImagesBase64.length,
+    });
+
+    // Build options based on provider
+    const options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions = provider === 'openai'
+      ? { provider: 'openai' }
+      : { provider: 'sdxl' };
+
+    const result = await illustrationService.generateMultiAngleUserAvatar(userId, referenceImagesBase64, options);
+
+    logger.info('Multi-angle user avatar generated successfully', { 
+      userId,
+      multiAngleUrl: result.multiAngleUrl,
+      avatarUrl: result.avatarUrl,
+    });
+
+    const response: ApiResponse<{ multiAngleUrl: string; avatarUrl: string; avatarS3Uri: string }> = {
+      status: 'success',
+      data: result,
+      message: 'Multi-angle user avatar generated successfully',
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Failed to generate multi-angle user avatar', { 
+      userId: req.user?._id, 
+      error: (error as Error).message 
+    });
+    res.status(500).json({
+      status: 'fail',
+      message: 'Failed to generate multi-angle avatar',
     });
   }
 } 

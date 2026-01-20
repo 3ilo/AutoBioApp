@@ -21,7 +21,7 @@ import { MemorySummaryService } from './memorySummarizers/memorySummaryService';
 import { ContextSummarizationService } from './contextSummarizers/summarizationService';
 import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';
-import { stitchImages, buildGridLayoutDescription } from '../utils/imageStitcher';
+import { stitchImages, buildGridLayoutDescription, extractCenterPanel } from '../utils/imageStitcher';
 
 const DISABLE_RECENT_MEMORIES = process.env.DISABLE_RECENT_MEMORIES === 'true';
 
@@ -248,7 +248,7 @@ export class IllustrationOrchestratorService implements IIllustrationService {
           
           // Append multi-subject prompt with grid layout information
           const multiSubjectPrompt = this.buildMultiSubjectPromptWithGrid(
-            user.toObject() as any,
+            user.toObject() as any, // Investigate this
             characterData,
             memoryDate,
             gridDescription
@@ -358,6 +358,161 @@ export class IllustrationOrchestratorService implements IIllustrationService {
   }
 
   /**
+   * Generate a multi-angle avatar for a user from multiple reference images.
+   * Generates 3 separate images (left profile, front, right profile), stitches them together,
+   * and uses the front-facing image as the avatar.
+   * 
+   * @param userId - The user's ID
+   * @param referenceImagesBase64 - Array of base64-encoded reference images (1-5 images)
+   * @param options - Provider-specific generation options
+   * @returns Object with presigned URLs for both the multi-angle array and extracted avatar, plus avatar S3 URI
+   */
+  async generateMultiAngleUserAvatar(
+    userId: string,
+    referenceImagesBase64: string[],
+    options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions
+  ): Promise<{ multiAngleUrl: string; avatarUrl: string; avatarS3Uri: string }> {
+    logger.info('Orchestrator: Generating multi-angle user avatar (3 separate images)', { 
+      userId,
+      referenceImageCount: referenceImagesBase64.length 
+    });
+
+    const isOpenAI = options?.provider === 'openai';
+
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
+
+      if (referenceImagesBase64.length === 0) {
+        throw new Error('At least one reference image is required');
+      }
+
+      // Stitch reference images into a grid for input to the model
+      let stitchedReferenceBase64: string | undefined;
+      if (isOpenAI) {
+        if (referenceImagesBase64.length > 1) {
+          const stitchResult = await stitchImages(referenceImagesBase64);
+          stitchedReferenceBase64 = stitchResult.combinedImageBase64;
+          
+          logger.info('Orchestrator: Reference images stitched for multi-angle generation', {
+            inputImageCount: referenceImagesBase64.length,
+            gridLayout: `${stitchResult.layout.columns}x${stitchResult.layout.rows}`,
+          });
+        } else {
+          stitchedReferenceBase64 = referenceImagesBase64[0];
+          logger.info('Orchestrator: Single reference image provided, using as-is');
+        }
+
+        if (!stitchedReferenceBase64) {
+          throw new Error('Failed to prepare reference images for multi-angle generation');
+        }
+      }
+
+      // Generate 3 separate images for each angle
+      const angles: Array<'left' | 'front' | 'right'> = ['left', 'front', 'right'];
+      const generatedImages: string[] = [];
+
+      logger.info('============================================================');
+      logger.info('MULTI-ANGLE USER GENERATION: Starting 3 separate image generation');
+      logger.info('============================================================');
+
+      for (let i = 0; i < angles.length; i++) {
+        const angle = angles[i];
+        
+        logger.info('');
+        logger.info(`>>> GENERATING IMAGE ${i + 1} OF 3: ${angle.toUpperCase()} PROFILE <<<`);
+        logger.info('-----------------------------------------------------------');
+
+        // Build angle-specific prompt
+        const anglePrompt = this.promptBuilder.buildSubjectAnglePrompt(user.toObject() as any, angle);
+        
+        logger.info(`PROMPT FOR ${angle.toUpperCase()} ANGLE:`);
+        logger.info('-----------------------------------------------------------');
+        logger.info(anglePrompt);
+        logger.info('-----------------------------------------------------------');
+        logger.info(`Prompt length: ${anglePrompt.length} characters`);
+        logger.info('');
+
+        // Generate image for this angle
+        const imageInput: ImageGenerationInput = {
+          prompt: anglePrompt,
+          referenceImageBase64: stitchedReferenceBase64,
+          userId: userId,
+        };
+
+        logger.info(`Calling image generator for ${angle} angle...`);
+        const imageOutput = await this.imageGenerator.generateImage(imageInput, options);
+        generatedImages.push(imageOutput.imageBase64);
+
+        logger.info(`✓ ${angle.toUpperCase()} profile image generated successfully (image ${i + 1}/3)`);
+        logger.info(`  Generated image size: ${imageOutput.imageBase64.length} bytes (base64)`);
+      }
+
+      logger.info('');
+      logger.info('============================================================');
+      logger.info(`ALL 3 IMAGES GENERATED SUCCESSFULLY`);
+      logger.info(`Total images in array: ${generatedImages.length}`);
+      logger.info('============================================================');
+      logger.info('');
+
+      // Stitch the 3 generated images together into a horizontal array
+      logger.info('>>> STITCHING PHASE <<<');
+      logger.info('-----------------------------------------------------------');
+      logger.info('Stitching 3 generated images into horizontal array...');
+      logger.info(`Input: ${generatedImages.length} images`);
+      logger.info(`Target size: 1024px`);
+
+      const stitchResult = await stitchImages(generatedImages, 1024);
+      const multiAngleBase64 = stitchResult.combinedImageBase64;
+      
+      logger.info('✓ 3-angle array stitched successfully!');
+      logger.info(`  Grid layout: ${stitchResult.layout.columns}x${stitchResult.layout.rows}`);
+      logger.info(`  Individual image size: ${stitchResult.layout.imageWidth}x${stitchResult.layout.imageHeight}px`);
+      logger.info(`  Combined image size: ${multiAngleBase64.length} bytes (base64)`);
+      logger.info('-----------------------------------------------------------');
+      
+      // Upload the full 3-angle array to S3
+      const multiAngleS3Uri = await this.uploadUserMultiAngleToS3(userId, multiAngleBase64);
+      
+      logger.info('Orchestrator: 3-angle array uploaded to S3', {
+        userId,
+        multiAngleS3Uri,
+      });
+      
+      // The center image (front-facing) is already generated separately
+      const frontFacingBase64 = generatedImages[1]; // Index 1 is the 'front' angle
+      
+      logger.info('Orchestrator: Using front-facing image as avatar', {
+        userId,
+      });
+      
+      // Upload the front-facing image as avatar
+      const avatarS3Uri = await this.uploadUserAvatarToS3(userId, frontFacingBase64);
+      
+      // Generate presigned URLs for both
+      const multiAngleUrl = await s3Client.convertS3UriToPresignedUrl(multiAngleS3Uri);
+      const avatarUrl = await s3Client.convertS3UriToPresignedUrl(avatarS3Uri);
+
+      logger.info('Orchestrator: Multi-angle user avatar generation complete', { 
+        userId,
+        multiAngleS3Uri,
+        avatarS3Uri,
+      });
+      
+      return { multiAngleUrl, avatarUrl, avatarS3Uri };
+
+    } catch (error) {
+      logger.error('Orchestrator: Failed to generate multi-angle user avatar', {
+        userId,
+        error: (error as Error).message,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Generate an avatar illustration for a character.
    * Uses the character's reference image to create a stylized portrait.
    * 
@@ -447,6 +602,189 @@ export class IllustrationOrchestratorService implements IIllustrationService {
     }
   }
 
+  /**
+   * Generate a multi-angle avatar for a character from multiple reference images.
+   * Generates 3 separate images (left profile, front, right profile), stitches them together,
+   * and uses the front-facing image as the avatar.
+   * 
+   * @param userId - The user's ID (owner of the character)
+   * @param characterId - The character's ID
+   * @param referenceImagesBase64 - Array of base64-encoded reference images (1-5 images)
+   * @param options - Provider-specific generation options
+   * @returns Object with presigned URLs for both the multi-angle array and extracted avatar
+   */
+  async generateMultiAngleAvatar(
+    userId: string,
+    characterId: string,
+    referenceImagesBase64: string[],
+    options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions
+  ): Promise<{ multiAngleUrl: string; avatarUrl: string }> {
+    logger.info('Orchestrator: Generating multi-angle avatar (3 separate images)', { 
+      userId, 
+      characterId,
+      referenceImageCount: referenceImagesBase64.length 
+    });
+
+    const isOpenAI = options?.provider === 'openai';
+
+    try {
+      const character = await Character.findOne({ _id: characterId, userId });
+      if (!character) {
+        throw new Error(`Character not found: ${characterId}`);
+      }
+
+      if (referenceImagesBase64.length === 0) {
+        throw new Error('At least one reference image is required');
+      }
+
+      // Convert character to a user-like object for the prompt builder
+      const characterAsUser = {
+        firstName: character.firstName,
+        lastName: character.lastName,
+        age: character.age,
+        gender: character.gender,
+        culturalBackground: character.culturalBackground,
+        bio: character.relationship ? `Relationship: ${character.relationship}` : undefined,
+        occupation: undefined,
+        interests: [],
+        location: undefined,
+        preferredStyle: undefined,
+        email: '',
+        role: 'user' as const,
+      };
+      
+      // Stitch reference images into a grid for input to the model
+      let stitchedReferenceBase64: string | undefined;
+      if (isOpenAI) {
+        if (referenceImagesBase64.length > 1) {
+          const stitchResult = await stitchImages(referenceImagesBase64);
+          stitchedReferenceBase64 = stitchResult.combinedImageBase64;
+          
+          logger.info('Orchestrator: Reference images stitched for multi-angle generation', {
+            inputImageCount: referenceImagesBase64.length,
+            gridLayout: `${stitchResult.layout.columns}x${stitchResult.layout.rows}`,
+          });
+        } else {
+          stitchedReferenceBase64 = referenceImagesBase64[0];
+          logger.info('Orchestrator: Single reference image provided, using as-is');
+        }
+
+        if (!stitchedReferenceBase64) {
+          throw new Error('Failed to prepare reference images for multi-angle generation');
+        }
+      }
+
+      // Generate 3 separate images for each angle
+      const angles: Array<'left' | 'front' | 'right'> = ['left', 'front', 'right'];
+      const generatedImages: string[] = [];
+
+      logger.info('============================================================');
+      logger.info('MULTI-ANGLE GENERATION: Starting 3 separate image generation');
+      logger.info('============================================================');
+
+      for (let i = 0; i < angles.length; i++) {
+        const angle = angles[i];
+        
+        logger.info('');
+        logger.info(`>>> GENERATING IMAGE ${i + 1} OF 3: ${angle.toUpperCase()} PROFILE <<<`);
+        logger.info('-----------------------------------------------------------');
+
+        // Build angle-specific prompt
+        const anglePrompt = this.promptBuilder.buildSubjectAnglePrompt(characterAsUser as any, angle);
+        
+        logger.info(`PROMPT FOR ${angle.toUpperCase()} ANGLE:`);
+        logger.info('-----------------------------------------------------------');
+        logger.info(anglePrompt);
+        logger.info('-----------------------------------------------------------');
+        logger.info(`Prompt length: ${anglePrompt.length} characters`);
+        logger.info('');
+
+        // Generate image for this angle
+        const imageInput: ImageGenerationInput = {
+          prompt: anglePrompt,
+          referenceImageBase64: stitchedReferenceBase64,
+          userId: userId,
+        };
+
+        logger.info(`Calling image generator for ${angle} angle...`);
+        const imageOutput = await this.imageGenerator.generateImage(imageInput, options);
+        generatedImages.push(imageOutput.imageBase64);
+
+        logger.info(`✓ ${angle.toUpperCase()} profile image generated successfully (image ${i + 1}/3)`);
+        logger.info(`  Generated image size: ${imageOutput.imageBase64.length} bytes (base64)`);
+      }
+
+      logger.info('');
+      logger.info('============================================================');
+      logger.info(`ALL 3 IMAGES GENERATED SUCCESSFULLY`);
+      logger.info(`Total images in array: ${generatedImages.length}`);
+      logger.info('============================================================');
+      logger.info('');
+
+      // Stitch the 3 generated images together into a horizontal array
+      logger.info('>>> STITCHING PHASE <<<');
+      logger.info('-----------------------------------------------------------');
+      logger.info('Stitching 3 generated images into horizontal array...');
+      logger.info(`Input: ${generatedImages.length} images`);
+      logger.info(`Target size: 1024px`);
+
+      const stitchResult = await stitchImages(generatedImages, 1024);
+      const multiAngleBase64 = stitchResult.combinedImageBase64;
+      
+      logger.info('✓ 3-angle array stitched successfully!');
+      logger.info(`  Grid layout: ${stitchResult.layout.columns}x${stitchResult.layout.rows}`);
+      logger.info(`  Individual image size: ${stitchResult.layout.imageWidth}x${stitchResult.layout.imageHeight}px`);
+      logger.info(`  Combined image size: ${multiAngleBase64.length} bytes (base64)`);
+      logger.info('-----------------------------------------------------------');
+      
+      // Upload the full 3-angle array to S3
+      const multiAngleS3Uri = await this.uploadCharacterMultiAngleToS3(userId, characterId, multiAngleBase64);
+      
+      logger.info('Orchestrator: 3-angle array uploaded to S3', {
+        userId,
+        characterId,
+        multiAngleS3Uri,
+      });
+      
+      // The center image (front-facing) is already generated separately
+      const frontFacingBase64 = generatedImages[1]; // Index 1 is the 'front' angle
+      
+      logger.info('Orchestrator: Using front-facing image as avatar', {
+        userId,
+        characterId,
+      });
+      
+      // Upload the front-facing image as avatar
+      const avatarS3Uri = await this.uploadCharacterAvatarToS3(userId, characterId, frontFacingBase64);
+      
+      // Update the character with both URIs
+      character.multiAngleReferenceS3Uri = multiAngleS3Uri;
+      character.avatarS3Uri = avatarS3Uri;
+      await character.save();
+      
+      // Generate presigned URLs for both
+      const multiAngleUrl = await s3Client.convertS3UriToPresignedUrl(multiAngleS3Uri);
+      const avatarUrl = await s3Client.convertS3UriToPresignedUrl(avatarS3Uri);
+
+      logger.info('Orchestrator: Multi-angle avatar generation complete', { 
+        userId, 
+        characterId, 
+        multiAngleS3Uri,
+        avatarS3Uri,
+      });
+      
+      return { multiAngleUrl, avatarUrl };
+
+    } catch (error) {
+      logger.error('Orchestrator: Failed to generate multi-angle avatar', {
+        userId,
+        characterId,
+        error: (error as Error).message,
+      });
+      throw error;
+    }
+  }
+
   async checkHealth(): Promise<boolean> {
     try {
       return await this.imageGenerator.checkHealth();
@@ -483,8 +821,29 @@ export class IllustrationOrchestratorService implements IIllustrationService {
   }
 
   private async fetchCharacterReferenceImage(userId: string, characterId: string): Promise<string | undefined> {
+    const bucket = s3Client.getBucketName();
+    
+    // First, try to fetch the multi-angle reference if available (preferred for better fidelity)
     try {
-      const bucket = s3Client.getBucketName();
+      const multiAngleKey = s3Client.getCharacterMultiAngleKey(userId, characterId);
+      const multiAngleImage = await s3Client.getObjectAsBase64(bucket, multiAngleKey);
+      
+      logger.info('Fetched multi-angle reference for character', {
+        userId,
+        characterId,
+        key: multiAngleKey,
+      });
+      
+      return multiAngleImage;
+    } catch (multiAngleError) {
+      logger.debug('Multi-angle reference not found, falling back to single reference', {
+        userId,
+        characterId,
+      });
+    }
+    
+    // Fall back to single reference image
+    try {
       const key = s3Client.getCharacterReferenceKey(userId, characterId);
       return await s3Client.getObjectAsBase64(bucket, key);
     } catch (error) {
@@ -706,6 +1065,79 @@ export class IllustrationOrchestratorService implements IIllustrationService {
     });
 
     await s3Client.getClient().send(command);
+    
+    return `s3://${bucket}/${key}`;
+  }
+
+  private async uploadCharacterMultiAngleToS3(userId: string, characterId: string, imageBase64: string): Promise<string> {
+    const bucket = s3Client.getBucketName();
+    const key = s3Client.getCharacterMultiAngleKey(userId, characterId);
+
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: 'image/png',
+    });
+
+    await s3Client.getClient().send(command);
+    
+    logger.info('Uploaded character multi-angle reference to S3', {
+      userId,
+      characterId,
+      key,
+      s3Uri: `s3://${bucket}/${key}`,
+    });
+    
+    return `s3://${bucket}/${key}`;
+  }
+
+  private async uploadUserMultiAngleToS3(userId: string, imageBase64: string): Promise<string> {
+    const bucket = s3Client.getBucketName();
+    const key = s3Client.getUserMultiAngleKey(userId);
+
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: 'image/png',
+    });
+
+    await s3Client.getClient().send(command);
+    
+    logger.info('Uploaded user multi-angle reference to S3', {
+      userId,
+      key,
+      s3Uri: `s3://${bucket}/${key}`,
+    });
+    
+    return `s3://${bucket}/${key}`;
+  }
+
+  private async uploadUserAvatarToS3(userId: string, imageBase64: string): Promise<string> {
+    const bucket = s3Client.getBucketName();
+    const key = s3Client.getAvatarKey(userId);
+
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: 'image/png',
+    });
+
+    await s3Client.getClient().send(command);
+    
+    logger.info('Uploaded user avatar to S3', {
+      userId,
+      key,
+      s3Uri: `s3://${bucket}/${key}`,
+    });
     
     return `s3://${bucket}/${key}`;
   }

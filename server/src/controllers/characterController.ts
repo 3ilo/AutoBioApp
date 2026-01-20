@@ -9,6 +9,9 @@ import { getIllustrationService, getConfiguredProvider } from '../services/illus
 import { OpenAISubjectIllustrationOptions, SDXLSubjectIllustrationOptions } from '../services/interfaces/IIllustrationService';
 import { IllustrationOrchestratorService } from '../services/illustrationOrchestratorService';
 
+// Configuration constants
+const MAX_REFERENCE_IMAGES = parseInt(process.env.MAX_CHARACTER_REFERENCE_IMAGES || '5', 10);
+
 /**
  * Create a new character
  */
@@ -46,7 +49,7 @@ export const createCharacter = async (req: Request, res: Response, next: NextFun
 
     const response: ApiResponse<{ character: ICharacter }> = {
       status: 'success',
-      data: { character: character.toObject() },
+      data: { character: character.toObject() as unknown as ICharacter },
       message: 'Character created successfully',
     };
 
@@ -74,7 +77,7 @@ export const getCharacters = async (req: Request, res: Response, next: NextFunct
 
     const response: ApiResponse<{ characters: ICharacter[] }> = {
       status: 'success',
-      data: { characters: characters.map(c => c.toObject()) },
+      data: { characters: characters.map(c => c.toObject() as unknown as ICharacter) },
     };
 
     res.status(200).json(response);
@@ -108,7 +111,7 @@ export const getCharacter = async (req: Request, res: Response, next: NextFuncti
 
     const response: ApiResponse<{ character: ICharacter }> = {
       status: 'success',
-      data: { character: character.toObject() },
+      data: { character: character.toObject() as unknown as ICharacter },
     };
 
     res.status(200).json(response);
@@ -171,7 +174,7 @@ export const updateCharacter = async (req: Request, res: Response, next: NextFun
 
     const response: ApiResponse<{ character: ICharacter }> = {
       status: 'success',
-      data: { character: character.toObject() },
+      data: { character: character.toObject() as unknown as ICharacter },
       message: 'Character updated successfully',
     };
 
@@ -220,6 +223,7 @@ export const deleteCharacter = async (req: Request, res: Response, next: NextFun
 
 /**
  * Generate a presigned URL for uploading a character reference image
+ * Supports optional index parameter for multiple reference images (0-4)
  */
 export const generatePresignedReferenceUploadUrl = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -231,13 +235,24 @@ export const generatePresignedReferenceUploadUrl = async (req: Request, res: Res
     }
 
     const { id } = req.params;
-    const { contentType } = req.body;
+    const { contentType, index } = req.body;
 
     if (!contentType || !contentType.startsWith('image/')) {
       return res.status(400).json({
         status: 'fail',
         message: 'Valid image content type is required',
       });
+    }
+
+    // Validate index if provided
+    if (index !== undefined) {
+      const indexNum = parseInt(index, 10);
+      if (isNaN(indexNum) || indexNum < 0 || indexNum >= MAX_REFERENCE_IMAGES) {
+        return res.status(400).json({
+          status: 'fail',
+          message: `Index must be between 0 and ${MAX_REFERENCE_IMAGES - 1}`,
+        });
+      }
     }
 
     // Verify character belongs to user
@@ -250,12 +265,13 @@ export const generatePresignedReferenceUploadUrl = async (req: Request, res: Res
     }
 
     const userId = req.user._id.toString();
-    const presignedUrl = await s3Client.generatePresignedCharacterReferenceUploadUrl(userId, id, contentType);
-    const key = s3Client.getCharacterReferenceKey(userId, id);
+    const indexNum = index !== undefined ? parseInt(index, 10) : undefined;
+    const presignedUrl = await s3Client.generatePresignedCharacterReferenceUploadUrl(userId, id, contentType, indexNum);
+    const key = s3Client.getCharacterReferenceKey(userId, id, indexNum);
 
-    const response: ApiResponse<{ uploadUrl: string; key: string }> = {
+    const response: ApiResponse<{ uploadUrl: string; key: string; index?: number }> = {
       status: 'success',
-      data: { uploadUrl: presignedUrl, key },
+      data: { uploadUrl: presignedUrl, key, ...(indexNum !== undefined && { index: indexNum }) },
       message: 'Pre-signed upload URL generated successfully',
     };
 
@@ -267,6 +283,7 @@ export const generatePresignedReferenceUploadUrl = async (req: Request, res: Res
 
 /**
  * Update character's reference image S3 URI after upload
+ * Supports both single and multiple reference images
  */
 export const updateReferenceImage = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -278,6 +295,7 @@ export const updateReferenceImage = async (req: Request, res: Response, next: Ne
     }
 
     const { id } = req.params;
+    const { index } = req.body;
 
     const character = await Character.findOne({ _id: id, userId: req.user._id });
     if (!character) {
@@ -288,17 +306,48 @@ export const updateReferenceImage = async (req: Request, res: Response, next: Ne
     }
 
     const userId = req.user._id.toString();
-    const key = s3Client.getCharacterReferenceKey(userId, id);
-    const s3Uri = `s3://${s3Client.getBucketName()}/${key}`;
+    const bucket = s3Client.getBucketName();
 
-    character.referenceImageS3Uri = s3Uri;
-    await character.save();
+    if (index !== undefined) {
+      // Multi-image upload: update array of reference images
+      const indexNum = parseInt(index, 10);
+      const key = s3Client.getCharacterReferenceKey(userId, id, indexNum);
+      const s3Uri = `s3://${bucket}/${key}`;
 
-    logger.info('Character reference image updated', { userId, characterId: id, s3Uri });
+      // Initialize array if needed
+      if (!character.referenceImagesS3Uris) {
+        character.referenceImagesS3Uris = [];
+      }
+
+      // Ensure array is large enough
+      while (character.referenceImagesS3Uris.length <= indexNum) {
+        character.referenceImagesS3Uris.push('');
+      }
+
+      character.referenceImagesS3Uris[indexNum] = s3Uri;
+      await character.save();
+
+      logger.info('Character reference image added to array', { 
+        userId, 
+        characterId: id, 
+        index: indexNum,
+        s3Uri,
+        totalReferences: character.referenceImagesS3Uris.filter(uri => uri).length,
+      });
+    } else {
+      // Single image upload: legacy behavior
+      const key = s3Client.getCharacterReferenceKey(userId, id);
+      const s3Uri = `s3://${bucket}/${key}`;
+
+      character.referenceImageS3Uri = s3Uri;
+      await character.save();
+
+      logger.info('Character reference image updated', { userId, characterId: id, s3Uri });
+    }
 
     const response: ApiResponse<{ character: ICharacter }> = {
       status: 'success',
-      data: { character: character.toObject() },
+      data: { character: character.toObject() as unknown as ICharacter },
       message: 'Reference image updated successfully',
     };
 
@@ -368,9 +417,145 @@ export const generateCharacterAvatar = async (req: Request, res: Response, next:
       status: 'success',
       data: { 
         url: avatarUrl,
-        character: updatedCharacter?.toObject() || character.toObject(),
+        character: (updatedCharacter?.toObject() || character.toObject()) as unknown as ICharacter,
       },
       message: 'Character avatar generated successfully',
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    handleError(error as Error, req, res, next);
+  }
+};
+
+/**
+ * Generate a multi-angle avatar for a character from multiple reference images
+ * Creates a 3-angle array and extracts the front-facing image as avatar
+ */
+export const generateMultiAngleAvatar = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({
+        status: 'fail',
+        message: 'User not authenticated',
+      });
+    }
+
+    const { id } = req.params;
+    const userId = req.user._id.toString();
+
+    // Verify character belongs to user and has reference images
+    const character = await Character.findOne({ _id: id, userId: req.user._id });
+    if (!character) {
+      return res.status(404).json({
+        status: 'fail',
+        message: 'Character not found',
+      });
+    }
+
+    // Check for reference images (either array or single)
+    const hasMultipleReferences = character.referenceImagesS3Uris && character.referenceImagesS3Uris.some(uri => uri);
+    const hasSingleReference = !!character.referenceImageS3Uri;
+
+    if (!hasMultipleReferences && !hasSingleReference) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'No reference images uploaded. Please upload at least one reference photo first.',
+      });
+    }
+
+    const provider = getConfiguredProvider();
+    const illustrationService = getIllustrationService();
+
+    logger.info('Generating multi-angle avatar', { userId, characterId: id, provider });
+
+    // Check if the service is the orchestrator (which has generateMultiAngleAvatar)
+    if (!(illustrationService instanceof IllustrationOrchestratorService)) {
+      return res.status(500).json({
+        status: 'fail',
+        message: 'Multi-angle avatar generation is not supported by the current illustration service',
+      });
+    }
+
+    // Fetch reference images from S3
+    const referenceImagesBase64: string[] = [];
+    const bucket = s3Client.getBucketName();
+
+    if (hasMultipleReferences && character.referenceImagesS3Uris) {
+      for (let i = 0; i < character.referenceImagesS3Uris.length; i++) {
+        const uri = character.referenceImagesS3Uris[i];
+        if (uri && uri.startsWith('s3://')) {
+          try {
+            const key = s3Client.getCharacterReferenceKey(userId, id, i);
+            const imageBase64 = await s3Client.getObjectAsBase64(bucket, key);
+            referenceImagesBase64.push(imageBase64);
+          } catch (error) {
+            logger.warn('Failed to fetch reference image from array', { 
+              userId, 
+              characterId: id, 
+              index: i,
+              error: (error as Error).message 
+            });
+          }
+        }
+      }
+    } else if (hasSingleReference) {
+      // Fall back to single reference image
+      try {
+        const key = s3Client.getCharacterReferenceKey(userId, id);
+        const imageBase64 = await s3Client.getObjectAsBase64(bucket, key);
+        referenceImagesBase64.push(imageBase64);
+      } catch (error) {
+        logger.error('Failed to fetch single reference image', {
+          userId,
+          characterId: id,
+          error: (error as Error).message,
+        });
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Failed to fetch reference image from storage',
+        });
+      }
+    }
+
+    if (referenceImagesBase64.length === 0) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Could not load any reference images from storage',
+      });
+    }
+
+    logger.info('Loaded reference images for multi-angle generation', {
+      userId,
+      characterId: id,
+      imageCount: referenceImagesBase64.length,
+    });
+
+    // Build options based on provider
+    const options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions = provider === 'openai'
+      ? { provider: 'openai' }
+      : { provider: 'sdxl' };
+
+    const result = await illustrationService.generateMultiAngleAvatar(userId, id, referenceImagesBase64, options);
+
+    // Refetch the character to get updated URIs
+    const updatedCharacter = await Character.findById(id);
+
+    logger.info('Multi-angle avatar generated successfully', { 
+      userId, 
+      characterId: id, 
+      multiAngleUrl: result.multiAngleUrl,
+      avatarUrl: result.avatarUrl,
+    });
+
+    const response: ApiResponse<{ multiAngleUrl: string; avatarUrl: string; character: ICharacter }> = {
+      status: 'success',
+      data: {
+        multiAngleUrl: result.multiAngleUrl,
+        avatarUrl: result.avatarUrl,
+        character: (updatedCharacter?.toObject() || character.toObject()) as unknown as ICharacter,
+      },
+      message: 'Multi-angle avatar generated successfully',
     };
 
     res.status(200).json(response);

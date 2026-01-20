@@ -6,7 +6,7 @@ import { getAwsClientConfig } from '../../utils/env';
 import Handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
-import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput } from '../interfaces/IPromptBuilder';
+import { IPromptBuilder, MemoryPromptInput, MultiSubjectGridPromptInput, MultiAngleReferenceInput } from '../interfaces/IPromptBuilder';
 import { calculateBedrockCost, formatCost } from '../../utils/costCalculator';
 
 /**
@@ -51,6 +51,21 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
   private templateCache: Map<string, HandlebarsTemplateDelegate> = new Map();
   private readonly DEFAULT_VERSION = 'v1';
 
+  /**
+   * Template version configuration - maps template names to their versions
+   * v3/v4 versions are streamlined for better model focus on reference images and age
+   */
+  private readonly TEMPLATE_VERSIONS: Record<string, string> = {
+    'style-constraints': 'v4',
+    'subject-prompt': 'v3',
+    'subject-angle-left': 'v3',
+    'subject-angle-front': 'v3',
+    'subject-angle-right': 'v3',
+    'scene-system': 'v3',
+    'composition-system': 'v3',
+    'format': 'v3',
+  };
+
   constructor() {
     this.bedrockClient = new BedrockRuntimeClient(getAwsClientConfig(this.BEDROCK_REGION));
   }
@@ -59,10 +74,11 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
    * Load a template from file, with caching
    * Supports per-template versioning (e.g., subject-v1.txt, format-v2.txt)
    * @param templateName - Base name of the template (e.g., 'subject', 'format')
-   * @param version - Optional version override (defaults to 'v1')
+   * @param version - Optional version override (defaults to configured version or v1)
    */
   private loadTemplate(templateName: string, version?: string): HandlebarsTemplateDelegate {
-    const templateVersion = version || this.DEFAULT_VERSION;
+    // Use provided version, or configured version, or default version
+    const templateVersion = version || this.TEMPLATE_VERSIONS[templateName] || this.DEFAULT_VERSION;
     const cacheKey = `${templateName}-${templateVersion}`;
     
     if (this.templateCache.has(cacheKey)) {
@@ -86,15 +102,6 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
       logger.error('Failed to load template', { templateName, version: templateVersion, error: (error as Error).message });
       throw new Error(`Template not found: ${templatePath}`);
     }
-  }
-
-  /**
-   * Get template version from environment variable or config
-   * Format: TEMPLATE_NAME_VERSION (e.g., SUBJECT_VERSION=v2, FORMAT_VERSION=v1)
-   */
-  private getTemplateVersion(templateName: string): string | undefined {
-    const envKey = `${templateName.toUpperCase().replace(/-/g, '_')}_VERSION`;
-    return process.env[envKey];
   }
 
   /**
@@ -130,8 +137,7 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
    * @param structuredPrompt - The structured prompt data
    */
   formatPromptForAPI(structuredPrompt: StructuredPrompt): string {
-    const version = this.getTemplateVersion('format');
-    const template = this.loadTemplate('format', version);
+    const template = this.loadTemplate('format');
     return template(structuredPrompt).trim();
   }
 
@@ -140,8 +146,7 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
    * Recent memory summary is included here for context about the subject's recent activities
    */
   private buildSubjectField(user: IUser, recentMemoriesContext?: string): string {
-    const version = this.getTemplateVersion('subject');
-    const template = this.loadTemplate('subject', version);
+    const template = this.loadTemplate('subject');
     return template({
       firstName: user.firstName,
       lastName: user.lastName,
@@ -155,8 +160,7 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
    * Build the IDENTITY CONSTRAINTS field with physical invariants
    */
   private buildIdentityConstraintsField(user: IUser): string {
-    const version = this.getTemplateVersion('identity-constraints');
-    const template = this.loadTemplate('identity-constraints', version);
+    const template = this.loadTemplate('identity-constraints');
     
     let ageDescription = '';
     if (user.age) {
@@ -189,8 +193,7 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
    * Build the STYLE CONSTRAINTS field
    */
   private buildStyleConstraintsField(user: IUser): string {
-    const version = this.getTemplateVersion('style-constraints');
-    const template = this.loadTemplate('style-constraints', version);
+    const template = this.loadTemplate('style-constraints');
     return template({
       preferredStyle: user.preferredStyle,
     }).trim();
@@ -204,10 +207,8 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
     user: IUser
   ): Promise<string> {
     try {
-      const systemVersion = this.getTemplateVersion('scene-system');
-      const userVersion = this.getTemplateVersion('scene-user');
-      const systemTemplate = this.loadTemplate('scene-system', systemVersion);
-      const userTemplate = this.loadTemplate('scene-user', userVersion);
+      const systemTemplate = this.loadTemplate('scene-system');
+      const userTemplate = this.loadTemplate('scene-user');
 
       const systemPrompt = systemTemplate({});
       const userMessage = userTemplate({
@@ -235,10 +236,8 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
     user: IUser
   ): Promise<string> {
     try {
-      const systemVersion = this.getTemplateVersion('composition-system');
-      const userVersion = this.getTemplateVersion('composition-user');
-      const systemTemplate = this.loadTemplate('composition-system', systemVersion);
-      const userTemplate = this.loadTemplate('composition-user', userVersion);
+      const systemTemplate = this.loadTemplate('composition-system');
+      const userTemplate = this.loadTemplate('composition-user');
 
       const systemPrompt = systemTemplate({});
       const userMessage = userTemplate({
@@ -333,8 +332,7 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
    * @param user - The user to create a portrait of
    */
   buildSubjectPrompt(user: IUser): string {
-    const version = this.getTemplateVersion('subject-prompt');
-    const template = this.loadTemplate('subject-prompt', version);
+    const template = this.loadTemplate('subject-prompt');
     return template({
       firstName: user.firstName,
       lastName: user.lastName,
@@ -345,16 +343,77 @@ export class OpenAIPromptBuilder implements IPromptBuilder {
   }
 
   /**
+   * Build a complete prompt for multi-angle subject illustrations (3-angle array)
+   * Uses template-based approach with per-template versioning
+   * @param user - The user to create a multi-angle portrait of
+   * @deprecated Use buildSubjectAnglePrompt with specific angle instead
+   */
+  buildMultiAngleSubjectPrompt(user: IUser): string {
+    const template = this.loadTemplate('subject-multi-angle');
+    
+    logger.info('PromptBuilder: Building multi-angle subject prompt from template', {
+      userName: `${user.firstName} ${user.lastName}`,
+    });
+    
+    return template({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      gender: user.gender,
+      age: user.age,
+      culturalBackground: user.culturalBackground,
+    }).trim();
+  }
+
+  /**
+   * Build a prompt for a specific angle of subject illustration
+   * Uses template-based approach with per-template versioning
+   * @param user - The user to create a portrait of
+   * @param angle - The angle to generate ('left', 'front', or 'right')
+   */
+  buildSubjectAnglePrompt(user: IUser, angle: 'left' | 'front' | 'right'): string {
+    const template = this.loadTemplate(`subject-angle-${angle}`);
+    
+    logger.info('PromptBuilder: Building subject angle prompt from template', {
+      userName: `${user.firstName} ${user.lastName}`,
+      angle,
+    });
+    
+    return template({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      gender: user.gender,
+      age: user.age,
+      culturalBackground: user.culturalBackground,
+    }).trim();
+  }
+
+  /**
+   * Build a prompt section for multi-angle reference in illustrations
+   * Uses template-based approach with per-template versioning
+   * @param input - Multi-angle reference data
+   */
+  buildMultiAngleReferencePrompt(input: MultiAngleReferenceInput): string {
+    const template = this.loadTemplate('subject-multi-angle-reference');
+    
+    logger.info('PromptBuilder: Building multi-angle reference prompt from template', {
+      subjectName: input.name,
+    });
+    
+    return template({
+      name: input.name,
+      deAgingInstruction: input.deAgingInstruction,
+    }).trim();
+  }
+
+  /**
    * Build a prompt for multi-subject grid-based illustrations
    * Uses template-based approach with per-template versioning
    * @param input - Grid layout description and subject data
    */
   buildMultiSubjectGridPrompt(input: MultiSubjectGridPromptInput): string {
-    const version = this.getTemplateVersion('multi-subject-grid');
-    const template = this.loadTemplate('multi-subject-grid', version);
+    const template = this.loadTemplate('multi-subject-grid');
     
     logger.info('PromptBuilder: Building multi-subject grid prompt from template', {
-      templateVersion: version || this.DEFAULT_VERSION,
       gridDescriptionLength: input.gridDescription.length,
       subjectCount: input.subjects.length,
     });

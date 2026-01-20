@@ -1,0 +1,13 @@
+[MULTI-ANGLE REFERENCE]
+The reference image for {{name}} is a 3-panel horizontal array showing the subject from three angles:
+- Left panel: Left three-quarter profile view
+- Center panel: Front-facing view
+- Right panel: Right three-quarter profile view
+
+IMPORTANT INSTRUCTIONS:
+- Use the appropriate angle(s) from the reference array based on the scene composition and subject's orientation
+- Maintain {{name}}'s facial features and identity as shown across all three reference angles
+- Choose the reference angle that best matches the subject's position in the scene
+- The multi-angle reference provides comprehensive facial information - use it to ensure consistency but DO NOT over-emphasize the subject
+- Preserve natural proportions and integration within the scene{{#if deAgingInstruction}}
+- {{deAgingInstruction}}{{/if}}

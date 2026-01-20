@@ -1,0 +1,1 @@
+Realistic professional sketch. Clean linework, natural human proportions. Monochrome. NOT cartoon or anime style.{{#if preferredStyle}} Incorporate {{preferredStyle}} elements.{{/if}}

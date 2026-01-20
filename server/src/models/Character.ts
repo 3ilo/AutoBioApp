@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 import { ICharacter } from '../../../shared/types/Character';
 
-export interface ICharacterDocument extends Omit<ICharacter, '_id'>, mongoose.Document {}
+export interface ICharacterDocument extends Omit<ICharacter, '_id' | 'userId'>, mongoose.Document {
+  userId: mongoose.Types.ObjectId;
+}
 
 const characterSchema = new mongoose.Schema<ICharacterDocument>(
   {
@@ -39,6 +41,14 @@ const characterSchema = new mongoose.Schema<ICharacterDocument>(
       trim: true,
     },
     referenceImageS3Uri: {
+      type: String,
+      trim: true,
+    },
+    referenceImagesS3Uris: {
+      type: [String],
+      default: [],
+    },
+    multiAngleReferenceS3Uri: {
       type: String,
       trim: true,
     },

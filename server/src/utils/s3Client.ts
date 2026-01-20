@@ -37,9 +37,14 @@ class S3ClientSingleton {
 
   /**
    * Generate a pre-signed URL for uploading a reference image
+   * @param userId - User ID
+   * @param contentType - Content type of the image
+   * @param index - Optional index for multiple reference images (0-4)
    */
-  public async generatePresignedUploadUrl(userId: string, contentType: string): Promise<string> {
-    const key = `${S3_SUBJECT_PREFIX}${userId}.png`;
+  public async generatePresignedUploadUrl(userId: string, contentType: string, index?: number): Promise<string> {
+    const key = index !== undefined 
+      ? `${S3_SUBJECT_PREFIX}${userId}-${index}.png`
+      : `${S3_SUBJECT_PREFIX}${userId}.png`;
     
     const command = new PutObjectCommand({
       Bucket: S3_BUCKET,
@@ -52,12 +57,13 @@ class S3ClientSingleton {
         expiresIn: 3600 // 1 hour
       });
       
-      logger.debug('Generated presigned upload URL', { userId, key });
+      logger.debug('Generated presigned upload URL', { userId, key, index });
       return presignedUrl;
     } catch (error) {
       logger.error('Failed to generate presigned upload URL', { 
         userId, 
-        key, 
+        key,
+        index,
         error: (error as Error).message 
       });
       throw error;
@@ -186,9 +192,21 @@ class S3ClientSingleton {
 
   /**
    * Get the S3 key for a user's subject image
+   * @param userId - User ID
+   * @param index - Optional index for multiple reference images (0-4)
    */
-  public getSubjectKey(userId: string): string {
+  public getSubjectKey(userId: string, index?: number): string {
+    if (index !== undefined) {
+      return `${S3_SUBJECT_PREFIX}${userId}-${index}.png`;
+    }
     return `${S3_SUBJECT_PREFIX}${userId}.png`;
+  }
+
+  /**
+   * Get the S3 key for a user's multi-angle reference image (3-angle array)
+   */
+  public getUserMultiAngleKey(userId: string): string {
+    return `${S3_SUBJECT_PREFIX}${userId}-multi-angle.png`;
   }
 
   /**
@@ -235,9 +253,22 @@ class S3ClientSingleton {
 
   /**
    * Get the S3 key for a character's reference image
+   * @param userId - User ID
+   * @param characterId - Character ID
+   * @param index - Optional index for multiple reference images (0-4)
    */
-  public getCharacterReferenceKey(userId: string, characterId: string): string {
+  public getCharacterReferenceKey(userId: string, characterId: string, index?: number): string {
+    if (index !== undefined) {
+      return `${S3_CHARACTER_PREFIX}${userId}/${characterId}/reference-${index}.png`;
+    }
     return `${S3_CHARACTER_PREFIX}${userId}/${characterId}/reference.png`;
+  }
+
+  /**
+   * Get the S3 key for a character's multi-angle reference image (3-angle array)
+   */
+  public getCharacterMultiAngleKey(userId: string, characterId: string): string {
+    return `${S3_CHARACTER_PREFIX}${userId}/${characterId}/multi-angle.png`;
   }
 
   /**
@@ -249,13 +280,18 @@ class S3ClientSingleton {
 
   /**
    * Generate a pre-signed URL for uploading a character reference image
+   * @param userId - User ID
+   * @param characterId - Character ID
+   * @param contentType - Content type of the image
+   * @param index - Optional index for multiple reference images (0-4)
    */
   public async generatePresignedCharacterReferenceUploadUrl(
     userId: string,
     characterId: string,
-    contentType: string
+    contentType: string,
+    index?: number
   ): Promise<string> {
-    const key = this.getCharacterReferenceKey(userId, characterId);
+    const key = this.getCharacterReferenceKey(userId, characterId, index);
     
     const command = new PutObjectCommand({
       Bucket: S3_BUCKET,
@@ -268,13 +304,14 @@ class S3ClientSingleton {
         expiresIn: 3600 // 1 hour
       });
       
-      logger.debug('Generated presigned character reference upload URL', { userId, characterId, key });
+      logger.debug('Generated presigned character reference upload URL', { userId, characterId, key, index });
       return presignedUrl;
     } catch (error) {
       logger.error('Failed to generate presigned character reference upload URL', { 
         userId,
         characterId,
-        key, 
+        key,
+        index,
         error: (error as Error).message 
       });
       throw error;

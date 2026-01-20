@@ -195,9 +195,22 @@ export const imageGenerationApi = {
     return response.data;
   },
 
-  generatePresignedUploadUrl: async (contentType: string) => {
-    const response = await api.post<ApiResponse<{ uploadUrl: string; key: string }>>('/images/presigned-upload-url', {
+  generateMultiAngleUserAvatar: async (userId: string) => {
+    const response = await api.post<ApiResponse<{ multiAngleUrl: string; avatarUrl: string; avatarS3Uri: string }>>('/images/multi-angle-user-avatar', { userId });
+    return response.data;
+  },
+
+  generatePresignedUploadUrl: async (contentType: string, index?: number) => {
+    const response = await api.post<ApiResponse<{ uploadUrl: string; key: string; index?: number }>>('/images/presigned-upload-url', {
       contentType,
+      ...(index !== undefined && { index }),
+    });
+    return response.data;
+  },
+
+  updateUserReferenceImage: async (index?: number) => {
+    const response = await api.post<ApiResponse<{ success: boolean }>>('/images/update-user-reference', {
+      ...(index !== undefined && { index }),
     });
     return response.data;
   },
@@ -260,17 +273,18 @@ export const characterApi = {
     return response.data;
   },
 
-  generatePresignedReferenceUploadUrl: async (characterId: string, contentType: string) => {
-    const response = await api.post<ApiResponse<{ uploadUrl: string; key: string }>>(
+  generatePresignedReferenceUploadUrl: async (characterId: string, contentType: string, index?: number) => {
+    const response = await api.post<ApiResponse<{ uploadUrl: string; key: string; index?: number }>>(
       `/characters/${characterId}/presigned-reference-upload-url`,
-      { contentType }
+      { contentType, ...(index !== undefined && { index }) }
     );
     return response.data;
   },
 
-  updateReferenceImage: async (characterId: string) => {
+  updateReferenceImage: async (characterId: string, index?: number) => {
     const response = await api.post<ApiResponse<{ character: ICharacter }>>(
-      `/characters/${characterId}/reference-image`
+      `/characters/${characterId}/reference-image`,
+      { ...(index !== undefined && { index }) }
     );
     return response.data;
   },
@@ -278,6 +292,13 @@ export const characterApi = {
   generateAvatar: async (characterId: string) => {
     const response = await api.post<ApiResponse<{ url: string; character: ICharacter }>>(
       `/characters/${characterId}/generate-avatar`
+    );
+    return response.data;
+  },
+
+  generateMultiAngleAvatar: async (characterId: string) => {
+    const response = await api.post<ApiResponse<{ multiAngleUrl: string; avatarUrl: string; character: ICharacter }>>(
+      `/characters/${characterId}/generate-multi-angle-avatar`
     );
     return response.data;
   },

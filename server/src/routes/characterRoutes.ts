@@ -8,6 +8,7 @@ import {
   generatePresignedReferenceUploadUrl,
   updateReferenceImage,
   generateCharacterAvatar,
+  generateMultiAngleAvatar,
 } from '../controllers/characterController';
 import { protect } from '../utils/auth';
 
@@ -29,5 +30,6 @@ router.post('/:id/reference-image', updateReferenceImage);
 
 // Avatar generation
 router.post('/:id/generate-avatar', generateCharacterAvatar);
+router.post('/:id/generate-multi-angle-avatar', generateMultiAngleAvatar);
 
 export default router;

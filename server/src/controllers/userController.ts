@@ -41,7 +41,8 @@ export const updateCurrentUser = async (req: Request, res: Response, next: NextF
 
     const allowedUpdates = [
       'firstName', 'lastName', 'age', 'bio', 'location', 'avatar',
-      'occupation', 'gender', 'interests', 'culturalBackground', 'preferredStyle'
+      'occupation', 'gender', 'interests', 'culturalBackground', 'preferredStyle',
+      'referenceImagesS3Uris', 'multiAngleReferenceS3Uri'
     ];
     const updates = Object.keys(req.body).filter(key => allowedUpdates.includes(key));
     

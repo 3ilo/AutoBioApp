@@ -1,8 +1,8 @@
 [SUBJECT]
-Create a professional illustrated portrait of {{firstName}} {{lastName}}. Use the provided reference image to accurately capture {{firstName}}'s facial features, expression, and likeness.
+Create a professional illustrated portrait of {{firstName}} {{lastName}} from a right three-quarter profile view. Use the provided reference images to accurately capture {{firstName}}'s facial features, expression, and likeness from this specific angle.
 
 [IDENTITY CONSTRAINTS]
-- Maintain exact facial features from reference image{{#if gender}}
+- Maintain exact facial features from reference images{{#if gender}}
 - Gender: {{gender}}{{/if}}{{#if age}}
 - Age: approximately {{age}} years old{{/if}}{{#if culturalBackground}}
 - Ethnicity/background: {{culturalBackground}}{{/if}}
@@ -16,9 +16,10 @@ Create a professional illustrated portrait of {{firstName}} {{lastName}}. Use th
 - Mood: neutral, professional, peaceful
 - Clothing: Any visible parts of shirt must be illustrated as a blank generic white t-shirt with no patterns, logos, designs, or other overwear
 
-[COMPOSITION]
-- Framing: Oriented around head with eyes in the center. Head and partial shoulders portrait, centered. 
-- Perspective: Eye level, slight three-quarter view for dimension
+[COMPOSITION - RIGHT THREE-QUARTER PROFILE]
+- Perspective: Three-quarter view facing right (showing right side of face)
+- Head orientation: Face turned approximately 45 degrees to the right
+- Framing: Head and partial shoulders portrait, centered
+- Eyes positioned in center of frame, gaze directed right
 - Expression: Natural, warm, friendly
-- Lighting: Soft, even lighting from front-left
-
+- Lighting: Soft, even lighting from front-right
