@@ -7,32 +7,66 @@ provider:
   runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
-  memorySize: 512
-  timeout: 30
+  memorySize: 1024  # Increased for image processing (sharp, image generation)
+  timeout: 300       # API Gateway hard limit - cannot be increased
   environment:
-    # Set NODE_ENV based on stage (dev or prod)
-    # This determines which .env.* file gets loaded in the Lambda runtime
-    # Note: The deploy script sets NODE_ENV before deployment, but this ensures
-    # Lambda runtime also has the correct value
+    # Runtime Environment
     NODE_ENV: ${env:NODE_ENV}
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+    
+    # Database Configuration
     MONGODB_URI: ${env:MONGODB_URI}
+    
+    # Authentication Configuration
     JWT_SECRET: ${env:JWT_SECRET}
     JWT_EXPIRES_IN: ${env:JWT_EXPIRES_IN, '7d'}
+    REGISTRATION_SECRET: ${env:REGISTRATION_SECRET}
+    
+    # Frontend Configuration
     FRONTEND_URL: ${env:FRONTEND_URL}
-    # S3 Configuration - single bucket, single region, path-based separation
+    
+    # S3 Configuration
+    # Note: AWS credentials are NOT needed in Lambda - uses IAM role below
+    # BACKEND_AWS_KEY and BACKEND_AWS_SECRET are only for local development
     S3_CLIENT_REGION: ${self:provider.region}
     S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
-    # Note: AWS credentials are NOT needed in Lambda environment
-    # Lambda uses the IAM role configured below for AWS service access
-    # BACKEND_AWS_KEY and BACKEND_AWS_SECRET are only for local development
-    REGISTRATION_SECRET: ${env:REGISTRATION_SECRET}
-    USE_STUB: ${env:USE_STUB, 'true'}
-    USE_ILLUSTRATION_SERVICE: ${env:USE_ILLUSTRATION_SERVICE, 'false'}
+    S3_SUBJECT_PREFIX: ${env:S3_SUBJECT_PREFIX, 'subjects/'}
+    S3_AVATAR_PREFIX: ${env:S3_AVATAR_PREFIX, 'avatars/'}
+    S3_GENERATED_PREFIX: ${env:S3_GENERATED_PREFIX, 'generated/'}
+    S3_STUBS_PREFIX: ${env:S3_STUBS_PREFIX, 'stubs/'}
+    S3_CHARACTER_PREFIX: ${env:S3_CHARACTER_PREFIX, 'characters/'}
+    
+    # Bedrock Configuration (for AI summarization)
+    BEDROCK_SUMMARY_MODEL_ID: ${env:BEDROCK_SUMMARY_MODEL_ID, 'us.amazon.nova-micro-v1:0'}
+    BEDROCK_CLIENT_REGION: ${env:BEDROCK_CLIENT_REGION, 'us-west-2'}
+    
+    # Stub Configuration (for testing/development)
+    USE_STUB: ${env:USE_STUB, 'false'}
+    USE_STUB_ILLUSTRATION: ${env:USE_STUB_ILLUSTRATION, 'false'}
+    USE_STUB_SUMMARIZATION: ${env:USE_STUB_SUMMARIZATION, 'false'}
+    USE_STUB_MEMORY_SUMMARY: ${env:USE_STUB_MEMORY_SUMMARY, 'false'}
+    USE_STUB_PROMPT_BUILDER: ${env:USE_STUB_PROMPT_BUILDER, 'false'}
+    
+    # Illustration Provider Configuration
+    ILLUSTRATION_PROVIDER: ${env:ILLUSTRATION_PROVIDER, 'openai'}
+    
+    # SDXL Illustration Service (self-hosted)
     ILLUSTRATION_SERVICE_URL: ${env:ILLUSTRATION_SERVICE_URL, ''}
     ILLUSTRATION_SERVICE_AUTH_TOKEN: ${env:ILLUSTRATION_SERVICE_AUTH_TOKEN, ''}
+    
+    # OpenAI Configuration
+    OPENAI_API_KEY: ${env:OPENAI_API_KEY, ''}
+    OPENAI_IMAGE_MODEL: ${env:OPENAI_IMAGE_MODEL, 'gpt-image-1.5'}
+    OPENAI_IMAGE_SIZE: ${env:OPENAI_IMAGE_SIZE, '1024x1024'}
+    OPENAI_IMAGE_QUALITY: ${env:OPENAI_IMAGE_QUALITY, 'low'}
+    
+    # Feature Flags
+    MAX_CHARACTER_REFERENCE_IMAGES: ${env:MAX_CHARACTER_REFERENCE_IMAGES, '5'}
+    DISABLE_RECENT_MEMORIES: ${env:DISABLE_RECENT_MEMORIES, 'false'}
   iam:
     role:
       statements:
+        # S3 Permissions - for storing images, avatars, and generated content
         - Effect: Allow
           Action:
             - s3:GetObject
@@ -42,6 +76,12 @@ provider:
           Resource:
             - 'arn:aws:s3:::${env:S3_BUCKET_NAME}'
             - 'arn:aws:s3:::${env:S3_BUCKET_NAME}/*'
+        # Bedrock Permissions - for AI summarization services
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+          Resource:
+            - 'arn:aws:bedrock:*::foundation-model/*'
 
 
 functions:

@@ -223,12 +223,11 @@ export const imageGenerationApi = {
   },
 
   uploadToS3: async (presignedUrl: string, file: File) => {
+    // Don't add Content-Type header - it's already in the presigned URL signature
+    // Adding it here would cause a signature mismatch error with AWS S3
     const response = await fetch(presignedUrl, {
       method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type,
-      },
+      body: file
     });
     
     if (!response.ok) {

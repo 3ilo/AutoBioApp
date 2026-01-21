@@ -81,6 +81,32 @@ fi
 echo -e "${GREEN}✅ Build successful${NC}"
 echo ""
 
+# Reinstall sharp for Linux (Lambda runtime)
+# This is necessary because sharp has platform-specific native binaries
+# We need to remove it first to ensure clean installation of Linux binaries
+echo "📦 Preparing sharp for Lambda (linux-x64)..."
+
+# Remove existing sharp installation to force clean install
+rm -rf node_modules/sharp
+
+# Install sharp with Linux binaries
+npm install --platform=linux --arch=x64 sharp
+
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}❌ Failed to install sharp for Linux${NC}"
+    exit 1
+fi
+
+# Verify Linux binaries are installed
+if [ -f "node_modules/sharp/build/Release/sharp-linux-x64.node" ]; then
+    echo -e "${GREEN}✅ sharp installed for Linux (verified)${NC}"
+else
+    echo -e "${YELLOW}⚠️  Warning: Linux binaries may not be installed correctly${NC}"
+    ls -la node_modules/sharp/build/Release/ 2>/dev/null || echo "Build directory not found"
+fi
+
+echo ""
+
 # Deploy with serverless
 # NODE_ENV is already set based on stage
 echo "☁️  Deploying to AWS (NODE_ENV=$NODE_ENV)..."
@@ -89,6 +115,20 @@ serverless deploy --stage $STAGE --region $REGION
 if [ $? -eq 0 ]; then
     echo ""
     echo -e "${GREEN}✅ Deployment successful!${NC}"
+    
+    # Restore sharp for local development
+    echo ""
+    echo "🔄 Restoring sharp for local development..."
+    rm -rf node_modules/sharp
+    npm install sharp
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✅ sharp restored with local system binaries${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Warning: Failed to restore sharp${NC}"
+        echo "You may need to manually run: npm install sharp"
+    fi
+    
     echo ""
     echo "Next steps:"
     echo "  1. Create API key: ./scripts/create-api-key.sh $STAGE"
