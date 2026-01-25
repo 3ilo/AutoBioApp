@@ -1,8 +1,8 @@
 import { format } from 'date-fns';
-import { IMemory } from '@shared/types/Memory';
+import { IMemory, IMemoryImage } from '@shared/types/Memory';
 import DOMPurify from 'dompurify';
-import { TrashIcon, PencilIcon, UserPlusIcon, UserMinusIcon } from '@heroicons/react/24/outline';
-import { useState, useEffect } from 'react';
+import { TrashIcon, PencilIcon, UserPlusIcon, UserMinusIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { memoriesApi, userApi } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -20,6 +20,16 @@ interface MemoryCardProps {
   linkToMemory?: boolean; // If true, makes the card clickable to link to the memory in the carousel
 }
 
+/**
+ * Helper function to remove @ symbols from mention spans in HTML content
+ */
+function cleanMentionSymbols(html: string): string {
+  return html.replace(
+    /(<span[^>]*class="[^"]*mention[^"]*"[^>]*>)@([^<]+)(<\/span>)/g,
+    '$1$2$3'
+  );
+}
+
 export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = false, showFollowButton = false, linkToMemory = false }: MemoryCardProps) {
   const user = useAuthStore((state) => state.user);
   const userFollowing = useAuthStore((state) => state.user?.following);
@@ -27,6 +37,10 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [contentNodes, setContentNodes] = useState<React.ReactNode[]>([]);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Check if this memory belongs to the current user
   const isOwnMemory = user?._id && (
@@ -36,6 +50,125 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
 
   // Only link if linkToMemory is true AND it's the user's own memory
   const shouldLink = linkToMemory && isOwnMemory && memory._id;
+
+  // Collect all images (main + secondary) like Memory component
+  const allImages = useMemo(() => {
+    const images: IMemoryImage[] = [];
+    if (memory.mainImage) {
+      images.push(memory.mainImage);
+    }
+    if (memory.images && memory.images.length > 0) {
+      images.push(...memory.images);
+    }
+    return images;
+  }, [memory.mainImage, memory.images]);
+
+  // Process content and inject images like Memory component
+  useEffect(() => {
+    if (allImages.length === 0) {
+      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(memory.content));
+      setContentNodes([<div key="content" dangerouslySetInnerHTML={{ __html: sanitized }} />]);
+      return;
+    }
+
+    // Parse HTML content
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(memory.content, 'text/html');
+    const body = doc.body;
+
+    // Get all paragraph elements
+    const paragraphs = Array.from(body.querySelectorAll('p'));
+    
+    if (paragraphs.length === 0) {
+      // No paragraphs, just sanitize and return
+      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(memory.content));
+      setContentNodes([<div key="content" dangerouslySetInnerHTML={{ __html: sanitized }} />]);
+      return;
+    }
+
+    // Distribute images across paragraphs
+    const imagesPerParagraph = Math.max(1, Math.floor(paragraphs.length / allImages.length));
+    const nodes: React.ReactNode[] = [];
+    let imageIndex = 0;
+
+    paragraphs.forEach((paragraph, index) => {
+      // Add paragraph
+      const paragraphHtml = paragraph.outerHTML;
+      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(paragraphHtml));
+      
+      // Check if paragraph is empty (just whitespace, <br>, or empty)
+      const textContent = paragraph.textContent?.trim() || '';
+      const innerHTML = paragraph.innerHTML.trim();
+      const isEmpty = textContent === '' && (innerHTML === '' || innerHTML === '<br>' || innerHTML === '<br/>');
+      
+      // Render paragraph with spacing - empty paragraphs create line breaks
+      // Add margin-bottom to all paragraphs for spacing, extra height for empty ones
+      // Use !important to override prose styles if needed
+      nodes.push(
+        <div 
+          key={`para-${index}`}
+          className={`!mb-4 ${isEmpty ? '!h-4 !min-h-[1rem] block' : ''}`}
+          style={isEmpty ? { marginBottom: '1rem', minHeight: '1rem', display: 'block' } : { marginBottom: '1rem' }}
+          dangerouslySetInnerHTML={{ __html: sanitized }} 
+        />
+      );
+
+      // Insert image after this paragraph if it's time
+      if (imageIndex < allImages.length && (index + 1) % imagesPerParagraph === 0) {
+        const image = allImages[imageIndex];
+        const floatDirection = image.float || (imageIndex % 2 === 0 ? 'left' : 'right');
+        const sizeClass = image.size === 'small' ? 'max-w-[200px]' : image.size === 'large' ? 'max-w-[400px]' : 'max-w-[300px]';
+        
+        nodes.push(
+          <div
+            key={`img-${imageIndex}`}
+            className={`memory-image-wrap float-${floatDirection} ${sizeClass} mb-4 ${floatDirection === 'left' ? 'mr-4' : 'ml-4'}`}
+          >
+            <MemoryImage
+              src={image.url}
+              alt={`Memory illustration ${imageIndex + 1}`}
+              className="w-full h-auto border-2 border-slate-200"
+            />
+          </div>
+        );
+        imageIndex++;
+      }
+    });
+
+    // Add remaining images at the end
+    while (imageIndex < allImages.length) {
+      const image = allImages[imageIndex];
+      const floatDirection = image.float || (imageIndex % 2 === 0 ? 'left' : 'right');
+      const sizeClass = image.size === 'small' ? 'max-w-[200px]' : image.size === 'large' ? 'max-w-[400px]' : 'max-w-[300px]';
+      
+      nodes.push(
+        <div
+          key={`img-${imageIndex}`}
+          className={`memory-image-wrap float-${floatDirection} ${sizeClass} mb-4 ${floatDirection === 'left' ? 'mr-4' : 'ml-4'}`}
+        >
+          <MemoryImage
+            src={image.url}
+            alt={`Memory illustration ${imageIndex + 1}`}
+            className="w-full h-auto border-2 border-slate-200"
+          />
+        </div>
+      );
+      imageIndex++;
+    }
+
+    setContentNodes(nodes);
+  }, [memory.content, allImages]);
+
+  // Check if content overflows (needs expansion)
+  useEffect(() => {
+    if (contentRef.current) {
+      const element = contentRef.current;
+      // Check if content is taller than max height when collapsed
+      const maxHeight = 600; // matches max-h-[600px]
+      const hasOverflowContent = element.scrollHeight > maxHeight;
+      setHasOverflow(hasOverflowContent);
+    }
+  }, [contentNodes, isExpanded, allImages]);
 
   // Check if current user is following the memory's author
   useEffect(() => {
@@ -97,16 +230,21 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     }
   };
 
-  // Sanitize the HTML content and remove @ symbols from mentions
-  const sanitizedContent = DOMPurify.sanitize(memory.content).replace(
-    /(<span[^>]*class="[^"]*mention[^"]*"[^>]*>)@([^<]+)(<\/span>)/g,
-    '$1$2$3'
-  );
-
   // Stop event propagation for buttons to prevent link navigation
   const handleButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+  };
+
+  const handleContentClick = (e: React.MouseEvent) => {
+    // Only toggle if clicking on the content area itself, not buttons, links, or images
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a, img, .memory-image-wrap')) {
+      return;
+    }
+    if (hasOverflow && !isExpanded) {
+      setIsExpanded(true);
+    }
   };
 
 
@@ -189,37 +327,50 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
           </div>
         </div>
           
-        <div className="relative flex gap-8 min-w-0">
-          {/* Content container */}
-          <div className="prose prose-sm flex-1 max-w-none min-w-0">
-              <div 
-              className="text-slate-700 whitespace-pre-wrap break-words leading-relaxed"
-              style={{ 
-                wordBreak: 'break-word', 
-                overflowWrap: 'anywhere',
-                display: '-webkit-box',
-                WebkitLineClamp: 6,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}
-                dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-              />
-            </div>
-
-          {/* Images container - colorful, vibrant - show only main image */}
-            {(memory.mainImage || (memory.images && memory.images.length > 0)) && (
-            <div className="w-2/5 flex-shrink-0 min-w-0">
-              <div className="relative w-full border-2 border-slate-200 aspect-[4/3] overflow-hidden">
-                <MemoryImage
-                  src={memory.mainImage?.url || memory.images[0]?.url || ''}
-                  alt="Memory illustration"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
+        {/* Content with two-column layout on wide screens - same as Memory component */}
+        <div 
+          className={`memory-content-wrapper ${hasOverflow && !isExpanded ? 'cursor-pointer' : ''}`}
+          onClick={handleContentClick}
+        >
+          <div 
+            ref={contentRef}
+            className={`prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none memory-content-two-column text-slate-700 ${
+              !isExpanded && hasOverflow 
+                ? 'max-h-[600px] overflow-hidden relative' 
+                : ''
+            }`}
+          >
+            {!isExpanded && hasOverflow && (
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+            )}
+            {contentNodes.length > 0 ? contentNodes : (
+              <div dangerouslySetInnerHTML={{ __html: cleanMentionSymbols(DOMPurify.sanitize(memory.content)) }} />
             )}
           </div>
+          
+          {/* Expand/Collapse indicator */}
+          {hasOverflow && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+              className="mt-4 flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-wider hover:text-slate-700 transition-colors"
+            >
+              {isExpanded ? (
+                <>
+                  <span>Show Less</span>
+                  <ChevronUpIcon className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <span>Show More</span>
+                  <ChevronDownIcon className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
+        </div>
 
           {memory.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-6 pt-6 border-t border-slate-200">

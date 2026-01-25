@@ -71,9 +71,20 @@ export function Memory({ memory }: MemoryProps) {
       // Add paragraph
       const paragraphHtml = paragraph.outerHTML;
       const sanitized = cleanMentionSymbols(DOMPurify.sanitize(paragraphHtml));
+      
+      // Check if paragraph is empty (just whitespace, <br>, or empty)
+      const textContent = paragraph.textContent?.trim() || '';
+      const innerHTML = paragraph.innerHTML.trim();
+      const isEmpty = textContent === '' && (innerHTML === '' || innerHTML === '<br>' || innerHTML === '<br/>');
+      
+      // Render paragraph with spacing - empty paragraphs create line breaks
+      // Add margin-bottom to all paragraphs for spacing, extra height for empty ones
+      // Use !important to override prose styles if needed
       nodes.push(
         <div 
-          key={`para-${index}`} 
+          key={`para-${index}`}
+          className={`!mb-4 ${isEmpty ? '!h-4 !min-h-[1rem] block' : ''}`}
+          style={isEmpty ? { marginBottom: '1rem', minHeight: '1rem', display: 'block' } : { marginBottom: '1rem' }}
           dangerouslySetInnerHTML={{ __html: sanitized }} 
         />
       );
