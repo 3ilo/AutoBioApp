@@ -330,10 +330,17 @@ body {
   min-height: 100vh;
 }
 
-/* Character mention styles - indigo bold text */
+/* Character mention styles - bold text only */
 .mention {
   font-weight: 700;
-  color: #4f46e5; /* indigo-600 */
+  color: inherit; /* Use parent text color */
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+}
+
+.mention:hover {
+  text-decoration: underline;
 }
 
 /* Hide the @ symbol in mentions */
@@ -343,4 +350,69 @@ body {
 
 .mention[data-id]::before {
   content: '';
+}
+
+/* Enhanced mention with tooltip */
+.mention-enhanced {
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+  display: inline-block;
+}
+
+.mention-enhanced:hover {
+  text-decoration: underline;
+}
+
+/* JavaScript-based tooltip popup - matches AutoBio aesthetic */
+.mention-tooltip-popup {
+  z-index: 9999;
+  padding: 12px 16px;
+  background-color: #ffffff; /* white background */
+  color: #0f172a; /* slate-900 text */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  text-align: left;
+  border: 1px solid #0f172a; /* slate-900 border - sharp, geometric */
+  border-radius: 0; /* sharp corners */
+  pointer-events: auto;
+  cursor: pointer;
+  min-width: max-content;
+  max-width: 300px;
+  word-wrap: break-word;
+  line-height: 1.5;
+  position: fixed;
+  box-shadow: none; /* no shadows, borders only */
+}
+
+.mention-tooltip-popup .tooltip-name {
+  font-weight: 600; /* font-semibold */
+  color: #0f172a; /* slate-900 */
+  font-size: 0.875rem;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.mention-tooltip-popup .tooltip-relationship {
+  color: #64748b; /* slate-500 for secondary text */
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 400;
+  line-height: 1.4;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em; /* tracking-wider */
+}
+
+.mention-tooltip-popup .tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #0f172a; /* slate-900 to match border */
 }

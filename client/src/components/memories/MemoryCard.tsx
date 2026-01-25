@@ -4,10 +4,13 @@ import DOMPurify from 'dompurify';
 import { TrashIcon, PencilIcon, UserPlusIcon, UserMinusIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { memoriesApi, userApi } from '../../services/api';
+import { memoriesApi, userApi, characterApi } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { MemoryImage } from './MemoryImage';
 import { getMemoryLink } from '../../utils/memoryLinks';
+import { getFirstName } from '../../utils/mentionProcessor';
+import { ICharacter } from '../../types/character';
+import { useMentionTooltips } from '../../hooks/useMentionTooltips';
 import logger from '../../utils/logger';
 
 interface MemoryCardProps {
@@ -30,6 +33,46 @@ function cleanMentionSymbols(html: string): string {
   );
 }
 
+/**
+ * Process mentions in HTML to show first name only and add tooltip data
+ */
+function processMentions(html: string, characterMap: Map<string, ICharacter>): string {
+  // Match span with mention class, extract data-id and data-label in any order
+  return html.replace(
+    /<span([^>]*class="[^"]*mention[^"]*"[^>]*)>([^<]*)<\/span>/g,
+    (match, attrs) => {
+      // Extract data-id and data-label from attributes (order-independent)
+      const idMatch = attrs.match(/data-id="([^"]+)"/);
+      const labelMatch = attrs.match(/data-label="([^"]+)"/);
+      
+      if (!idMatch || !labelMatch) {
+        // Not a mention with required attributes, return as-is
+        return match;
+      }
+      
+      const characterId = idMatch[1];
+      const fullName = labelMatch[1];
+      const character = characterMap.get(characterId);
+      const firstName = getFirstName(fullName);
+      const relationship = character?.relationship || '';
+      
+      // Escape HTML in data attributes
+      const escapedFullName = fullName.replace(/"/g, '&quot;');
+      const escapedRelationship = relationship.replace(/"/g, '&quot;');
+      
+      // Create enhanced mention with data attributes
+      // Store full name and relationship separately for CSS tooltip
+      const newAttrs = attrs
+        .replace(/class="([^"]*)"/, `class="$1 mention-enhanced"`)
+        + ` data-full-name="${escapedFullName}"`
+        + (relationship ? ` data-relationship="${escapedRelationship}"` : '')
+        + ` data-character-id="${characterId}"`;
+      
+      return `<span${newAttrs}>${firstName}</span>`;
+    }
+  );
+}
+
 export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = false, showFollowButton = false, linkToMemory = false }: MemoryCardProps) {
   const user = useAuthStore((state) => state.user);
   const userFollowing = useAuthStore((state) => state.user?.following);
@@ -40,7 +83,11 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
   const [isExpanded, setIsExpanded] = useState(false);
   const [contentNodes, setContentNodes] = useState<React.ReactNode[]>([]);
   const [hasOverflow, setHasOverflow] = useState(false);
+  const [characterMap, setCharacterMap] = useState<Map<string, ICharacter>>(new Map());
   const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Add tooltips to mentions
+  useMentionTooltips(contentRef);
 
   // Check if this memory belongs to the current user
   const isOwnMemory = user?._id && (
@@ -50,6 +97,38 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
 
   // Only link if linkToMemory is true AND it's the user's own memory
   const shouldLink = linkToMemory && isOwnMemory && memory._id;
+
+  // Load character data for mentions
+  useEffect(() => {
+    const loadMentionCharacters = async () => {
+      // Extract all character IDs from content
+      const mentionMatches = memory.content.matchAll(/data-id="([^"]+)"/g);
+      const characterIds = Array.from(mentionMatches, m => m[1]);
+      
+      if (characterIds.length === 0) return;
+      
+      const loadedCharacters = new Map<string, ICharacter>();
+      for (const id of characterIds) {
+        if (!characterMap.has(id)) {
+          try {
+            const response = await characterApi.getById(id);
+            loadedCharacters.set(id, response.data.character);
+          } catch (error) {
+            // Character not found, skip
+            logger.debug('Character not found for mention', { characterId: id });
+          }
+        }
+      }
+      
+      if (loadedCharacters.size > 0) {
+        const merged = new Map(characterMap);
+        loadedCharacters.forEach((char, id) => merged.set(id, char));
+        setCharacterMap(merged);
+      }
+    };
+    
+    loadMentionCharacters();
+  }, [memory.content, characterMap]);
 
   // Collect all images (main + secondary) like Memory component
   const allImages = useMemo(() => {
@@ -65,8 +144,14 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
 
   // Process content and inject images like Memory component
   useEffect(() => {
+    // Process mentions BEFORE sanitizing to preserve data attributes
+    let processed = processMentions(memory.content, characterMap);
+    
     if (allImages.length === 0) {
-      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(memory.content));
+      let sanitized = cleanMentionSymbols(DOMPurify.sanitize(processed, {
+        ALLOW_DATA_ATTR: true,
+        ALLOWED_ATTR: ['class', 'data-id', 'data-label', 'data-type', 'data-full-name', 'data-relationship', 'data-character-id'],
+      }));
       setContentNodes([<div key="content" dangerouslySetInnerHTML={{ __html: sanitized }} />]);
       return;
     }
@@ -81,7 +166,10 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     
     if (paragraphs.length === 0) {
       // No paragraphs, just sanitize and return
-      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(memory.content));
+      let sanitized = cleanMentionSymbols(DOMPurify.sanitize(processed, {
+        ALLOW_DATA_ATTR: true,
+        ALLOWED_ATTR: ['class', 'data-id', 'data-label', 'data-type', 'data-full-name', 'data-relationship', 'data-character-id'],
+      }));
       setContentNodes([<div key="content" dangerouslySetInnerHTML={{ __html: sanitized }} />]);
       return;
     }
@@ -92,9 +180,13 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     let imageIndex = 0;
 
     paragraphs.forEach((paragraph, index) => {
-      // Add paragraph
+      // Add paragraph - process mentions first, then sanitize
       const paragraphHtml = paragraph.outerHTML;
-      const sanitized = cleanMentionSymbols(DOMPurify.sanitize(paragraphHtml));
+      let paragraphProcessed = processMentions(paragraphHtml, characterMap);
+      let sanitized = cleanMentionSymbols(DOMPurify.sanitize(paragraphProcessed, {
+        ALLOW_DATA_ATTR: true,
+        ALLOWED_ATTR: ['class', 'data-id', 'data-label', 'data-type', 'data-full-name', 'data-relationship', 'data-character-id'],
+      }));
       
       // Check if paragraph is empty (just whitespace, <br>, or empty)
       const textContent = paragraph.textContent?.trim() || '';
@@ -157,7 +249,7 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
     }
 
     setContentNodes(nodes);
-  }, [memory.content, allImages]);
+  }, [memory.content, allImages, characterMap]);
 
   // Check if content overflows (needs expansion)
   useEffect(() => {
@@ -331,6 +423,7 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
         <div 
           className={`memory-content-wrapper ${hasOverflow && !isExpanded ? 'cursor-pointer' : ''}`}
           onClick={handleContentClick}
+          style={{ position: 'relative' }}
         >
           <div 
             ref={contentRef}
@@ -339,12 +432,20 @@ export function MemoryCard({ memory, isActive, onDelete, onEdit, showAuthor = fa
                 ? 'max-h-[600px] overflow-hidden relative' 
                 : ''
             }`}
+            style={{ position: 'relative' }}
           >
             {!isExpanded && hasOverflow && (
               <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent pointer-events-none" />
             )}
             {contentNodes.length > 0 ? contentNodes : (
-              <div dangerouslySetInnerHTML={{ __html: cleanMentionSymbols(DOMPurify.sanitize(memory.content)) }} />
+              (() => {
+                let processed = processMentions(memory.content, characterMap);
+                let html = cleanMentionSymbols(DOMPurify.sanitize(processed, {
+                  ALLOW_DATA_ATTR: true,
+                  ALLOWED_ATTR: ['class', 'data-id', 'data-label', 'data-type', 'data-full-name', 'data-relationship', 'data-character-id'],
+                }));
+                return <div dangerouslySetInnerHTML={{ __html: html }} />;
+              })()
             )}
           </div>
           
