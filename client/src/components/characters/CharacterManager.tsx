@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ICharacter } from '../../types/character';
 import { characterApi, imageGenerationApi } from '../../services/api';
 import { CharacterForm } from './CharacterForm';
@@ -13,6 +14,7 @@ interface CharacterManagerProps {
 type View = 'list' | 'create' | 'edit';
 
 export function CharacterManager({ isOpen, onClose }: CharacterManagerProps) {
+  const navigate = useNavigate();
   const [characters, setCharacters] = useState<ICharacter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +66,15 @@ export function CharacterManager({ isOpen, onClose }: CharacterManagerProps) {
     setView('create');
   };
 
-  const handleEditClick = (character: ICharacter) => {
-    setSelectedCharacter(character);
-    setView('edit');
+  const handleEditClick = (e: React.MouseEvent, character: ICharacter) => {
+    e.stopPropagation();
+    navigate(`/characters/${character._id}/edit`);
+    onClose();
+  };
+
+  const handleCharacterClick = (character: ICharacter) => {
+    navigate(`/characters/${character._id}`);
+    onClose();
   };
 
   const handleDeleteClick = async (character: ICharacter) => {
@@ -183,7 +191,8 @@ export function CharacterManager({ isOpen, onClose }: CharacterManagerProps) {
                   {characters.map(character => (
                     <div
                       key={character._id}
-                      className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100"
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 cursor-pointer"
+                      onClick={() => handleCharacterClick(character)}
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-slate-200 overflow-hidden">
@@ -211,9 +220,9 @@ export function CharacterManager({ isOpen, onClose }: CharacterManagerProps) {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => handleEditClick(character)}
+                          onClick={(e) => handleEditClick(e, character)}
                           className="p-2 text-slate-400 hover:text-slate-600"
                           title="Edit"
                         >

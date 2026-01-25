@@ -9,9 +9,11 @@ interface CharacterFormProps {
   character?: ICharacter;
   onSave: (character: ICharacter) => void;
   onCancel: () => void;
+  stayInEditModeAfterSave?: boolean; // If true, don't call onSave immediately after saving in edit mode
+  onCharacterUpdated?: (character: ICharacter) => void; // Called when character is saved (even if staying in edit mode)
 }
 
-export function CharacterForm({ character, onSave, onCancel }: CharacterFormProps) {
+export function CharacterForm({ character, onSave, onCancel, stayInEditModeAfterSave = false, onCharacterUpdated }: CharacterFormProps) {
   const isEditing = !!character;
   
   const [formData, setFormData] = useState<CreateCharacterInput>({
@@ -70,11 +72,23 @@ export function CharacterForm({ character, onSave, onCancel }: CharacterFormProp
 
       setSavedCharacter(result);
       
+      // Notify parent that character was updated (even if staying in edit mode)
+      if (onCharacterUpdated) {
+        onCharacterUpdated(result);
+      }
+      
       // If creating a new character, show avatar section after save
       if (!isEditing) {
         setShowAvatarSection(true);
       } else {
-        onSave(result);
+        // If stayInEditModeAfterSave is true, don't call onSave immediately
+        // This allows the user to generate an avatar after saving
+        if (stayInEditModeAfterSave) {
+          // Just update the saved character, stay in edit mode
+          // User can generate avatar and then click "Done" to finish
+        } else {
+          onSave(result);
+        }
       }
     } catch (error) {
       logger.error('Failed to save character', {

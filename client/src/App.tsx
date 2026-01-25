@@ -6,6 +6,7 @@ import { Memories } from './pages/Memories';
 import { Explore } from './pages/Explore';
 import { Profile } from './pages/Profile';
 import { Home } from './pages/Home';
+import { Character } from './pages/Character';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Layout } from './components/Layout';
 
@@ -46,6 +47,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/characters/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Character />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/characters/:id"
+            element={
+              <ProtectedRoute>
+                <Character />
               </ProtectedRoute>
             }
           />

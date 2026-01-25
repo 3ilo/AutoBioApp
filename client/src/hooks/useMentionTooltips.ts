@@ -73,7 +73,9 @@ export function useMentionTooltips(containerRef: React.RefObject<HTMLElement>) {
           const handleClick = (e: MouseEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            navigate('/profile');
+            if (characterId) {
+              navigate(`/characters/${characterId}`);
+            }
           };
           
           tooltip.addEventListener('click', handleClick);
