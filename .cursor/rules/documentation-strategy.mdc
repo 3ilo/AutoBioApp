@@ -4,3 +4,5 @@ alwaysApply: true
 When you make functional changes, make updates to /docs/ top level directory. It should maintain a parallel directory structure with the mono-repo. 
 
 When you need to clarify the expected behavior of the system, reference the corresponding doc in /docs/ directory.
+
+Do not write docs when they are unecessary and refrane from random isolated/orphaned docs intermixed with the source code. They should be logically grouped in the /docs/ directory.

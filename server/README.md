@@ -118,6 +118,36 @@ The server will be available at `http://localhost:3000`
 - `POST /api/images/generate` - Generate AI image
 - `POST /api/images/upload` - Upload image
 
+## Feature Flags
+
+The server uses a centralized feature flag system for controlling experimental features and A/B testing. Feature flags are configured in `src/config/feature-flags.json` and can be overridden at runtime using environment variables.
+
+### Available Feature Flags
+
+- **`useMultiAngleReferences`** (default: enabled)
+  - Uses multi-angle reference images (3 stitched views) for character illustrations
+  - Disable for faster processing with single reference images
+  - Override: `USE_MULTI_ANGLE_REFERENCES=false`
+
+- **`disableRecentMemories`** (default: disabled)
+  - Disables recent memories summarization during illustration generation
+  - Enable to reduce API costs and generation time
+  - Override: `DISABLE_RECENT_MEMORIES=true`
+
+### Usage in Code
+
+```typescript
+import { featureFlags } from './services/featureFlagService';
+
+if (featureFlags.isEnabled('useMultiAngleReferences')) {
+  // Use multi-angle approach
+} else {
+  // Use single reference approach
+}
+```
+
+See [Feature Flags Documentation](../docs/server/architecture/feature-flags.md) for detailed information.
+
 ## Environment Variables
 
 | Variable | Description | Required |
@@ -131,6 +161,15 @@ The server will be available at `http://localhost:3000`
 | `S3_CLIENT_REGION` | S3 region (defaults to us-east-1) | No |
 | `S3_BUCKET_NAME` | S3 bucket name | Yes |
 | `NODE_ENV` | Environment (development/production) | No |
+
+### Feature Flag Overrides
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `USE_MULTI_ANGLE_REFERENCES` | Override multi-angle references feature | `true` |
+| `DISABLE_RECENT_MEMORIES` | Override recent memories feature | `false` |
+
+*Note: Flag names are converted from camelCase to SCREAMING_SNAKE_CASE for environment variables.*
 
 ## Testing
 

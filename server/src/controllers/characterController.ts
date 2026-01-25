@@ -8,6 +8,7 @@ import { ICharacter, CreateCharacterInput, UpdateCharacterInput } from '../../..
 import { getIllustrationService, getConfiguredProvider } from '../services/illustrationServiceFactory';
 import { OpenAISubjectIllustrationOptions, SDXLSubjectIllustrationOptions } from '../services/interfaces/IIllustrationService';
 import { IllustrationOrchestratorService } from '../services/illustrationOrchestratorService';
+import { featureFlags } from '../services/featureFlagService';
 
 // Configuration constants
 const MAX_REFERENCE_IMAGES = parseInt(process.env.MAX_CHARACTER_REFERENCE_IMAGES || '5', 10);
@@ -401,12 +402,63 @@ export const generateCharacterAvatar = async (req: Request, res: Response, next:
       });
     }
 
+    // Fetch reference images from S3
+    const referenceImagesBase64: string[] = [];
+    const bucket = s3Client.getBucketName();
+    
+    // Check for reference images (either array or single)
+    const hasMultipleReferences = character.referenceImagesS3Uris && character.referenceImagesS3Uris.some(uri => uri);
+    const hasSingleReference = !!character.referenceImageS3Uri;
+
+    if (hasMultipleReferences && character.referenceImagesS3Uris) {
+      for (let i = 0; i < character.referenceImagesS3Uris.length; i++) {
+        const uri = character.referenceImagesS3Uris[i];
+        if (uri && uri.startsWith('s3://')) {
+          try {
+            const key = s3Client.getCharacterReferenceKey(userId, id, i);
+            const imageBase64 = await s3Client.getObjectAsBase64(bucket, key);
+            referenceImagesBase64.push(imageBase64);
+          } catch (error) {
+            logger.warn('Failed to fetch reference image from array', { 
+              userId, 
+              characterId: id, 
+              index: i,
+              error: (error as Error).message 
+            });
+          }
+        }
+      }
+    } else if (hasSingleReference) {
+      try {
+        const key = s3Client.getCharacterReferenceKey(userId, id);
+        const imageBase64 = await s3Client.getObjectAsBase64(bucket, key);
+        referenceImagesBase64.push(imageBase64);
+      } catch (error) {
+        logger.error('Failed to fetch single reference image', {
+          userId,
+          characterId: id,
+          error: (error as Error).message,
+        });
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Failed to fetch reference image from storage',
+        });
+      }
+    }
+
+    if (referenceImagesBase64.length === 0) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'Could not load any reference images from storage',
+      });
+    }
+
     // Build options based on provider
     const options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions = provider === 'openai'
       ? { provider: 'openai' }
       : { provider: 'sdxl' };
 
-    const avatarUrl = await illustrationService.generateCharacterAvatar(userId, id, options);
+    const avatarUrl = await illustrationService.generateCharacterAvatar(userId, id, referenceImagesBase64, options);
 
     // Refetch the character to get updated avatarS3Uri
     const updatedCharacter = await Character.findById(id);
@@ -429,8 +481,10 @@ export const generateCharacterAvatar = async (req: Request, res: Response, next:
 };
 
 /**
- * Generate a multi-angle avatar for a character from multiple reference images
- * Creates a 3-angle array and extracts the front-facing image as avatar
+ * Generate avatar for a character from reference images.
+ * Behavior controlled by useMultiAngleReferences feature flag:
+ * - When enabled: Creates 3-angle array (left, front, right) and extracts front as avatar
+ * - When disabled: Creates single avatar only
  */
 export const generateMultiAngleAvatar = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -466,18 +520,30 @@ export const generateMultiAngleAvatar = async (req: Request, res: Response, next
 
     const provider = getConfiguredProvider();
     const illustrationService = getIllustrationService();
+    const useMultiAngle = featureFlags.isEnabled('useMultiAngleReferences');
 
-    logger.info('Generating multi-angle avatar', { userId, characterId: id, provider });
+    logger.info('Generating character avatar', { 
+      userId, 
+      characterId: id, 
+      provider,
+      useMultiAngle,
+      workflow: useMultiAngle ? 'multi-angle (3 images)' : 'single avatar',
+    });
 
-    // Check if the service is the orchestrator (which has generateMultiAngleAvatar)
+    // Check if the service is the orchestrator
     if (!(illustrationService instanceof IllustrationOrchestratorService)) {
       return res.status(500).json({
         status: 'fail',
-        message: 'Multi-angle avatar generation is not supported by the current illustration service',
+        message: 'Character avatar generation is not supported by the current illustration service',
       });
     }
 
-    // Fetch reference images from S3
+    // Build options based on provider
+    const options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions = provider === 'openai'
+      ? { provider: 'openai' }
+      : { provider: 'sdxl' };
+
+    // Fetch reference images from S3 (same for both workflows)
     const referenceImagesBase64: string[] = [];
     const bucket = s3Client.getBucketName();
 
@@ -525,40 +591,70 @@ export const generateMultiAngleAvatar = async (req: Request, res: Response, next
       });
     }
 
-    logger.info('Loaded reference images for multi-angle generation', {
+    logger.info('Loaded reference images for avatar generation', {
       userId,
       characterId: id,
       imageCount: referenceImagesBase64.length,
+      useMultiAngle,
     });
 
-    // Build options based on provider
-    const options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions = provider === 'openai'
-      ? { provider: 'openai' }
-      : { provider: 'sdxl' };
+    // Route to appropriate workflow based on feature flag
+    if (!useMultiAngle) {
+      // Single avatar workflow - simpler, faster
+      logger.info('Using single avatar workflow (feature flag disabled)', { userId, characterId: id });
+      
+      const avatarUrl = await illustrationService.generateCharacterAvatar(userId, id, referenceImagesBase64, options);
+      
+      // Refetch the character to get updated avatarS3Uri
+      const updatedCharacter = await Character.findById(id);
 
-    const result = await illustrationService.generateMultiAngleAvatar(userId, id, referenceImagesBase64, options);
+      logger.info('Character avatar generated successfully (single)', { 
+        userId, 
+        characterId: id, 
+        avatarUrl,
+      });
 
-    // Refetch the character to get updated URIs
-    const updatedCharacter = await Character.findById(id);
+      // Return response compatible with multi-angle format
+      // Frontend expects multiAngleUrl and avatarUrl, so we return the same URL for both
+      const response: ApiResponse<{ multiAngleUrl: string; avatarUrl: string; character: ICharacter }> = {
+        status: 'success',
+        data: {
+          multiAngleUrl: avatarUrl,  // Same as avatarUrl when feature disabled
+          avatarUrl: avatarUrl,
+          character: (updatedCharacter?.toObject() || character.toObject()) as unknown as ICharacter,
+        },
+        message: 'Character avatar generated successfully',
+      };
 
-    logger.info('Multi-angle avatar generated successfully', { 
-      userId, 
-      characterId: id, 
-      multiAngleUrl: result.multiAngleUrl,
-      avatarUrl: result.avatarUrl,
-    });
+      res.status(200).json(response);
+    } else {
+      // Multi-angle workflow - 3 images (left, front, right)
+      logger.info('Using multi-angle workflow (feature flag enabled)', { userId, characterId: id });
 
-    const response: ApiResponse<{ multiAngleUrl: string; avatarUrl: string; character: ICharacter }> = {
-      status: 'success',
-      data: {
+      const result = await illustrationService.generateMultiAngleAvatar(userId, id, referenceImagesBase64, options);
+
+      // Refetch the character to get updated URIs
+      const updatedCharacter = await Character.findById(id);
+
+      logger.info('Multi-angle avatar generated successfully', { 
+        userId, 
+        characterId: id, 
         multiAngleUrl: result.multiAngleUrl,
         avatarUrl: result.avatarUrl,
-        character: (updatedCharacter?.toObject() || character.toObject()) as unknown as ICharacter,
-      },
-      message: 'Multi-angle avatar generated successfully',
-    };
+      });
 
-    res.status(200).json(response);
+      const response: ApiResponse<{ multiAngleUrl: string; avatarUrl: string; character: ICharacter }> = {
+        status: 'success',
+        data: {
+          multiAngleUrl: result.multiAngleUrl,
+          avatarUrl: result.avatarUrl,
+          character: (updatedCharacter?.toObject() || character.toObject()) as unknown as ICharacter,
+        },
+        message: 'Multi-angle avatar generated successfully',
+      };
+
+      res.status(200).json(response);
+    }
   } catch (error) {
     handleError(error as Error, req, res, next);
   }

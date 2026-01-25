@@ -22,8 +22,7 @@ import { ContextSummarizationService } from './contextSummarizers/summarizationS
 import { s3Client } from '../utils/s3Client';
 import logger from '../utils/logger';
 import { stitchImages, buildGridLayoutDescription, extractCenterPanel } from '../utils/imageStitcher';
-
-const DISABLE_RECENT_MEMORIES = process.env.DISABLE_RECENT_MEMORIES === 'true';
+import { featureFlags } from './featureFlagService';
 
 /**
  * Illustration Orchestrator Service
@@ -110,9 +109,9 @@ export class IllustrationOrchestratorService implements IIllustrationService {
         distilledMemoryContent = rawMemoryContent;
       }
 
-      // Fetch recent memories summary unless disabled via DISABLE_RECENT_MEMORIES env flag
+      // Fetch recent memories summary unless disabled via feature flag
       let recentMemoriesSummary: string | undefined;
-      if (!DISABLE_RECENT_MEMORIES) {
+      if (!featureFlags.isEnabled('disableRecentMemories')) {
         recentMemoriesSummary = await this.contextSummarizationService.fetchAndSummarizeRecentMemories(
           userId,
           user.toObject() as any,
@@ -122,7 +121,7 @@ export class IllustrationOrchestratorService implements IIllustrationService {
         );
         logger.info('Orchestrator: Recent memories summary', { recentMemoriesSummary });
       } else {
-        logger.info('Orchestrator: Recent memories summarization disabled via DISABLE_RECENT_MEMORIES flag');
+        logger.info('Orchestrator: Recent memories summarization disabled via feature flag');
       }
 
       let finalPrompt: string;
@@ -521,12 +520,28 @@ export class IllustrationOrchestratorService implements IIllustrationService {
    * @param options - Provider-specific generation options
    * @returns Pre-signed URL of the generated avatar
    */
+  /**
+   * Generate a single avatar for a character using uploaded reference images.
+   * This method expects reference images to be uploaded to S3 first.
+   * After generation, uploaded references are deleted (only generated avatar is kept).
+   * 
+   * @param userId - The user's ID (owner of the character)
+   * @param characterId - The character's ID
+   * @param referenceImagesBase64 - Array of uploaded reference images (base64)
+   * @param options - Provider-specific generation options
+   * @returns Presigned URL for the generated avatar
+   */
   async generateCharacterAvatar(
     userId: string,
     characterId: string,
+    referenceImagesBase64: string[],
     options: OpenAISubjectIllustrationOptions | SDXLSubjectIllustrationOptions
   ): Promise<string> {
-    logger.info('Orchestrator: Generating character avatar', { userId, characterId });
+    logger.info('Orchestrator: Generating character avatar (single)', { 
+      userId, 
+      characterId,
+      referenceImageCount: referenceImagesBase64.length,
+    });
 
     const isOpenAI = options?.provider === 'openai';
 
@@ -534,6 +549,10 @@ export class IllustrationOrchestratorService implements IIllustrationService {
       const character = await Character.findOne({ _id: characterId, userId });
       if (!character) {
         throw new Error(`Character not found: ${characterId}`);
+      }
+
+      if (referenceImagesBase64.length === 0) {
+        throw new Error('At least one reference image is required');
       }
 
       // Build a subject prompt for the character using the prompt builder
@@ -565,12 +584,21 @@ export class IllustrationOrchestratorService implements IIllustrationService {
         characterName: `${character.firstName} ${character.lastName}`,
       });
       
-      // Only fetch reference image for OpenAI (which requires it)
+      // Prepare reference image for OpenAI (which requires it)
       let referenceImageBase64: string | undefined;
       if (isOpenAI) {
-        referenceImageBase64 = await this.fetchCharacterReferenceImage(userId, characterId);
-        if (!referenceImageBase64) {
-          throw new Error('Character reference image not found. Please upload a reference photo first.');
+        // Use uploaded references - stitch if multiple
+        if (referenceImagesBase64.length > 1) {
+          const stitchResult = await stitchImages(referenceImagesBase64);
+          referenceImageBase64 = stitchResult.combinedImageBase64;
+          
+          logger.info('Orchestrator: Stitched multiple references for single avatar generation', {
+            inputImageCount: referenceImagesBase64.length,
+            gridLayout: `${stitchResult.layout.columns}x${stitchResult.layout.rows}`,
+          });
+        } else {
+          referenceImageBase64 = referenceImagesBase64[0];
+          logger.info('Orchestrator: Using single reference for avatar generation');
         }
       }
 
@@ -586,6 +614,9 @@ export class IllustrationOrchestratorService implements IIllustrationService {
       // Update the character with the new avatar S3 URI
       character.avatarS3Uri = s3Uri;
       await character.save();
+      
+      // Delete uploaded reference images after successful generation
+      await this.deleteCharacterUploadedReferences(userId, characterId, character);
       
       const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
 
@@ -762,6 +793,9 @@ export class IllustrationOrchestratorService implements IIllustrationService {
       character.avatarS3Uri = avatarS3Uri;
       await character.save();
       
+      // Delete uploaded reference images after successful generation
+      await this.deleteCharacterUploadedReferences(userId, characterId, character);
+      
       // Generate presigned URLs for both
       const multiAngleUrl = await s3Client.convertS3UriToPresignedUrl(multiAngleS3Uri);
       const avatarUrl = await s3Client.convertS3UriToPresignedUrl(avatarS3Uri);
@@ -820,37 +854,65 @@ export class IllustrationOrchestratorService implements IIllustrationService {
     }
   }
 
+  /**
+   * Fetch character reference for memory illustrations.
+   * Uses the GENERATED avatar (not uploaded references) for consistency.
+   * 
+   * When useMultiAngleReferences is enabled: Uses generated multi-angle.png
+   * When disabled: Uses generated avatar.png
+   */
   private async fetchCharacterReferenceImage(userId: string, characterId: string): Promise<string | undefined> {
     const bucket = s3Client.getBucketName();
+    const useMultiAngle = featureFlags.isEnabled('useMultiAngleReferences');
     
-    // First, try to fetch the multi-angle reference if available (preferred for better fidelity)
-    try {
-      const multiAngleKey = s3Client.getCharacterMultiAngleKey(userId, characterId);
-      const multiAngleImage = await s3Client.getObjectAsBase64(bucket, multiAngleKey);
-      
-      logger.info('Fetched multi-angle reference for character', {
-        userId,
-        characterId,
-        key: multiAngleKey,
-      });
-      
-      return multiAngleImage;
-    } catch (multiAngleError) {
-      logger.debug('Multi-angle reference not found, falling back to single reference', {
-        userId,
-        characterId,
-      });
+    logger.debug('Fetching character reference for memory illustration', {
+      userId,
+      characterId,
+      useMultiAngle,
+      source: useMultiAngle ? 'multi-angle.png (generated)' : 'avatar.png (generated)',
+    });
+    
+    // Try multi-angle first if feature flag enabled
+    if (useMultiAngle) {
+      try {
+        const multiAngleKey = s3Client.getCharacterMultiAngleKey(userId, characterId);
+        const s3Uri = `s3://${bucket}/${multiAngleKey}`;
+        const multiAngleImage = await s3Client.getObjectAsBase64(bucket, multiAngleKey);
+        
+        logger.debug('Using generated multi-angle reference for memory', {
+          userId,
+          characterId,
+          key: multiAngleKey,
+          s3Uri,
+        });
+        
+        return multiAngleImage;
+      } catch (multiAngleError) {
+        logger.debug('Multi-angle reference not found, falling back to avatar', {
+          userId,
+          characterId,
+        });
+      }
     }
     
-    // Fall back to single reference image
+    // Fall back to single avatar (or use as primary if feature flag disabled)
     try {
-      const key = s3Client.getCharacterReferenceKey(userId, characterId);
-      return await s3Client.getObjectAsBase64(bucket, key);
+      const avatarKey = s3Client.getCharacterAvatarKey(userId, characterId);
+      const s3Uri = `s3://${bucket}/${avatarKey}`;
+      const avatarImage = await s3Client.getObjectAsBase64(bucket, avatarKey);
+      
+      logger.debug('Using generated avatar reference for memory', {
+        userId,
+        characterId,
+        key: avatarKey,
+        s3Uri,
+      });
+      
+      return avatarImage;
     } catch (error) {
-      logger.warn('Failed to fetch character reference image', { 
+      logger.warn('Failed to fetch character reference (no generated avatar found)', { 
         userId, 
         characterId,
-        key: s3Client.getCharacterReferenceKey(userId, characterId),
         error: (error as Error).message 
       });
       return undefined;
@@ -1140,6 +1202,73 @@ export class IllustrationOrchestratorService implements IIllustrationService {
     });
     
     return `s3://${bucket}/${key}`;
+  }
+
+  /**
+   * Delete uploaded reference images for a character after avatar generation.
+   * This ensures we don't store user-uploaded photos permanently - only the generated outputs.
+   * Users must upload fresh references when regenerating avatars.
+   */
+  private async deleteCharacterUploadedReferences(
+    userId: string, 
+    characterId: string, 
+    character: ICharacterDocument
+  ): Promise<void> {
+    const bucket = s3Client.getBucketName();
+    const keysToDelete: string[] = [];
+
+    try {
+      // Collect keys for uploaded reference images
+      if (character.referenceImagesS3Uris && character.referenceImagesS3Uris.length > 0) {
+        // Multiple reference images
+        for (let i = 0; i < character.referenceImagesS3Uris.length; i++) {
+          const uri = character.referenceImagesS3Uris[i];
+          if (uri && uri.startsWith('s3://')) {
+            const key = s3Client.getCharacterReferenceKey(userId, characterId, i);
+            keysToDelete.push(key);
+          }
+        }
+      } else if (character.referenceImageS3Uri) {
+        // Single reference image
+        const key = s3Client.getCharacterReferenceKey(userId, characterId);
+        keysToDelete.push(key);
+      }
+
+      if (keysToDelete.length > 0) {
+        logger.info('Deleting uploaded reference images after avatar generation', {
+          userId,
+          characterId,
+          count: keysToDelete.length,
+          keys: keysToDelete,
+        });
+
+        await s3Client.deleteObjects(bucket, keysToDelete);
+
+        // Clear the reference URIs from the database
+        character.referenceImageS3Uri = undefined;
+        character.referenceImagesS3Uris = [];
+        await character.save();
+
+        logger.info('Successfully deleted uploaded reference images', {
+          userId,
+          characterId,
+          count: keysToDelete.length,
+        });
+      } else {
+        logger.debug('No uploaded reference images to delete', {
+          userId,
+          characterId,
+        });
+      }
+    } catch (error) {
+      // Log but don't fail the avatar generation if cleanup fails
+      logger.error('Failed to delete uploaded reference images', {
+        userId,
+        characterId,
+        error: (error as Error).message,
+        keysAttempted: keysToDelete,
+      });
+    }
   }
 }
 

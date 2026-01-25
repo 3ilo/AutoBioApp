@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { IMemory, IMemoryImage } from '../../../shared/types/Memory';
 import logger from './logger';
@@ -186,6 +186,60 @@ class S3ClientSingleton {
         throw new Error(`S3 object not found: ${key}`);
       }
       logger.error('Failed to fetch object from S3', { bucket, key, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete an object from S3
+   */
+  public async deleteObject(bucket: string, key: string): Promise<void> {
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      });
+
+      await this.s3Client.send(command);
+      logger.debug('Deleted object from S3', { bucket, key });
+    } catch (error: any) {
+      logger.error('Failed to delete object from S3', { bucket, key, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete multiple objects from S3
+   */
+  public async deleteObjects(bucket: string, keys: string[]): Promise<void> {
+    if (keys.length === 0) {
+      return;
+    }
+
+    try {
+      const command = new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: {
+          Objects: keys.map(key => ({ Key: key })),
+          Quiet: false,
+        },
+      });
+
+      const response = await this.s3Client.send(command);
+      logger.debug('Deleted multiple objects from S3', { 
+        bucket, 
+        count: keys.length,
+        deleted: response.Deleted?.length || 0,
+        errors: response.Errors?.length || 0,
+      });
+
+      if (response.Errors && response.Errors.length > 0) {
+        logger.warn('Some objects failed to delete', {
+          errors: response.Errors,
+        });
+      }
+    } catch (error: any) {
+      logger.error('Failed to delete objects from S3', { bucket, keyCount: keys.length, error: error.message });
       throw error;
     }
   }
