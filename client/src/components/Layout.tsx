@@ -29,7 +29,12 @@ export function Layout({ children }: LayoutProps) {
         <div className="w-full px-6 sm:px-8 lg:px-12">
           <div className="flex justify-between h-20">
             <div className="flex items-center">
-              <Link to="/" className="flex-shrink-0 flex items-center">
+              <Link to="/" className="flex-shrink-0 flex items-center gap-0">
+                <img 
+                  src="/AutoBioLogo.png" 
+                  alt="AutoBio Logo" 
+                  className="h-8 w-auto"
+                />
                 <span className="text-2xl font-semibold text-slate-900 tracking-tight">AutoBio</span>
               </Link>
               {isAuthenticated && (
