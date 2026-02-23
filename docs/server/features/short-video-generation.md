@@ -68,13 +68,13 @@ The distiller returns a single JSON object:
 
 ## Style (Prompt Builder)
 
-The short-video prompt builder uses a dedicated style and format:
+The short-video prompt builder uses a dedicated style and format with a strong emphasis on **frame-to-frame consistency**:
 
 1. **Minimalist + editorial**: Flat backgrounds, clean composition, large negative space, centered or balanced framing.
 2. **Soft, muted palette**: Pastels, warm neutrals, desaturated accents; no harsh saturation; controlled contrast.
-3. **Gentle motion**: Slow easing, micro-bounces, subtle parallax, slight float; loop-safe.
+3. **Flipbook motion, not style shifts**: Only the small per-frame action should change. Camera distance, angle, crop, lighting, palette, and subject proportions should remain as close as possible across frames.
 4. **Flat illustration with depth hints**: Mostly 2D, very soft gradients, subtle shadow under characters, no heavy outlines, slight rounded forms.
-5. **Friendly but intelligent**: Expressive but understated faces, calm thoughtful mood, “professional optimism.”
+5. **Friendly but intelligent**: Expressive but understated faces, calm thoughtful mood, “professional optimism.” Imperfections (texture, brush, noise) should be consistent from frame to frame instead of changing each time.
 
 ## Dependencies
 

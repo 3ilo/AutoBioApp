@@ -16,4 +16,4 @@ Subject in scene: {{subjectInScene}}
 [ACTION THIS FRAME]
 {{action}}
 
-Render exactly one frame. Minimize background: keep the background simple and include only the necessary details from the scene above. Do not add extra environment or decoration. Only the action for this frame changes; composition and style stay consistent. Match the reference image for the subject and elements. Abstract, artistic, piquing. Frame {{frameIndex}} of {{totalFrames}}.
+Render exactly one frame. Minimize background: keep the background simple and include only the necessary details from the scene above. Do not add extra environment or decoration. **Only the micro-action for this frame should change; camera, framing, lighting, color palette, and subject proportions must stay as close as possible to the other frames and should never look directly at camera.** Match the reference image for elements very closely. The subject should be stylized into the style of the other element images. Abstract, artistic, piquing. Frame {{frameIndex}} of {{totalFrames}}.

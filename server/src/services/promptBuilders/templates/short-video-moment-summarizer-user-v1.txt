@@ -6,4 +6,4 @@ Date: {{memoryDate}}
 Content:
 {{memoryContent}}
 
-Output only the single most interesting, piquing, or provoking moment as a short paragraph. No labels or headings. Only include information that is important for visualizing or describing the moment. In particular, be sure to include the key details and specifics that cannot be ascertained from the generalized moment description. Never break story consistency.
+Output only the single most interesting, piquing, or provoking moment as a short paragraph. No labels or headings. Only include information that is important for visualizing or describing the moment. If the memory author (typically will be referenced by first person pronouns), is part of the "moment" focus on them. Do not include or reference any other humans in the moment. In particular, be sure to include the key details and specifics that cannot be ascertained from the generalized moment description. Never break story consistency.
