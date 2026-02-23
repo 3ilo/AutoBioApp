@@ -1,13 +1,7 @@
-[SUBJECT]
-{{subject}}
-
-[IDENTITY]
-{{identityConstraints}}
-
 [STYLE]
 {{styleConstraints}}
 
 [SCENE]
 {{scene}}
 
-Render one frame in a simple, abstract style. Include the setting and key elements from the scene above in a suggestive, minimal way—do not center only on the subject; environment and context matter but should be simplified, not highly detailed. Keep the scene loop-safe for a short 1–2 second loop. Use the reference image to preserve the subject. Output must look coherent, calm, and abstract: avoid literal or busy detail so that frame-to-frame consistency is easier.
+Render one frame in a simple, abstract style. Include the setting and key elements from the scene above in a suggestive, minimal way—do not center only on the subject; **subject and elements should NEVER look directly at camera**; environment and context matter but should be simplified, not highly detailed. Keep the scene loop-safe for a short 1–2 second loop. Use the reference image to preserve the subject. inter-element interactions should be considered. Output must look coherent, calm, and abstract: avoid literal or busy detail so that frame-to-frame consistency is easier.

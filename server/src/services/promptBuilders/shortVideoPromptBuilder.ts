@@ -19,6 +19,23 @@ export interface ShortVideoPromptInput {
   memoryDate?: Date;
 }
 
+/** Fixed elements from the distiller; used for per-frame prompt from spec. */
+export interface FrameSpecFixedElements {
+  setting: string;
+  subjectInScene: string;
+  props?: string[];
+  mood?: string;
+}
+
+/** Input for building a single frame prompt from distiller spec (fixed elements + action). */
+export interface FrameSpecInput {
+  user: IUser;
+  fixedElements: FrameSpecFixedElements;
+  action: string;
+  frameIndex: number;
+  totalFrames: number;
+}
+
 /**
  * Builds prompts for short-video frame generation.
  * Style: minimalist editorial, flat backgrounds, soft muted palette, gentle motion,
@@ -102,6 +119,49 @@ export class ShortVideoPromptBuilder {
       styleConstraints,
     }).trim();
     logger.debug('ShortVideoPromptBuilder: built continuation prompt', { length: prompt.length });
+    return prompt;
+  }
+
+  /**
+   * Build the prompt for one frame from distiller spec (fixed elements + action for this frame).
+   */
+  buildFramePromptFromSpec(input: FrameSpecInput): string {
+    const subject = this.buildSubjectField(input.user);
+    const identityConstraints = this.buildIdentityConstraintsField(input.user);
+    const styleConstraints = this.buildStyleConstraintsField();
+    const template = this.loadTemplate('short-video-frame-from-spec');
+    const propsStr = input.fixedElements.props?.length
+      ? input.fixedElements.props.join(', ')
+      : undefined;
+    const prompt = template({
+      subject,
+      identityConstraints,
+      styleConstraints,
+      setting: input.fixedElements.setting,
+      subjectInScene: input.fixedElements.subjectInScene,
+      mood: input.fixedElements.mood,
+      props: propsStr,
+      action: input.action,
+      frameIndex: input.frameIndex,
+      totalFrames: input.totalFrames,
+    }).trim();
+    logger.debug('ShortVideoPromptBuilder: built frame-from-spec prompt', {
+      frameIndex: input.frameIndex,
+      length: prompt.length,
+    });
+    return prompt;
+  }
+
+  /**
+   * Build the prompt for generating a single element image (prop/setting); used before frame loop.
+   */
+  buildElementImagePrompt(elementDescription: string): string {
+    const template = this.loadTemplate('short-video-element-image');
+    const prompt = template({ elementDescription }).trim();
+    logger.debug('ShortVideoPromptBuilder: element image prompt', {
+      elementDescription,
+      length: prompt.length,
+    });
     return prompt;
   }
 }

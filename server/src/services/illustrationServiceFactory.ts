@@ -11,6 +11,8 @@ import { openAIPromptBuilder } from './promptBuilders/openaiPromptBuilder';
 import { sdxlPromptBuilder } from './promptBuilders/sdxlPromptBuilder';
 import { stubPromptBuilder } from './promptBuilders/stubPromptBuilder';
 import { ShortVideoService } from './shortVideoService';
+import { bedrockMomentSummarizerService, momentSummarizerStubService } from './shortVideo/momentSummarizerService';
+import { bedrockShortVideoDistillerService, shortVideoDistillerStubService } from './shortVideo/shortVideoDistillerService';
 import logger from '../utils/logger';
 
 export type IllustrationProvider = 'sdxl' | 'openai' | 'openai-short-video' | 'stub';
@@ -129,20 +131,23 @@ function createOrchestratorService(): IIllustrationService {
 let shortVideoServiceInstance: ShortVideoService | null = null;
 
 /**
- * Get the short video service (OpenAI image generator only; uses same memory summary as orchestrator).
+ * Get the short video service (flipbook pipeline: moment summarizer → distiller → element images → frames).
  */
 export function getShortVideoService(): ShortVideoService {
   if (!shortVideoServiceInstance) {
     const useStub = process.env.USE_STUB === 'true';
     const useStubMemorySummary = useStub || process.env.USE_STUB_MEMORY_SUMMARY === 'true';
-    const memorySummaryService = useStubMemorySummary
-      ? memorySummaryStubService
-      : bedrockMemorySummaryService;
+    const momentSummarizer = useStubMemorySummary
+      ? momentSummarizerStubService
+      : bedrockMomentSummarizerService;
+    const distiller = useStubMemorySummary
+      ? shortVideoDistillerStubService
+      : bedrockShortVideoDistillerService;
     const imageGenerator = useStub ? stubImageGenerator : openAIImageGenerator;
     shortVideoServiceInstance = new ShortVideoService(
       imageGenerator,
-      memorySummaryService,
-      openAIPromptBuilder
+      momentSummarizer,
+      distiller
     );
     logger.info('ShortVideoService: created', { useStub });
   }

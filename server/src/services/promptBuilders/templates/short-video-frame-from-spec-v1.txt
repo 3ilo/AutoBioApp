@@ -1,0 +1,19 @@
+[SUBJECT]
+{{subject}}
+
+[IDENTITY]
+{{identityConstraints}}
+
+[STYLE]
+{{styleConstraints}}
+
+[SCENE - FIXED]
+Setting: {{setting}}
+Subject in scene: {{subjectInScene}}
+{{#if mood}}Mood: {{mood}}{{/if}}
+{{#if props}}Props: {{props}}{{/if}}
+
+[ACTION THIS FRAME]
+{{action}}
+
+Render exactly one frame. Minimize background: keep the background simple and include only the necessary details from the scene above. Do not add extra environment or decoration. Only the action for this frame changes; composition and style stay consistent. Match the reference image for the subject and elements. Abstract, artistic, piquing. Frame {{frameIndex}} of {{totalFrames}}.

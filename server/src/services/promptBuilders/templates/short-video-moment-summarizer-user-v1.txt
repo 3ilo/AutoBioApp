@@ -1,0 +1,9 @@
+Memory to extract the main moment from:
+
+Title: {{memoryTitle}}
+Date: {{memoryDate}}
+
+Content:
+{{memoryContent}}
+
+Output only the single most interesting, piquing, or provoking moment as a short paragraph. No labels or headings. Only include information that is important for visualizing or describing the moment. In particular, be sure to include the key details and specifics that cannot be ascertained from the generalized moment description. Never break story consistency.

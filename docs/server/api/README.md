@@ -429,8 +429,8 @@ Generate a short looping video (1–3 seconds) from the same memory context. Use
   "memoryContent": "string (required)",
   "memoryDate": "string (ISO date) or Date (required)",
   "taggedCharacterIds": ["string"] (optional),
-  "fps": 6 (optional, default 6),
-  "durationSeconds": 1.2 (optional, default 1.2),
+  "fps": 2 (optional, default 2),
+  "durationSeconds": 3 (optional, default 3),
   "framesPerBatch": 4 (optional)
 }
 ```

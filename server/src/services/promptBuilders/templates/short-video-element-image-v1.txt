@@ -1,0 +1,3 @@
+Generate a single simple, abstract illustration of: {{elementDescription}}.
+
+Style: flat 2D, minimal detail, soft muted palette (pastels), no text. Same flipbook style—clean, calm, suggestive rather than literal. No background; the element should be clearly visible and usable as a reference asset. It should include imperfections to ground it more in reality.

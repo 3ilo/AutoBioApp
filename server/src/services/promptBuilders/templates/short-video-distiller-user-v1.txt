@@ -1,0 +1,5 @@
+Moment to turn into a flipbook story ({{totalFrames}} frames):
+
+{{moment}}
+
+Produce JSON with "fixedElements", "frames" (array of {{totalFrames}} objects with "action"—each frame an independently valuable state, avoid repetitions, minimal diff between frames), and "elements" (1–5 items: one "subject" with optional "isUser": true when the character is the memory author, false otherwise; optional "character" items for other people in the story; rest "prop" or "setting"). Output only the JSON.
