@@ -63,19 +63,26 @@ const app = express();
 
 // CORS configuration - only allow requests from frontend domain
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const isLocalEnv = nodeEnv === 'local' || !process.env.NODE_ENV;
+
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // Check if origin matches frontend URL
     if (origin === FRONTEND_URL || origin.startsWith(FRONTEND_URL)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      return callback(null, true);
     }
+
+    // Local dev: also allow 127.0.0.1 (same as localhost but different origin to the browser)
+    if (isLocalEnv && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   optionsSuccessStatus: 200,

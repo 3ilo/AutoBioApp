@@ -418,6 +418,35 @@ Authorization: Bearer <jwt_token>
 - **Fallback**: Gracefully degrades to basic prompts if enhancement fails
 - **Backward Compatibility**: Works with or without `userId` parameter
 
+#### POST /images/short-video
+Generate a short looping video (1–3 seconds) from the same memory context. Uses the GPT image model to generate frames sequentially (each frame conditioned on the previous), then applies effects and encodes to MP4. Requires **ffmpeg** on the host (see [Short Video Generation](../features/short-video-generation.md)).
+
+**Request Body:**
+```json
+{
+  "userId": "string (required)",
+  "memoryTitle": "string (required)",
+  "memoryContent": "string (required)",
+  "memoryDate": "string (ISO date) or Date (required)",
+  "taggedCharacterIds": ["string"] (optional),
+  "fps": 6 (optional, default 6),
+  "durationSeconds": 1.2 (optional, default 1.2),
+  "framesPerBatch": 4 (optional)
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "url": "string (pre-signed playback URL)",
+    "s3Uri": "string (s3://bucket/key)"
+  },
+  "message": "Short video generated successfully"
+}
+```
+
 #### POST /images/regenerate
 Regenerate AI image with enhanced context and variation request.
 

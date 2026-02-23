@@ -174,6 +174,10 @@ export const exploreApi = {
 
 // Image Generation endpoints
 export const imageGenerationApi = {
+  /**
+   * Generate illustration or short video (server chooses by config).
+   * Returns { url, s3Uri? }. When s3Uri is present, url is presigned playback URL; otherwise url is S3 URI.
+   */
   generate: async (data: { 
     title: string; 
     content: string; 
@@ -181,7 +185,22 @@ export const imageGenerationApi = {
     userId?: string;
     taggedCharacterIds?: string[];
   }) => {
-    const response = await api.post<ApiResponse<{ url: string }>>('/images/generate', data);
+    const response = await api.post<ApiResponse<{ url: string; s3Uri?: string }>>('/images/generate', data);
+    return response.data;
+  },
+
+  /** Direct short-video endpoint (optional; normal flow uses generate() which branches on server provider). */
+  generateShortVideo: async (data: {
+    userId: string;
+    memoryTitle: string;
+    memoryContent: string;
+    memoryDate: Date | string;
+    taggedCharacterIds?: string[];
+    fps?: number;
+    durationSeconds?: number;
+    framesPerBatch?: number;
+  }) => {
+    const response = await api.post<ApiResponse<{ url: string; s3Uri: string }>>('/images/short-video', data);
     return response.data;
   },
 

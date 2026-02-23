@@ -2,6 +2,7 @@ import express from 'express';
 import { 
   generateImage, 
   generateSubjectIllustration, 
+  generateShortVideo,
   generatePresignedUploadUrl,
   generatePresignedAvatarUploadUrl,
   generatePresignedViewUrl,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/generate', generateImage);
+router.post('/short-video', generateShortVideo);
 router.post('/subject', generateSubjectIllustration);
 router.post('/multi-angle-user-avatar', generateMultiAngleUserAvatar);
 router.post('/presigned-upload-url', generatePresignedUploadUrl);

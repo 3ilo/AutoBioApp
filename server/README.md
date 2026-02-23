@@ -116,6 +116,7 @@ The server will be available at `http://localhost:3000`
 
 ### Image Endpoints
 - `POST /api/images/generate` - Generate AI image
+- `POST /api/images/short-video` - Generate short video (1–3 s loop); requires ffmpeg on the host (see [Short Video Generation](../docs/server/features/short-video-generation.md))
 - `POST /api/images/upload` - Upload image
 
 ## Feature Flags

@@ -292,6 +292,15 @@ class S3ClientSingleton {
   }
 
   /**
+   * Get the S3 key for a short video (generated)
+   * @param userId - User ID
+   * @param filename - Filename segment (e.g. timestamp-uuid.mp4)
+   */
+  public getShortVideoKey(userId: string, filename: string): string {
+    return `${S3_GENERATED_PREFIX}short-video/${userId}/${filename}`;
+  }
+
+  /**
    * Get the S3 stubs prefix
    */
   public getStubsPrefix(): string {

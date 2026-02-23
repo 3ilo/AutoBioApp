@@ -7,7 +7,7 @@ import { bedrockMemorySummaryService } from '../services/memorySummarizers/memor
 import { loraService } from '../services/loraService';
 import { contextSummarizationStubService } from '../services/stubs/summarizationStubService';
 import { memorySummaryStubService } from '../services/stubs/memorySummaryStubService';
-import { getIllustrationService, getConfiguredProvider } from '../services/illustrationServiceFactory';
+import { getIllustrationService, getConfiguredProvider, getShortVideoService } from '../services/illustrationServiceFactory';
 import { OpenAIMemoryIllustrationOptions, SDXLMemoryIllustrationOptions, OpenAISubjectIllustrationOptions, SDXLSubjectIllustrationOptions } from '../services/interfaces/IIllustrationService';
 import { IllustrationOrchestratorService } from '../services/illustrationOrchestratorService';
 import { s3Client } from '../utils/s3Client';
@@ -83,6 +83,32 @@ export async function generateImage(req: Request, res: Response) {
     const illustrationService = getIllustrationService();
 
     logger.info('Generating memory illustration', { userId, provider, title, taggedCharacterIds, options: requestOptions });
+
+    // openai-short-video: use short video service and return presigned URL + s3Uri
+    if (provider === 'openai-short-video') {
+      const shortVideoService = getShortVideoService();
+      try {
+        const s3Uri = await shortVideoService.generateShortVideo(userId, {
+          memoryTitle: title,
+          memoryContent: content,
+          memoryDate: date,
+          taggedCharacterIds,
+        });
+        const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
+        const response: ApiResponse<{ url: string; s3Uri: string }> = {
+          status: 'success',
+          data: { url: presignedUrl, s3Uri },
+          message: 'Short video generated successfully',
+        };
+        return res.json(response);
+      } catch (error) {
+        logger.error('Short video generation failed', { userId, error: (error as Error).message });
+        return res.status(500).json({
+          status: 'fail',
+          message: 'Short video generation failed',
+        });
+      }
+    }
 
     // Check if illustration service is available (skip for stub)
     if (provider !== 'stub' && !(await isIllustrationServiceAvailable())) {
@@ -186,6 +212,74 @@ export async function generateImage(req: Request, res: Response) {
     res.status(500).json({
       status: 'fail',
       message: 'Failed to generate image',
+    });
+  }
+}
+
+interface GenerateShortVideoRequest {
+  userId: string;
+  memoryTitle: string;
+  memoryContent: string;
+  memoryDate: Date | string;
+  taggedCharacterIds?: string[];
+  fps?: number;
+  durationSeconds?: number;
+  framesPerBatch?: number;
+}
+
+export async function generateShortVideo(req: Request, res: Response) {
+  try {
+    const body = req.body as GenerateShortVideoRequest;
+    const {
+      userId,
+      memoryTitle,
+      memoryContent,
+      memoryDate,
+      taggedCharacterIds,
+      fps,
+      durationSeconds,
+      framesPerBatch,
+    } = body;
+
+    if (!userId) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'User ID is required for short video generation',
+      });
+    }
+    if (!memoryTitle || !memoryContent || !memoryDate) {
+      return res.status(400).json({
+        status: 'fail',
+        message: 'memoryTitle, memoryContent, and memoryDate are required',
+      });
+    }
+
+    const shortVideoService = getShortVideoService();
+    const s3Uri = await shortVideoService.generateShortVideo(userId, {
+      memoryTitle,
+      memoryContent,
+      memoryDate,
+      taggedCharacterIds,
+      fps,
+      durationSeconds,
+      framesPerBatch,
+    });
+
+    const presignedUrl = await s3Client.convertS3UriToPresignedUrl(s3Uri);
+
+    const response: ApiResponse<{ url: string; s3Uri: string }> = {
+      status: 'success',
+      data: { url: presignedUrl, s3Uri },
+      message: 'Short video generated successfully',
+    };
+    res.json(response);
+  } catch (error) {
+    logger.error('Failed to generate short video', {
+      error: (error as Error).message,
+    });
+    res.status(500).json({
+      status: 'fail',
+      message: 'Failed to generate short video',
     });
   }
 }

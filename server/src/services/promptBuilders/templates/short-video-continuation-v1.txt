@@ -1,0 +1,1 @@
+The reference image is the previous frame. Your output must stay **extremely** visually consistent with it: preserve the subject's face, expression, clothing, and identity exactly. Keep the same composition, same scene elements, and same layout. Add only very subtle motion (slight easing, micro-movement, or gentle float) so the loop feels alive. 

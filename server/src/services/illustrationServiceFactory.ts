@@ -10,12 +10,14 @@ import { contextSummarizationStubService } from './stubs/summarizationStubServic
 import { openAIPromptBuilder } from './promptBuilders/openaiPromptBuilder';
 import { sdxlPromptBuilder } from './promptBuilders/sdxlPromptBuilder';
 import { stubPromptBuilder } from './promptBuilders/stubPromptBuilder';
+import { ShortVideoService } from './shortVideoService';
 import logger from '../utils/logger';
 
-export type IllustrationProvider = 'sdxl' | 'openai' | 'stub';
+export type IllustrationProvider = 'sdxl' | 'openai' | 'openai-short-video' | 'stub';
 
 /**
- * Get the configured illustration provider from environment
+ * Get the configured illustration provider from environment.
+ * Use ILLUSTRATION_PROVIDER=openai-short-video to generate short videos instead of static illustrations.
  */
 export function getConfiguredProvider(): IllustrationProvider {
   const useStubIllustration = process.env.USE_STUB_ILLUSTRATION === 'true';
@@ -27,6 +29,9 @@ export function getConfiguredProvider(): IllustrationProvider {
 
   const provider = process.env.ILLUSTRATION_PROVIDER?.toLowerCase();
   
+  if (provider === 'openai-short-video') {
+    return 'openai-short-video';
+  }
   if (provider === 'openai') {
     return 'openai';
   }
@@ -120,6 +125,30 @@ function createOrchestratorService(): IIllustrationService {
   );
 }
 
+// Cache for short video service instance
+let shortVideoServiceInstance: ShortVideoService | null = null;
+
+/**
+ * Get the short video service (OpenAI image generator only; uses same memory summary as orchestrator).
+ */
+export function getShortVideoService(): ShortVideoService {
+  if (!shortVideoServiceInstance) {
+    const useStub = process.env.USE_STUB === 'true';
+    const useStubMemorySummary = useStub || process.env.USE_STUB_MEMORY_SUMMARY === 'true';
+    const memorySummaryService = useStubMemorySummary
+      ? memorySummaryStubService
+      : bedrockMemorySummaryService;
+    const imageGenerator = useStub ? stubImageGenerator : openAIImageGenerator;
+    shortVideoServiceInstance = new ShortVideoService(
+      imageGenerator,
+      memorySummaryService,
+      openAIPromptBuilder
+    );
+    logger.info('ShortVideoService: created', { useStub });
+  }
+  return shortVideoServiceInstance;
+}
+
 /**
  * Check if a specific provider is available/healthy
  */
@@ -155,6 +184,11 @@ export async function getProviderStatus(): Promise<{
         available: !!process.env.OPENAI_API_KEY, 
         healthy: openaiHealthy,
         enabled: configured === 'openai'
+      },
+      'openai-short-video': { 
+        available: !!process.env.OPENAI_API_KEY, 
+        healthy: openaiHealthy,
+        enabled: configured === 'openai-short-video'
       },
       sdxl: { 
         available: !!process.env.ILLUSTRATION_SERVICE_URL, 

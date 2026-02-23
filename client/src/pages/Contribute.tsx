@@ -220,10 +220,12 @@ export function Contribute() {
 
   const handleGenerateImage = async (regenerateForImageId?: string) => {
     if (!editor || !title) return;
-    
+    if (!user?._id) {
+      logger.warn('User ID is required for illustration generation');
+      return;
+    }
     setIsGeneratingImage(true);
     try {
-      // Extract tagged character IDs from current editor content
       const editorJson = editor.getJSON();
       const taggedChars = extractTaggedCharacters(editorJson);
       const taggedCharacterIds = taggedChars.map(tc => tc.characterId);
@@ -232,42 +234,38 @@ export function Contribute() {
         title,
         content: editor.getText(),
         date: new Date(date),
-        userId: user?._id, // Include user ID for enhanced prompts
+        userId: user._id,
         taggedCharacterIds: taggedCharacterIds.length > 0 ? taggedCharacterIds : undefined,
       });
 
-      // Convert S3 URI to pre-signed URL for display
-      const presignedResponse = await imageGenerationApi.generatePresignedViewUrl(response.data.url);
-      
+      const isShortVideo = 's3Uri' in response.data && response.data.s3Uri != null;
+      const s3Uri = isShortVideo ? response.data.s3Uri! : response.data.url;
+      const presignedUrl = isShortVideo ? response.data.url : (await imageGenerationApi.generatePresignedViewUrl(response.data.url)).data.presignedUrl;
+
       if (regenerateForImageId) {
-        // Regenerating a specific image - replace it
         const imageToReplace = images.find(img => img.id === regenerateForImageId);
         if (imageToReplace) {
           const newImage: MemoryImage = {
             ...imageToReplace,
-            url: response.data.url,
-            presignedUrl: presignedResponse.data.presignedUrl,
-            isConfirmed: false, // Mark as unconfirmed so user can review
+            url: s3Uri,
+            presignedUrl,
+            isConfirmed: false,
           };
-          
-          // Replace the image
           setImages(images.map(img => img.id === regenerateForImageId ? newImage : img));
           setSelectedImage(newImage);
           setSelectedImageId(null);
         }
       } else {
-        // Generating a new image
         const position = getRandomPosition();
         const newImage: MemoryImage = {
           id: Date.now().toString(),
-          url: response.data.url, // Store the S3 URI
-          presignedUrl: presignedResponse.data.presignedUrl, // Cache presigned URL for display
+          url: s3Uri,
+          presignedUrl,
           position,
           isConfirmed: false,
         };
         setSelectedImage(newImage);
         setSelectedImageId(null);
-        // Clear any existing unconfirmed images and add the new one
         const confirmedImages = images.filter(img => img.isConfirmed);
         setImages([...confirmedImages, newImage]);
       }
@@ -533,7 +531,7 @@ export function Contribute() {
               {isGeneratingImage ? (
                 <LoadingSpinner size="sm" className="text-white mr-2" />
               ) : null}
-              Generate New Illustration
+              Generate Illustration
             </button>
 
             {/* Regenerate Selected Image Button - Only visible when an image is selected */}
@@ -553,9 +551,9 @@ export function Contribute() {
             {selectedImage && (
               <div className="space-y-4">
                 <div className="relative w-full max-w-3xl mx-auto border-2 border-slate-200">
-                  <img
-                    src={selectedImage.presignedUrl || selectedImage.url}
-                    alt="Generated image"
+                  <MemoryImage
+                    src={selectedImage.url}
+                    alt="Generated illustration or video"
                     className="w-full h-auto"
                   />
                   <div className="absolute bottom-6 left-6 right-6 flex justify-center gap-3">
