@@ -6,8 +6,9 @@
   "scripts": {
     "start": "NODE_ENV=local node dist/index.js",
     "dev": "NODE_ENV=local ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc && npm run copy-templates",
+    "build": "tsc && npm run copy-templates && npm run copy-config",
     "copy-templates": "mkdir -p dist/server/src/services/promptBuilders/templates && cp -r src/services/promptBuilders/templates/*.txt dist/server/src/services/promptBuilders/templates/",
+    "copy-config": "mkdir -p dist/server/src/config && cp src/config/feature-flags.json dist/server/src/config/",
     "lint": "eslint . --ext .ts",
     "type-check": "tsc --noEmit",
     "test": "NODE_ENV=test jest",

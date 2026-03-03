@@ -31,7 +31,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center">
               <Link to="/" className="flex-shrink-0 flex items-center gap-0">
                 <img 
-                  src="/AutoBioLogo.png" 
+                  src={`${import.meta.env.BASE_URL}AutoBioLogo.png`}
                   alt="AutoBio Logo" 
                   className="h-8 w-auto"
                 />

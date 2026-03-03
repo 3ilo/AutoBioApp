@@ -35,6 +35,7 @@ provider:
     S3_GENERATED_PREFIX: ${env:S3_GENERATED_PREFIX, 'generated/'}
     S3_STUBS_PREFIX: ${env:S3_STUBS_PREFIX, 'stubs/'}
     S3_CHARACTER_PREFIX: ${env:S3_CHARACTER_PREFIX, 'characters/'}
+    S3_TRANSCRIPTION_PREFIX: ${env:S3_TRANSCRIPTION_PREFIX, 'transcriptions/'}
     
     # Bedrock Configuration (for AI summarization)
     BEDROCK_SUMMARY_MODEL_ID: ${env:BEDROCK_SUMMARY_MODEL_ID, 'us.amazon.nova-micro-v1:0'}
@@ -134,5 +135,6 @@ package:
     - '!*.md'
     - '!*.json'
     - 'dist/**'
+    - 'dist/server/src/config/feature-flags.json'
     - 'node_modules/**'
 

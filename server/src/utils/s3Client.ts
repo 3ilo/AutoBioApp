@@ -12,6 +12,7 @@ const S3_AVATAR_PREFIX = process.env.S3_AVATAR_PREFIX || 'avatars/';
 const S3_GENERATED_PREFIX = process.env.S3_GENERATED_PREFIX || 'generated/';
 const S3_STUBS_PREFIX = process.env.S3_STUBS_PREFIX || 'stubs/';
 const S3_CHARACTER_PREFIX = process.env.S3_CHARACTER_PREFIX || 'characters/';
+const S3_TRANSCRIPTION_PREFIX = process.env.S3_TRANSCRIPTION_PREFIX || 'transcriptions/';
 
 // Singleton S3 client
 class S3ClientSingleton {
@@ -158,6 +159,38 @@ class S3ClientSingleton {
   }
 
   /**
+   * Get an object from S3 and return as Buffer
+   */
+  public async getObjectAsBuffer(bucket: string, key: string): Promise<Buffer> {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      });
+
+      const response = await this.s3Client.send(command);
+
+      if (!response.Body) {
+        throw new Error(`No body returned from S3 for key: ${key}`);
+      }
+
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
+      }
+      return Buffer.concat(chunks);
+    } catch (error: unknown) {
+      const err = error as { name?: string; message?: string };
+      if (err.name === 'NoSuchKey') {
+        logger.debug('Object not found in S3', { bucket, key });
+        throw new Error(`S3 object not found: ${key}`);
+      }
+      logger.error('Failed to fetch object from S3', { bucket, key, error: err.message });
+      throw error;
+    }
+  }
+
+  /**
    * Get an object from S3 and return as base64 string
    */
   public async getObjectAsBase64(bucket: string, key: string): Promise<string> {
@@ -268,6 +301,38 @@ class S3ClientSingleton {
    */
   public getAvatarKey(userId: string): string {
     return `${S3_AVATAR_PREFIX}${userId}.png`;
+  }
+
+  /**
+   * Generate a pre-signed URL for uploading transcription audio
+   * @param userId - User ID
+   * @param contentType - Content type (e.g. audio/webm, audio/mp4)
+   * @returns { presignedUrl, key }
+   */
+  public async generatePresignedTranscriptionUploadUrl(userId: string, contentType: string): Promise<{ presignedUrl: string; key: string }> {
+    const ext = contentType.includes('mp4') || contentType.includes('m4a') ? 'm4a' : 'webm';
+    const key = `${S3_TRANSCRIPTION_PREFIX}${userId}/${Date.now()}.${ext}`;
+
+    const command = new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    try {
+      const presignedUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: 3600 // 1 hour
+      });
+      logger.debug('Generated presigned transcription upload URL', { userId, key });
+      return { presignedUrl, key };
+    } catch (error) {
+      logger.error('Failed to generate presigned transcription upload URL', {
+        userId,
+        key,
+        error: (error as Error).message
+      });
+      throw error;
+    }
   }
 
   /**

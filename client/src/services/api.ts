@@ -269,14 +269,25 @@ export const imageGenerationApi = {
   },
 };
 
-// Transcription endpoints
+// Transcription endpoints (S3 presigned flow for Lambda compatibility)
 export const transcriptionApi = {
   transcribe: async (audioBlob: Blob) => {
-    const formData = new FormData();
-    const ext = audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
-    formData.append('audio', audioBlob, `recording.${ext}`);
-    const response = await api.post<ApiResponse<{ cleaned: string; title?: string }>>('/transcribe', formData);
-    return response.data;
+    const contentType = audioBlob.type || 'audio/webm';
+    const { data: presignedResponse } = await api.post<ApiResponse<{ uploadUrl: string; key: string }>>('/transcribe/presigned-url', {
+      contentType,
+    });
+    const { uploadUrl, key } = presignedResponse.data;
+
+    await fetch(uploadUrl, {
+      method: 'PUT',
+      body: audioBlob,
+      headers: { 'Content-Type': contentType },
+    });
+
+    const processResponse = await api.post<ApiResponse<{ cleaned: string; title?: string }>>('/transcribe/process', {
+      key,
+    });
+    return processResponse.data;
   },
 };
 
