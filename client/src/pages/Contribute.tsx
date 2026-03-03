@@ -481,7 +481,12 @@ export function Contribute() {
           </label>
           <div className="prose max-w-none">
             <div className="border-2 border-slate-200 bg-white">
-              <Toolbar editor={editor} />
+              <Toolbar
+                editor={editor}
+                onTitleExtracted={(extractedTitle) => {
+                  setTitle((prev) => (prev.trim() ? prev : extractedTitle));
+                }}
+              />
               <div ref={editorRef} className="relative">
                 <EditorContent 
                   editor={editor} 

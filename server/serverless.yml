@@ -46,6 +46,7 @@ provider:
     USE_STUB_SUMMARIZATION: ${env:USE_STUB_SUMMARIZATION, 'false'}
     USE_STUB_MEMORY_SUMMARY: ${env:USE_STUB_MEMORY_SUMMARY, 'false'}
     USE_STUB_PROMPT_BUILDER: ${env:USE_STUB_PROMPT_BUILDER, 'false'}
+    USE_STUB_TRANSCRIPTION: ${env:USE_STUB_TRANSCRIPTION, 'false'}
     
     # Illustration Provider Configuration
     ILLUSTRATION_PROVIDER: ${env:ILLUSTRATION_PROVIDER, 'openai'}

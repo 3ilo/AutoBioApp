@@ -8,6 +8,7 @@ import {
   MinusIcon,
   UnderlineIcon,
 } from '@heroicons/react/24/outline';
+import { DictationButton } from './DictationButton';
 
 // Custom quote icon - quotation marks
 const QuoteIcon = () => (
@@ -18,9 +19,10 @@ const QuoteIcon = () => (
 
 interface ToolbarProps {
   editor: Editor | null;
+  onTitleExtracted?: (title: string) => void;
 }
 
-export function Toolbar({ editor }: ToolbarProps) {
+export function Toolbar({ editor, onTitleExtracted }: ToolbarProps) {
   const [wordCount, setWordCount] = useState(0);
   const [characterCount, setCharacterCount] = useState(0);
 
@@ -83,6 +85,7 @@ export function Toolbar({ editor }: ToolbarProps) {
         >
           <UnderlineIcon className="w-5 h-5 text-slate-700" />
         </button>
+        <DictationButton editor={editor} onTitleExtracted={onTitleExtracted} />
       </div>
 
       {/* Structure Group */}

@@ -25,6 +25,11 @@ api.interceptors.request.use((config) => {
     config.headers['x-api-key'] = apiKey;
   }
   
+  // Let browser set Content-Type for FormData (multipart/form-data with boundary)
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
+  
   logger.debug('Making API request', { url: config.url, method: config.method });
   return config;
 });
@@ -260,6 +265,17 @@ export const imageGenerationApi = {
     const response = await api.post<ApiResponse<{ presignedUrl: string }>>('/images/presigned-view-url', {
       s3Uri,
     });
+    return response.data;
+  },
+};
+
+// Transcription endpoints
+export const transcriptionApi = {
+  transcribe: async (audioBlob: Blob) => {
+    const formData = new FormData();
+    const ext = audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+    formData.append('audio', audioBlob, `recording.${ext}`);
+    const response = await api.post<ApiResponse<{ cleaned: string; title?: string }>>('/transcribe', formData);
     return response.data;
   },
 };
