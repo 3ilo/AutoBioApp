@@ -30,7 +30,7 @@ export function processMentions(
   // Process each mention span
   return html.replace(
     /<span([^>]*class="[^"]*mention[^"]*"[^>]*data-id="([^"]+)"[^>]*data-label="([^"]+)"[^>]*)>([^<]+)<\/span>/g,
-    (match, attrs, characterId, fullName, currentText) => {
+    (_match, attrs, characterId, fullName) => {
       const character = characterMap.get(characterId);
       const firstName = getFirstName(fullName);
       const relationship = character?.relationship || '';

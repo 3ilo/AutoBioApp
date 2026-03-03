@@ -110,7 +110,7 @@ echo ""
 # Deploy with serverless
 # NODE_ENV is already set based on stage
 echo "☁️  Deploying to AWS (NODE_ENV=$NODE_ENV)..."
-serverless deploy --stage $STAGE --region $REGION
+npx serverless deploy --stage $STAGE --region $REGION
 
 if [ $? -eq 0 ]; then
     echo ""

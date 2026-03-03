@@ -312,6 +312,12 @@ export function Contribute() {
     setSelectedImageId(null);
   };
 
+  const handleDeleteImage = (imageId: string) => {
+    setImages(images.filter(img => img.id !== imageId));
+    setSelectedImage(null);
+    setSelectedImageId(null);
+  };
+
   // Extract tagged characters from editor content
   const extractTaggedCharacters = (content: JSONContent): ITaggedCharacter[] => {
     const mentions: ITaggedCharacter[] = [];
@@ -578,6 +584,31 @@ export function Contribute() {
                 </div>
               </div>
             )}
+
+            {/* Selected confirmed image — show with Delete option */}
+            {selectedImageId && !selectedImage && (() => {
+              const image = images.find(img => img.id === selectedImageId);
+              if (!image) return null;
+              return (
+                <div className="space-y-4">
+                  <div className="relative w-full max-w-3xl mx-auto border-2 border-slate-200">
+                    <MemoryImage
+                      src={image.presignedUrl ?? image.url}
+                      alt="Selected illustration"
+                      className="w-full h-auto"
+                    />
+                    <div className="absolute bottom-6 left-6 right-6 flex justify-center gap-3">
+                      <button
+                        onClick={() => handleDeleteImage(selectedImageId)}
+                        className="px-6 py-2.5 text-sm font-medium tracking-wide uppercase text-white bg-red-600 hover:bg-red-700 active:bg-red-800 focus:outline-none focus:ring-1 focus:ring-red-600 focus:ring-offset-2 transition-all duration-150"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 

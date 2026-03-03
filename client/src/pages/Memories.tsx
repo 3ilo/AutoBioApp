@@ -86,9 +86,10 @@ export function Memories() {
             lastUrlMemoryId.current = memoryId;
           }
         } else {
-          // No memoryId in URL
+          // No memoryId in URL — start carousel at latest memory
           if (!hasInitializedFromUrl.current) {
             hasInitializedFromUrl.current = true;
+            setCurrentIndex(sortedMemories.length - 1);
           }
           lastUrlMemoryId.current = null;
         }

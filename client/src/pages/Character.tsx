@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { characterApi, imageGenerationApi } from '../services/api';
+import { characterApi } from '../services/api';
 import { ICharacter } from '../types/character';
 import { CharacterForm } from '../components/characters/CharacterForm';
-import { CharacterAvatarGenerator } from '../components/characters/CharacterAvatarGenerator';
 import { usePresignedUrl } from '../hooks/usePresignedUrl';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { useAuthStore } from '../stores/authStore';
@@ -22,7 +21,6 @@ export function Character() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(isEditMode);
-  const [characterAvatarUrl, setCharacterAvatarUrl] = useState<string | null>(null);
 
   // Convert avatar S3 URI to pre-signed URL for display
   const avatarUrl = usePresignedUrl(character?.avatarS3Uri);
@@ -48,17 +46,6 @@ export function Character() {
       const response = await characterApi.getById(id);
       const loadedCharacter = response.data.character;
       setCharacter(loadedCharacter);
-      
-      // Load presigned URL for avatar
-      if (loadedCharacter.avatarS3Uri) {
-        try {
-          const presignedResponse = await imageGenerationApi.generatePresignedViewUrl(loadedCharacter.avatarS3Uri);
-          setCharacterAvatarUrl(presignedResponse.data.presignedUrl);
-        } catch (e) {
-          logger.warn('Failed to load avatar for character', { characterId: id });
-        }
-      }
-      
       logger.debug('Character loaded', { characterId: id });
     } catch (error) {
       logger.error('Failed to load character', {
@@ -82,16 +69,6 @@ export function Character() {
   const handleCharacterUpdated = async (updatedCharacter: ICharacter) => {
     // Update character state when form is saved (even if staying in edit mode)
     setCharacter(updatedCharacter);
-    
-    // Update avatar URL if available
-    if (updatedCharacter.avatarS3Uri) {
-      try {
-        const presignedResponse = await imageGenerationApi.generatePresignedViewUrl(updatedCharacter.avatarS3Uri);
-        setCharacterAvatarUrl(presignedResponse.data.presignedUrl);
-      } catch (e) {
-        logger.warn('Failed to load avatar for character', { characterId: id });
-      }
-    }
   };
 
   const handleSave = async (updatedCharacter: ICharacter) => {

@@ -6,7 +6,7 @@ This guide covers deploying the AutoBio backend to AWS Lambda with API Gateway.
 
 1. AWS CLI configured with appropriate credentials
 2. Node.js 20.x installed
-3. Serverless Framework installed globally: `npm install -g serverless`
+3. Serverless Framework (installed as devDependency; deploy script uses `npx serverless`)
 4. MongoDB Atlas or MongoDB instance accessible from AWS Lambda
 
 ## Environment Variables
